@@ -1,0 +1,46 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      rgba(0, 0, 0, 0.5),
+      rgba(0, 0, 0, 0.5)
+    ),
+    url('/images/2.jpg') no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Add overlay to ensure content is readable */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: -1;
+}
+
+/* Custom utility classes */
+.btn-primary {
+  @apply bg-papaya-green text-white px-6 py-2 rounded-md hover:bg-opacity-90 transition-all duration-200;
+}
+
+.btn-outline {
+  @apply border-2 border-white text-white px-6 py-2 rounded-md hover:bg-white hover:bg-opacity-20 transition-all duration-200;
+}
+
+.nav-link {
+  @apply text-white hover:text-papaya-yellow transition-colors duration-200;
+}
