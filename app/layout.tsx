@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { Montserrat } from 'next/font/google'
+
+// Configure the font with the weights you need (Light, Regular, Bold)
+const montserrat = Montserrat({ 
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-montserrat', // Optional: for Tailwind config
+})
 
 const inter = Inter({ subsets: ['latin'] });
 

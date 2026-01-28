@@ -3,6 +3,7 @@
 import React from 'react';
 import ImageGallery from 'react-image-gallery';
 import 'react-image-gallery/styles/css/image-gallery.css';
+import ScrollReveal from './ScrollReveal'; // Import the reusable animator
 
 const Gallery = () => {
   const images = [
@@ -56,34 +57,51 @@ const Gallery = () => {
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
+        
+        {/* HEADER ANIMATION */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-4">Gallery</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            A glimpse into life at Papaya Academy
-          </p>
+          <ScrollReveal animation="fade-down">
+            <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-4">Gallery</h2>
+          </ScrollReveal>
+          
+          <ScrollReveal animation="fade-up" delay={200}>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              A glimpse into life at Papaya Academy
+            </p>
+          </ScrollReveal>
         </div>
 
+        {/* MAIN SLIDER ANIMATION (Zoom In) */}
         <div className="max-w-6xl mx-auto">
-          <ImageGallery
-            items={images}
-            renderItem={renderItem}
-            showPlayButton={false}
-            showFullscreenButton={true}
-            showThumbnails={true}
-            thumbnailPosition="bottom"
-            additionalClass="gallery-container"
-          />
+          <ScrollReveal animation="zoom-in" duration={800}>
+            <ImageGallery
+              items={images}
+              renderItem={renderItem}
+              showPlayButton={false}
+              showFullscreenButton={true}
+              showThumbnails={true}
+              thumbnailPosition="bottom"
+              additionalClass="gallery-container"
+            />
+          </ScrollReveal>
         </div>
 
+        {/* THUMBNAIL GRID - Staggered Waterfall Effect */}
         <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
           {images.map((image, index) => (
-            <div key={index} className="overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              <img 
-                src={image.original} 
-                alt={image.description}
-                className="w-full h-40 object-cover hover:scale-105 transition-transform duration-300"
-              />
-            </div>
+            <ScrollReveal 
+              key={index} 
+              animation="fade-up" 
+              delay={index * 100} // 100ms delay between each image
+            >
+              <div className="overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow h-full">
+                <img 
+                  src={image.original} 
+                  alt={image.description}
+                  className="w-full h-40 object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+            </ScrollReveal>
           ))}
         </div>
       </div>

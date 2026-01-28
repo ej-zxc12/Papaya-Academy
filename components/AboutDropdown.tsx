@@ -25,12 +25,13 @@ const AboutDropdown = () => {
   return (
     <div 
       ref={dropdownRef}
-      className="relative"
+      className="relative flex items-center h-full" // Added flex items-center to ensure vertical alignment
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
       <button 
-        className="flex items-center nav-link font-medium"
+        // ADDED: text-sm (to match nav), hover color, and transition
+       className="flex items-center nav-link text-base font-medium hover:text-[#F2C94C] transition-colors focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -44,34 +45,34 @@ const AboutDropdown = () => {
       </button>
       
       <div 
-        className={`absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
-          isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        className={`absolute left-0 top-full mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
+          isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
         }`}
       >
         <Link 
           href="/about" 
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
           onClick={() => setIsOpen(false)}
         >
           Our Story
         </Link>
         <Link 
           href="/about#mission" 
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
           onClick={() => setIsOpen(false)}
         >
           Our Mission & Vision
         </Link>
         <Link 
           href="/about#team" 
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
           onClick={() => setIsOpen(false)}
         >
           Our Team
         </Link>
         <Link 
           href="/about#partners" 
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
           onClick={() => setIsOpen(false)}
         >
           Partners & Sponsors
