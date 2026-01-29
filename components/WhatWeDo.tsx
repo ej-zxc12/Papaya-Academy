@@ -21,9 +21,7 @@ const WhatWeDo = () => {
             {/* Paragraph: Fades up after the title */}
             <ScrollReveal animation="fade-up" delay={200}>
               <p className="text-gray-700 mb-8 text-lg leading-relaxed">
-                Papaya Academy is dedicated to providing quality education to underprivileged children in the Philippines. 
-                Our mission is to break the cycle of poverty through education, offering comprehensive learning programs 
-                that empower children to build a better future for themselves and their communities.
+                Papaya Academy is a private charity school in Rodriguez (Montalban), Rizal. It Offers not just quality education but also free lunch, transportation, books, uniforms, school supplies, free tuition and educational tours for the less fortunate children. We provide education to impoverished elementary students around Payatas dump and Rodriguez, Rizal
               </p>
             </ScrollReveal>
 

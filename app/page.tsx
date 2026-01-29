@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
+import Header from '../components/Header';
 import WhatWeDo from '../components/WhatWeDo';
 import Projects from '../components/Projects';
-import ImpactMetrics from '../components/ImpactMetrics';
 import DonationSection from '../components/DonationSection';
 import Gallery from '../components/Gallery';
 import GetInvolved from '../components/GetInvolved';
@@ -77,7 +77,6 @@ export const ScrollReveal = ({
 // --- 3. MAIN PAGE COMPONENT ---
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
   const images = ['/images/1.jpg', '/images/3.jpg', '/images/jeep.jpg'];
 
   useEffect(() => {
@@ -87,54 +86,9 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [images.length]);
 
-  const scrollToDonate = () => {
-    const donateSection = document.getElementById('donate-section');
-    if (donateSection) {
-      donateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      
-      {/* HEADER */}
-      <header className={`bg-papaya-green text-white ${montserrat.className} relative z-50`}>
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white">
-              <Image src="/images/papaya.jpg" alt="Logo" width={40} height={40} className="object-cover w-full h-full"/>
-            </div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-wide">Papaya Academy, Inc.</h1>
-          </div>
-          
-          <nav className="hidden md:flex space-x-8 items-center">
-            <Link href="/" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">Home</Link>
-            <AboutDropdown />
-            <Link href="/programs" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">Programs</Link>
-            <Link href="/news" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">News</Link>
-            <Link href="/contact" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">Contact</Link>
-          </nav>
-          
-          {/* DONATE BUTTON */}
-          <button
-            onClick={scrollToDonate}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-shadow duration-300"
-            style={{
-              backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
-              backgroundSize: '100% 200%',
-              backgroundPosition: isHovered ? 'bottom' : 'top',
-              color: isHovered ? '#1B3E2A' : '#F2C94C',
-              boxShadow: isHovered ? '0 6px 20px rgba(242,201,76,0.8)' : '0 4px 14px 0 rgba(242,201,76,0.5)',
-              transition: 'background-position 0.4s ease-out, color 0.3s ease, box-shadow 0.3s ease'
-            }}
-          >
-            DONATE
-          </button>
-        </div>
-      </header>
+      <Header />
 
       {/* HERO SECTION - ANIMATIONS KEPT HERE (Per Element) */}
       <section className="flex-grow relative bg-gray-900 text-white min-h-[600px] flex items-center">
@@ -188,15 +142,195 @@ export default function Home() {
         </div>
       </section>
 
-      {/* SECTIONS - ANIMATION REMOVED (Static/Plain) */}
-      
-      <div id="impact-metrics" className="w-full">
-        <ImpactMetrics />
-      </div>
-
+      {/* What We Do Section with Success Stories */}
       <div id="what-we-do" className="w-full">
         <WhatWeDo />
-      </div>
+        {/*  */}
+      {/* Success Stories Section - Temporarily Commented Out */}
+      {/* 
+        <section className="py-16 bg-white">
+          <div className="container mx-auto px-4">
+            <ScrollReveal animation="fade-down">
+              <h2 className="text-3xl font-bold text-papaya-green mb-12 text-center">Success Stories</h2>
+            </ScrollReveal>
+            
+            <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+              <ScrollReveal animation="fade-up" delay={200}>
+                <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-start space-x-6">
+                    <div className="flex-shrink-0 w-20 h-20 rounded-full overflow-hidden border-4 border-papaya-green">
+                      <img 
+                        src="/images/student1.jpg" 
+                        alt="Student success story"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-gray-600 italic mb-4">
+                        "Thanks to Papaya Academy, I'm the first in my family to attend college."
+                      </p>
+                      <p className="text-sm font-semibold text-papaya-green">- Maria, Class of 2022</p>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal animation="fade-up" delay={400}>
+                <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-start space-x-6">
+                    <div className="flex-shrink-0 w-20 h-20 rounded-full overflow-hidden border-4 border-papaya-green">
+                      <img 
+                        src="/images/student2.jpg" 
+                        alt="Student success story"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-gray-600 italic mb-4">
+                        "The skills I learned helped me start my own small business."
+                      </p>
+                      <p className="text-sm font-semibold text-papaya-green">- Juan, Entrepreneur</p>
+                    </div>
+                  </div>
+                </div>
+              </ScrollReveal>
+            </div>
+          </div>
+        </section>
+      */}
+      </div> 
+
+      {/* Papaya Academy Provides Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <ScrollReveal animation="fade-down" delay={100}>
+            <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-4 text-center">Papaya Academy Provides</h2>
+            <div className="w-20 h-1 bg-papaya-green mx-auto mb-12"></div>
+          </ScrollReveal>
+          
+          <div className="max-w-5xl mx-auto space-y-8">
+            {/* Program 1 */}
+            <ScrollReveal animation="fade-up" delay={200} className="transform transition-all duration-500 hover:scale-[1.02]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+                <div className="md:flex">
+                  <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
+                    <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <img 
+                        src="/images/education.jpg" 
+                        alt="Elementary Education"
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-8 md:w-3/5">
+                    <h3 className="text-2xl font-bold text-papaya-green mb-4">Elementary Education</h3>
+                    <p className="text-gray-600 mb-4 leading-relaxed">
+                      Schooling program to impoverished children in elementary level (Kinder to Grade 6), providing free education to less privileged children from Payatas and Rodriguez, Rizal.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Program 2 */}
+            <ScrollReveal animation="fade-up" delay={250} className="transform transition-all duration-500 hover:scale-[1.02]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+                <div className="md:flex md:flex-row-reverse">
+                  <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
+                    <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <img 
+                        src="/images/transportation.jpg" 
+                        alt="Transportation Service"
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-8 md:w-3/5">
+                    <h3 className="text-2xl font-bold text-papaya-green mb-4">Transportation Service</h3>
+                    <p className="text-gray-600 mb-4 leading-relaxed">
+                      Free transport to school back and forth from Payatas to Rodriguez, ensuring safe and reliable transportation for all students.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Program 3 */}
+            <ScrollReveal animation="fade-up" delay={300} className="transform transition-all duration-500 hover:scale-[1.02]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+                <div className="md:flex">
+                  <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
+                    <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <img 
+                        src="/images/scholarship.jpg" 
+                        alt="Scholarship Program"
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-8 md:w-3/5">
+                    <h3 className="text-2xl font-bold text-papaya-green mb-4">Apple Scholar Program</h3>
+                    <p className="text-gray-600 mb-4 leading-relaxed">
+                      Sponsorship up to college after graduating the elementary level, providing continuous support for our students' educational journey.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Program 4 */}
+            <ScrollReveal animation="fade-up" delay={350} className="transform transition-all duration-500 hover:scale-[1.02]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+                <div className="md:flex md:flex-row-reverse">
+                  <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
+                    <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <img 
+                        src="/images/livelihood.jpg" 
+                        alt="Livelihood Program"
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-8 md:w-3/5">
+                    <h3 className="text-2xl font-bold text-papaya-green mb-4">Pineapple Livelihood Project</h3>
+                    <p className="text-gray-600 mb-4 leading-relaxed">
+                      Supports livelihood program for the parents of the students, helping to uplift entire families and communities.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+
+            {/* Program 5 */}
+            <ScrollReveal animation="fade-up" delay={400} className="transform transition-all duration-500 hover:scale-[1.02]">
+              <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
+                <div className="md:flex">
+                  <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
+                    <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <img 
+                        src="/images/community.jpg" 
+                        alt="Inclusive Community"
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-8 md:w-3/5">
+                    <h3 className="text-2xl font-bold text-papaya-green mb-4">Inclusive Community</h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      We acknowledge and appreciate the diversity of religion and humanitarian beliefs, fostering an inclusive and respectful environment for all.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
 
       <div id="projects" className="w-full">
         <Projects />

@@ -1,3 +1,4 @@
+// components/AboutDropdown.tsx
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -22,16 +23,19 @@ const AboutDropdown = () => {
     };
   }, []);
 
+  const handleLinkClick = () => {
+    setIsOpen(false);
+  };
+
   return (
     <div 
       ref={dropdownRef}
-      className="relative flex items-center h-full" // Added flex items-center to ensure vertical alignment
+      className="relative flex items-center h-full"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
       <button 
-        // ADDED: text-sm (to match nav), hover color, and transition
-       className="flex items-center nav-link text-base font-medium hover:text-[#F2C94C] transition-colors focus:outline-none"
+        className="flex items-center nav-link text-base font-medium hover:text-[#F2C94C] transition-colors focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -50,30 +54,34 @@ const AboutDropdown = () => {
         }`}
       >
         <Link 
-          href="/about" 
+          href="/about#our-story" 
           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
-          onClick={() => setIsOpen(false)}
+          onClick={handleLinkClick}
+          scroll={false}
         >
           Our Story
         </Link>
         <Link 
           href="/about#mission" 
           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
-          onClick={() => setIsOpen(false)}
+          onClick={handleLinkClick}
+          scroll={false}
         >
           Our Mission & Vision
         </Link>
         <Link 
           href="/about#team" 
           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
-          onClick={() => setIsOpen(false)}
+          onClick={handleLinkClick}
+          scroll={false}
         >
-          Our Team
+          Organizational Chart
         </Link>
         <Link 
           href="/about#partners" 
           className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
-          onClick={() => setIsOpen(false)}
+          onClick={handleLinkClick}
+          scroll={false}
         >
           Partners & Sponsors
         </Link>
