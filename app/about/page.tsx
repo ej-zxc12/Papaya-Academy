@@ -1,13 +1,21 @@
 // app/about/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import ScrollReveal from '@/components/ScrollReveal';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 export default function AboutPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AboutPageContent />
+    </Suspense>
+  );
+}
+
+function AboutPageContent() {
   const [isExpanded, setIsExpanded] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,7 +45,6 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-<<<<<<< HEAD
       <Header />
       
       {/* Hero Section - Matching Home Page */}
@@ -180,14 +187,6 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
-=======
-      {/* Hero Section */}
-      <section className="bg-papaya-green text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-
-          6">About Papaya Academy</h1>
-          <p className="text-xl max-w-3xl mx-auto">Empowering underprivileged children through quality education in the Philippines</p>
->>>>>>> dev-butterfinds
         </div>
       </section>
 
@@ -445,7 +444,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-<<<<<<< HEAD
       {/* Board of Trustees Section */}
 <section id="board-of-trustees" className="py-16 bg-white">
   <div className="container mx-auto px-4">
@@ -540,35 +538,12 @@ export default function AboutPage() {
                 </div>
               ))}
             </div>
-=======
-      {/* CTA Section */}
-      <section className="py-16 bg-papaya-green text-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Join Our Mission</h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Be part of our journey to transform lives through education
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link 
-              href="/donate"
-              className="bg-papaya-yellow text-papaya-green px-8 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
-            >
-              Donate Now
-            </Link>
-            <Link 
-              href="/volunteer" 
-              className="border-2 border-white text-white px-8 py-3 rounded-md font-semibold hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-            >
-              Volunteer
-            </Link>
->>>>>>> dev-butterfinds
           </div>
         </ScrollReveal>
       ))}
     </div>
   </div>
 </section>
-
 
       {/* Use the same Footer component as the home page */}
       <div id="footer" className="w-full">
