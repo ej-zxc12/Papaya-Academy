@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -37,7 +38,6 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-<<<<<<< HEAD
       <Header />
       
       {/* Hero Section - Matching Home Page */}
@@ -180,14 +180,6 @@ export default function AboutPage() {
               </div>
             </div>
           </div>
-=======
-      {/* Hero Section */}
-      <section className="bg-papaya-green text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-
-          6">About Papaya Academy</h1>
-          <p className="text-xl max-w-3xl mx-auto">Empowering underprivileged children through quality education in the Philippines</p>
->>>>>>> dev-butterfinds
         </div>
       </section>
 
@@ -445,130 +437,132 @@ export default function AboutPage() {
         </div>
       </section>
 
-<<<<<<< HEAD
       {/* Board of Trustees Section */}
-<section id="board-of-trustees" className="py-16 bg-white">
-  <div className="container mx-auto px-4">
-    <ScrollReveal animation="fade-down">
-      <h2 className="text-3xl font-bold text-papaya-green mb-14 text-center">
-        Board of Trustees
-      </h2>
-    </ScrollReveal>
+      <section id="board-of-trustees" className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <ScrollReveal animation="fade-down">
+            <h2 className="text-3xl font-bold text-papaya-green mb-14 text-center">
+              Board of Trustees
+            </h2>
+          </ScrollReveal>
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-      {[
-        {
-          title: 'Papaya Academy Inc.',
-          members: [
-            { name: 'Ailyn C. Gardose', role: 'President', image: '/images/board/ailyn.jpg' },
-            { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
-            { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/board/hadassah.jpg' },
-            { name: 'Maria Julie Collado', role: 'Member', image: '' },
-            { name: 'Tristan Ian C. Santos', role: 'Member', image: '' },
-          ],
-        },
-        {
-          title: 'Kalinga at Pag-ibig Foundation Board (PH)',
-          members: [
-            { name: 'John Van Dijk', role: 'President', image: '/images/board/john.jpg' },
-            { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
-            { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/board/ailyn.jpg' },
-            { name: 'Hadassah A. Castro', role: 'Member', image: '/images/board/hadassah.jpg' },
-            { name: 'Alberto Villamor', role: 'Member', image: '/images/board/alberto.jpg' },
-            { name: 'Niall Highland', role: 'Member', image: '' },
-          ],
-        },
-        {
-          title: 'Stichting Kalingaboard (NL)',
-          members: [
-            { name: 'Janneke Heinen', role: 'Chairwoman', image: '/images/board/janneke.jpg' },
-            { name: 'Arno Van Workum', role: 'Treasurer', image: '/images/board/arno.jpg' },
-            { name: 'Miranda Van Loon', role: 'Secretary', image: '/images/board/miranda.jpg' },
-            { name: 'Peter Van Schijndel', role: 'General Board Member', image: '/images/board/peter.jpg' },
-            { name: 'Heleen Scheer', role: 'General Board Member', image: '/images/board/heleen.jpg' },
-            { name: 'Daniel Van Scherpenzeel', role: 'General Board Member', image: '/images/board/daniel.jpg' },
-          ],
-        },
-      ].map((board, colIndex) => (
-        <ScrollReveal key={colIndex} animation="fade-up" delay={colIndex * 150}>
-          <div className="rounded-lg shadow-md border border-papaya-green/20 overflow-hidden">
-            {/* Column Header */}
-            <div className="bg-papaya-green text-white text-center py-3 px-4 font-semibold text-sm tracking-wide">
-              {board.title}
-            </div>
-
-            {/* Members */}
-            <div className="p-6 space-y-5 bg-papaya-light">
-              {board.members.map((member, index) => (
-                <div key={index} className="flex items-center gap-4">
-                  {/* Avatar */}
-                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-papaya-green bg-white flex-shrink-0">
-                    {member.image ? (
-                      <img
-                        src={member.image}
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const t = e.target as HTMLImageElement;
-                          t.src = `https://ui-avatars.com/api/?name=${member.name.replace(
-                            /\s+/g,
-                            '+'
-                          )}&background=1A5F3F&color=fff&size=128`;
-                        }}
-                      />
-                    ) : (
-                      <img
-                        src={`https://ui-avatars.com/api/?name=${member.name.replace(
-                          /\s+/g,
-                          '+'
-                        )}&background=1A5F3F&color=fff&size=128`}
-                        alt={member.name}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {[
+              {
+                title: 'Papaya Academy Inc.',
+                members: [
+                  { name: 'Ailyn C. Gardose', role: 'President', image: '/images/board/ailyn.jpg' },
+                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
+                  { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/board/hadassah.jpg' },
+                  { name: 'Maria Julie Collado', role: 'Member', image: '' },
+                  { name: 'Tristan Ian C. Santos', role: 'Member', image: '' },
+                ],
+              },
+              {
+                title: 'Kalinga at Pag-ibig Foundation Board (PH)',
+                members: [
+                  { name: 'John Van Dijk', role: 'President', image: '/images/board/john.jpg' },
+                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
+                  { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/board/ailyn.jpg' },
+                  { name: 'Hadassah A. Castro', role: 'Member', image: '/images/board/hadassah.jpg' },
+                  { name: 'Alberto Villamor', role: 'Member', image: '/images/board/alberto.jpg' },
+                  { name: 'Niall Highland', role: 'Member', image: '' },
+                ],
+              },
+              {
+                title: 'Stichting Kalingaboard (NL)',
+                members: [
+                  { name: 'Janneke Heinen', role: 'Chairwoman', image: '/images/board/janneke.jpg' },
+                  { name: 'Arno Van Workum', role: 'Treasurer', image: '/images/board/arno.jpg' },
+                  { name: 'Miranda Van Loon', role: 'Secretary', image: '/images/board/miranda.jpg' },
+                  { name: 'Peter Van Schijndel', role: 'General Board Member', image: '/images/board/peter.jpg' },
+                  { name: 'Heleen Scheer', role: 'General Board Member', image: '/images/board/heleen.jpg' },
+                  { name: 'Daniel Van Scherpenzeel', role: 'General Board Member', image: '/images/board/daniel.jpg' },
+                ],
+              },
+            ].map((board, colIndex) => (
+              <ScrollReveal key={colIndex} animation="fade-up" delay={colIndex * 150}>
+                <div className="rounded-lg shadow-md border border-papaya-green/20 overflow-hidden">
+                  {/* Column Header */}
+                  <div className="bg-papaya-green text-white text-center py-3 px-4 font-semibold text-sm tracking-wide">
+                    {board.title}
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1">
-                    <div className="inline-block bg-papaya-yellow text-papaya-green text-[11px] font-semibold px-2 py-0.5 rounded mb-1">
-                      {member.role}
-                    </div>
-                    <p className="text-sm font-medium text-gray-800">
-                      {member.name}
-                    </p>
+                  {/* Members */}
+                  <div className="p-6 space-y-5 bg-papaya-light">
+                    {board.members.map((member, index) => (
+                      <div key={index} className="flex items-center gap-4">
+                        {/* Avatar */}
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-papaya-green bg-white flex-shrink-0">
+                          {member.image ? (
+                            <img
+                              src={member.image}
+                              alt={member.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.src = `https://ui-avatars.com/api/?name=${member.name.replace(
+                                  /\s+/g,
+                                  '+'
+                                )}&background=1A5F3F&color=fff&size=128`;
+                              }}
+                            />
+                          ) : (
+                            <img
+                              src={`https://ui-avatars.com/api/?name=${member.name.replace(
+                                /\s+/g,
+                                '+'
+                              )}&background=1A5F3F&color=fff&size=128`}
+                              alt={member.name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1">
+                          <div className="inline-block bg-papaya-yellow text-papaya-green text-[11px] font-semibold px-2 py-0.5 rounded mb-1">
+                            {member.role}
+                          </div>
+                          <p className="text-sm font-medium text-gray-800">
+                            {member.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-=======
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-16 bg-papaya-green text-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-6">Join Our Mission</h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Be part of our journey to transform lives through education
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link 
-              href="/donate"
-              className="bg-papaya-yellow text-papaya-green px-8 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
-            >
-              Donate Now
-            </Link>
-            <Link 
-              href="/volunteer" 
-              className="border-2 border-white text-white px-8 py-3 rounded-md font-semibold hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-            >
-              Volunteer
-            </Link>
->>>>>>> dev-butterfinds
-          </div>
-        </ScrollReveal>
-      ))}
-    </div>
-  </div>
-</section>
-
+          <ScrollReveal animation="fade-up">
+            <h2 className="text-3xl font-bold mb-6">Join Our Mission</h2>
+            <p className="text-xl mb-8 max-w-2xl mx-auto">
+              Be part of our journey to transform lives through education
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Link 
+                href="/donate"
+                className="bg-papaya-yellow text-papaya-green px-8 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
+              >
+                Donate Now
+              </Link>
+              <Link 
+                href="/volunteer" 
+                className="border-2 border-white text-white px-8 py-3 rounded-md font-semibold hover:bg-white hover:bg-opacity-10 transition-all duration-200"
+              >
+                Volunteer
+              </Link>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
 
       {/* Use the same Footer component as the home page */}
       <div id="footer" className="w-full">
