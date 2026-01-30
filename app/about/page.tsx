@@ -7,7 +7,8 @@ export default function AboutPage() {
       {/* Hero Section */}
       <section className="bg-papaya-green text-white py-20">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">About Papaya Academy</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-
+          6">About Papaya Academy</h1>
           <p className="text-xl max-w-3xl mx-auto">Empowering underprivileged children through quality education in the Philippines</p>
         </div>
       </section>
@@ -114,7 +115,7 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
-              href="/donate" 
+              href="/donate"
               className="bg-papaya-yellow text-papaya-green px-8 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
             >
               Donate Now

@@ -139,7 +139,7 @@ export default function ContactPage() {
           <div className="grid md:grid-cols-2 gap-12">
             
             {/* Contact Information */}
-            <ScrollReveal animation="fade-right" delay={200}>
+            <ScrollReveal animation="slide-right" delay={200}>
               <div className="space-y-8">
                 <div>
                   <h2 className="text-3xl font-bold text-papaya-green mb-6">Get in Touch</h2>

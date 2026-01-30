@@ -109,7 +109,7 @@ export default async function ProgramDetail({ params }: { params: Promise<{ slug
   const content = PROGRAM_DETAILS[resolvedParams.slug];
 
   if (!content) {
-    return notFound();
+    return notFound(); 
   }
 
   return <ProgramClient content={content} />;
