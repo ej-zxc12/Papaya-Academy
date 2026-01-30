@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import ScrollReveal from '@/components/ScrollReveal';
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 export default function AboutPage() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -45,9 +46,11 @@ export default function AboutPage() {
           {images.map((image, index) => (
             <div
               key={index}
-              className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
-              style={{ 
-                backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, rgba(27, 62, 42, 0.6) 50%, rgba(0, 0, 0, 0.1) 100%), url(${image})` 
+              className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={{
+                backgroundImage: `linear-gradient(to right, rgba(0, 0, 0, 0.9) 0%, rgba(27, 62, 42, 0.6) 50%, rgba(0, 0, 0, 0.1) 100%), url(${image})`,
               }}
             />
           ))}
@@ -63,7 +66,7 @@ export default function AboutPage() {
             {/* Header Animation */}
             <ScrollReveal animation="fade-up" delay={300}>
               <h1 className="text-5xl md:text-6xl font-light tracking-wide mb-6 leading-tight drop-shadow-lg text-white">
-                 Papaya Academy
+                Papaya Academy
               </h1>
             </ScrollReveal>
             
@@ -89,7 +92,7 @@ export default function AboutPage() {
                   About Our Academy
                 </h2>
                 <p className="text-lg text-gray-700 leading-relaxed mb-6">
-                  In 2003, Papaya Academy School was found by the Kalinga Foundation which offers free education in every children from the Montalban Rizal and Payatas, Quezon City. Our mission is to provide high-quality education and holistic development to students of all backgrounds, with a focus on promoting academic excellence, character formation, and social responsibility. We offer a comprehensive curriculum that includes both academic subjects and extracurricular activities to ensure that our students receive a well-rounded education.
+                  In 2003, Papaya Academy School was found by the Kalinga Foundation which offers free education to children from Montalban Rizal and Payatas, Quezon City. Our mission is to provide high-quality education and holistic development to students of all backgrounds, with a focus on promoting academic excellence, character formation, and social responsibility.
                 </p>
               </ScrollReveal>
             </div>
@@ -144,7 +147,9 @@ export default function AboutPage() {
                 <h2 className="text-2xl font-bold text-papaya-green">
                   Our Curriculum
                 </h2>
-                <div className={`w-8 h-8 flex items-center justify-center rounded-full transition-transform duration-300 ${isExpanded ? 'bg-papaya-green text-white' : 'bg-papaya-yellow text-papaya-green group-hover:bg-papaya-green group-hover:text-white'}`}>
+                <div className={`w-8 h-8 flex items-center justify-center rounded-full transition-transform duration-300 ${
+                  isExpanded ? 'bg-papaya-green text-white' : 'bg-papaya-yellow text-papaya-green group-hover:bg-papaya-green group-hover:text-white'
+                }`}>
                   {isExpanded ? (
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -157,16 +162,18 @@ export default function AboutPage() {
                 </div>
               </button>
               
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] mt-6' : 'max-h-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isExpanded ? 'max-h-[1000px] mt-6' : 'max-h-0'
+              }`}>
                 <div className="pt-4 space-y-6 text-gray-700">
                   <p>
-                    The Papaya Academy is teaching Grades 1 to 6 and taught different subjects like Math, Science, English, Filipino, MAKABAYAN (EPP, CLE and MSEP) and Computer. The school also focuses not only on the curricular activities but also in non-curricular activities like scouting, chess, taekwondo, drama, volleyball, basketball, and even theater (drama, singing and dancing).
+                    The Papaya Academy teaches Grades 1 to 6, covering subjects like Math, Science, English, Filipino, MAKABAYAN (EPP, CLE, and MSEP), and Computer. The school focuses not only on curricular activities but also on non-curricular activities like scouting, chess, taekwondo, drama, volleyball, basketball, and theater (drama, singing, and dancing).
                   </p>
                   <p>
-                    The school has several facilities that help the children in their learning. A classroom which can cater to 30 children, a library, audio and computer room, administration office, gymnasium, kitchen, clinic and a science laboratory. Besides all the activities done annually, the children have their educational tour, sports and music competitions between other schools.
+                    The school has several facilities that help children in their learning, including classrooms that can cater to 30 children, a library, audio and computer room, administration office, gymnasium, kitchen, clinic, and science laboratory. Besides all the activities done annually, the children have educational tours, sports, and music competitions with other schools.
                   </p>
                   <p>
-                    The children and the teachers have different religious backgrounds, and all religions are respected. The Teachers in Papaya Academy are professionals and are equipped with talents which can be of good help for their students.
+                    The children and teachers have different religious backgrounds, and all religions are respected. The teachers at Papaya Academy are professionals equipped with talents that can greatly benefit their students.
                   </p>
                 </div>
               </div>
@@ -185,16 +192,13 @@ export default function AboutPage() {
             <ScrollReveal animation="fade-up" delay={200}>
               <div className="bg-papaya-light p-8 rounded-lg shadow-md">
                 <p className="text-lg text-gray-700 mb-6">
-                  At Papaya Academy, we believe that every child deserves access to quality education, 
-                  regardless of their socioeconomic background. Our mission is to break the cycle of 
-                  poverty through education by providing comprehensive learning programs that empower 
-                  children to build a better future for themselves and their communities.
+                  To nurture learners through a student-centered, value-driven education that prepares them for further studies, future careers, and responsible citizenship.
                 </p>
                 <div className="grid md:grid-cols-2 gap-8 mt-10">
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                     <h3 className="text-xl font-semibold text-papaya-green mb-3">Our Vision</h3>
                     <p className="text-gray-600">
-                      A world where every child has the opportunity to reach their full potential through education.
+                     A community where every child-especially the underserved-has access to quality, holistic, and inclusive education that develops the whole person.
                     </p>
                   </div>
                   <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -213,29 +217,218 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Team Section */}
+      {/* Organizational Chart Section */}
       <section id="team" className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <ScrollReveal animation="fade-down">
-            <h2 className="text-3xl font-bold text-papaya-green mb-12 text-center">Organizational Chart</h2>
+            <h2 className="text-3xl font-bold text-papaya-green mb-14 text-center">
+              Organizational Chart
+            </h2>
           </ScrollReveal>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+
+          {/* PRINCIPAL */}
+          <div className="flex justify-center mb-16">
+            <ScrollReveal animation="fade-up">
+              <div className="flex flex-col items-center">
+                <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-papaya-green shadow-lg mb-4 bg-white">
+                  <img
+                    src="/images/1.jpg"
+                    alt="Sheryl Ann B. Queliza"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'https://ui-avatars.com/api/?name=Sheryl+Ann+B+Queliza&background=1A5F3F&color=fff&size=256';
+                    }}
+                  />
+                </div>
+                <div className="bg-white px-6 py-4 rounded-lg shadow-md border-2 border-papaya-green text-center w-72 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <h3 className="font-bold text-papaya-green">
+                    Sheryl Ann B. Queliza
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    School Principal
+                  </p>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
+
+          {/* GRADE ADVISERS */}
+          <ScrollReveal animation="fade-up">
+            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+              Grade Advisers
+            </h3>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             {[
-              { name: 'Maria Santos', role: 'Founder & Director', image: '/images/team1.jpg' },
-              { name: 'Juan Dela Cruz', role: 'Head of Education', image: '/images/team2.jpg' },
-              { name: 'Ana Reyes', role: 'Community Outreach', image: '/images/team3.jpg' },
-            ].map((member, index) => (
-              <ScrollReveal key={index} animation="fade-up" delay={200 + (index * 100)}>
-                <div className="text-center">
-                  <div className="w-48 h-48 mx-auto mb-4 rounded-full overflow-hidden border-4 border-papaya-green">
+              { 
+                name: 'Jennie G. Ramos', 
+                role: 'Grade 6 Adviser',
+                image: '/images/staff/jennie-ramos.jpg'
+              },
+              { 
+                name: 'Jerico T. Santos', 
+                role: 'Grade 5 Adviser',
+                image: '/images/staff/jerico-santos.jpg'
+              },
+              { 
+                name: 'Daina Marie A. Roma', 
+                role: 'Grade 4 Adviser',
+                image: '/images/staff/daina-roma.jpg'
+              },
+              { 
+                name: 'Aileen B. Villanueva', 
+                role: 'Grade 3 Adviser',
+                image: '/images/staff/aileen-villanueva.jpg'
+              },
+              { 
+                name: 'Hazel R. Mercado', 
+                role: 'Grade 2 Adviser',
+                image: '/images/staff/hazel-mercado.jpg'
+              },
+              { 
+                name: 'Jeanbel C. Borres', 
+                role: 'Grade 1 Adviser',
+                image: '/images/staff/jeanbel-borres.jpg'
+              },
+              { 
+                name: 'Katrina A. Ocampo', 
+                role: 'Kinder Adviser',
+                image: '/images/staff/katrina-ocampo.jpg'
+              },
+              { 
+                name: 'Marie Sean A. Barbacena', 
+                role: 'Science / Registrar',
+                image: '/images/staff/marie-barbacena.jpg'
+              },
+            ].map((person, index) => (
+              <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
+                <div className="flex flex-col items-center">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">
                     <img 
-                      src={member.image} 
-                      alt={member.name}
+                      src={person.image}
+                      alt={person.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                      }}
                     />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-800">{member.name}</h3>
-                  <p className="text-papaya-green">{member.role}</p>
+                  <div className="bg-white p-3 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-green hover:shadow-md transition-shadow duration-300">
+                    <p className="font-semibold text-papaya-green">{person.name}</p>
+                    <p className="text-sm text-gray-600">{person.role}</p>
+                  </div>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+          {/* NON-ACADEMIC STAFF */}
+          <ScrollReveal animation="fade-up">
+            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+              Non-Academic Staff
+            </h3>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {[
+              { 
+                name: 'Ma. Luzviminda M. Macabuhay', 
+                role: 'Office Manager',
+                image: '/images/staff/luzviminda-macabuhay.jpg'
+              },
+              { 
+                name: 'Salvacion M. Macasacuit', 
+                role: 'Housekeeper',
+                image: '/images/staff/salvacion-macasacuit.jpg'
+              },
+              { 
+                name: 'Roger C. Macasacuit', 
+                role: 'Driver / Maintenance',
+                image: '/images/staff/roger-macasacuit.jpg'
+              },
+            ].map((person, index) => (
+              <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
+                <div className="flex flex-col items-center">
+                  <div className="w-28 h-28 rounded-full overflow-hidden border-3 border-papaya-yellow mb-4 shadow-md bg-gray-100">
+                    <img 
+                      src={person.image}
+                      alt={person.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                      }}
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-yellow hover:shadow-md transition-shadow duration-300">
+                    <p className="font-semibold text-papaya-green">{person.name}</p>
+                    <p className="text-sm text-gray-600 mt-1">{person.role}</p>
+                  </div>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+
+          {/* OTHER SCHOOL STAFF */}
+          <ScrollReveal animation="fade-up">
+            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center mt-16">
+              School Staff
+            </h3>
+          </ScrollReveal>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {[
+              { 
+                name: 'Maria Lourdes T. Cruz', 
+                role: 'School Nurse',
+                image: '/images/staff/maria-cruz.jpg'
+              },
+              { 
+                name: 'Roberto M. Garcia', 
+                role: 'Guidance Counselor',
+                image: '/images/staff/roberto-garcia.jpg'
+              },
+              { 
+                name: 'Lorna S. Reyes', 
+                role: 'Librarian',
+                image: '/images/staff/lorna-reyes.jpg'
+              },
+              { 
+                name: 'Antonio B. Dela Cruz', 
+                role: 'IT Support',
+                image: '/images/staff/antonio-dela-cruz.jpg'
+              },
+              { 
+                name: 'Teresa M. Santos', 
+                role: 'Registrar',
+                image: '/images/staff/teresa-santos.jpg'
+              },
+              { 
+                name: 'Ricardo J. Gonzales', 
+                role: 'Maintenance Head',
+                image: '/images/staff/ricardo-gonzales.jpg'
+              },
+            ].map((staff, index) => (
+              <ScrollReveal key={index} animation="fade-up" delay={100 + (index * 50)}>
+                <div className="flex flex-col items-center">
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-blue mb-4 shadow-md bg-gray-100">
+                    <img 
+                      src={staff.image}
+                      alt={staff.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const t = e.target as HTMLImageElement;
+                        t.src = `https://ui-avatars.com/api/?name=${staff.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                      }}
+                    />
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-blue hover:shadow-md transition-shadow duration-300">
+                    <p className="font-semibold text-papaya-green">{staff.name}</p>
+                    <p className="text-sm text-gray-600 mt-1">{staff.role}</p>
+                  </div>
                 </div>
               </ScrollReveal>
             ))}
@@ -243,31 +436,112 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Partners Section */}
-      <section id="partners" className="py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <ScrollReveal animation="fade-down">
-            <h2 className="text-3xl font-bold text-papaya-green mb-12 text-center">Partners & Sponsors</h2>
-          </ScrollReveal>
-          <div className="flex flex-wrap justify-center gap-8 items-center">
-            {[
-              { name: 'Partner 1', logo: '/images/partner1.png' },
-              { name: 'Partner 2', logo: '/images/partner2.png' },
-              { name: 'Partner 3', logo: '/images/partner3.png' },
-            ].map((partner, index) => (
-              <ScrollReveal key={index} animation="zoom-in" delay={index * 150}>
-                <div className="w-40 h-20 flex items-center justify-center">
-                  <img 
-                    src={partner.logo} 
-                    alt={partner.name}
-                    className="max-h-full max-w-full object-contain opacity-70 hover:opacity-100 transition-opacity"
-                  />
+      {/* Board of Trustees Section */}
+<section id="board-of-trustees" className="py-16 bg-white">
+  <div className="container mx-auto px-4">
+    <ScrollReveal animation="fade-down">
+      <h2 className="text-3xl font-bold text-papaya-green mb-14 text-center">
+        Board of Trustees
+      </h2>
+    </ScrollReveal>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+      {[
+        {
+          title: 'Papaya Academy Inc.',
+          members: [
+            { name: 'Ailyn C. Gardose', role: 'President', image: '/images/board/ailyn.jpg' },
+            { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
+            { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/board/hadassah.jpg' },
+            { name: 'Maria Julie Collado', role: 'Member', image: '' },
+            { name: 'Tristan Ian C. Santos', role: 'Member', image: '' },
+          ],
+        },
+        {
+          title: 'Kalinga at Pag-ibig Foundation Board (PH)',
+          members: [
+            { name: 'John Van Dijk', role: 'President', image: '/images/board/john.jpg' },
+            { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
+            { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/board/ailyn.jpg' },
+            { name: 'Hadassah A. Castro', role: 'Member', image: '/images/board/hadassah.jpg' },
+            { name: 'Alberto Villamor', role: 'Member', image: '/images/board/alberto.jpg' },
+            { name: 'Niall Highland', role: 'Member', image: '' },
+          ],
+        },
+        {
+          title: 'Stichting Kalingaboard (NL)',
+          members: [
+            { name: 'Janneke Heinen', role: 'Chairwoman', image: '/images/board/janneke.jpg' },
+            { name: 'Arno Van Workum', role: 'Treasurer', image: '/images/board/arno.jpg' },
+            { name: 'Miranda Van Loon', role: 'Secretary', image: '/images/board/miranda.jpg' },
+            { name: 'Peter Van Schijndel', role: 'General Board Member', image: '/images/board/peter.jpg' },
+            { name: 'Heleen Scheer', role: 'General Board Member', image: '/images/board/heleen.jpg' },
+            { name: 'Daniel Van Scherpenzeel', role: 'General Board Member', image: '/images/board/daniel.jpg' },
+          ],
+        },
+      ].map((board, colIndex) => (
+        <ScrollReveal key={colIndex} animation="fade-up" delay={colIndex * 150}>
+          <div className="rounded-lg shadow-md border border-papaya-green/20 overflow-hidden">
+            {/* Column Header */}
+            <div className="bg-papaya-green text-white text-center py-3 px-4 font-semibold text-sm tracking-wide">
+              {board.title}
+            </div>
+
+            {/* Members */}
+            <div className="p-6 space-y-5 bg-papaya-light">
+              {board.members.map((member, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  {/* Avatar */}
+                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-papaya-green bg-white flex-shrink-0">
+                    {member.image ? (
+                      <img
+                        src={member.image}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const t = e.target as HTMLImageElement;
+                          t.src = `https://ui-avatars.com/api/?name=${member.name.replace(
+                            /\s+/g,
+                            '+'
+                          )}&background=1A5F3F&color=fff&size=128`;
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${member.name.replace(
+                          /\s+/g,
+                          '+'
+                        )}&background=1A5F3F&color=fff&size=128`}
+                        alt={member.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1">
+                    <div className="inline-block bg-papaya-yellow text-papaya-green text-[11px] font-semibold px-2 py-0.5 rounded mb-1">
+                      {member.role}
+                    </div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {member.name}
+                    </p>
+                  </div>
                 </div>
-              </ScrollReveal>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </ScrollReveal>
+      ))}
+    </div>
+  </div>
+</section>
+
+
+      {/* Use the same Footer component as the home page */}
+      <div id="footer" className="w-full">
+        <Footer />
+      </div>
     </div>
   );
 }

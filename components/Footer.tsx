@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Youtube, Instagram, Facebook } from 'lucide-react';
 import ScrollReveal from './ScrollReveal'; // Import the reusable animator
 
 const Footer = () => {
@@ -102,7 +102,7 @@ const Footer = () => {
                   <svg className="w-5 h-5 text-papaya-yellow mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                 papayaacademy@yahoo.com
+                 papayaacademykapf@gmail.com
                 </p>
               </ScrollReveal>
 
@@ -114,6 +114,41 @@ const Footer = () => {
                   <p className="text-sm">
                     <span className="font-medium text-papaya-yellow">BIC:</span> KREDBEBB
                   </p>
+                </div>
+              </ScrollReveal>
+
+              <ScrollReveal animation="fade-up" delay={950}>
+                <div className="pt-4">
+                  <p className="text-sm font-medium text-papaya-yellow mb-2">Follow Us</p>
+                  <div className="flex space-x-4">
+                    <a 
+                      href="https://www.facebook.com/papayaacademy" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-white hover:text-papaya-yellow transition-colors"
+                      aria-label="Visit Papaya Academy's Facebook page"
+                    >
+                      <Facebook className="w-6 h-6" />
+                    </a>
+                    <a 
+                      href="https://www.instagram.com/papayaacademy" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-white hover:text-papaya-yellow transition-colors"
+                      aria-label="Visit Papaya Academy's Instagram profile"
+                    >
+                      <Instagram className="w-6 h-6" />
+                    </a>
+                    <a 
+                      href="https://www.youtube.com/@papayaacademy2103" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-white hover:text-papaya-yellow transition-colors"
+                      aria-label="Visit Papaya Academy's YouTube channel"
+                    >
+                      <Youtube className="w-6 h-6" />
+                    </a>
+                  </div>
                 </div>
               </ScrollReveal>
             </div>
