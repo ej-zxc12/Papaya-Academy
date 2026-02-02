@@ -1,7 +1,7 @@
 // app/about/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ScrollReveal from '@/components/ScrollReveal';
@@ -9,6 +9,14 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 export default function AboutPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AboutPageContent />
+    </Suspense>
+  );
+}
+
+function AboutPageContent() {
   const [isExpanded, setIsExpanded] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -535,32 +543,6 @@ export default function AboutPage() {
               </ScrollReveal>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-papaya-green text-white">
-        <div className="container mx-auto px-4 text-center">
-          <ScrollReveal animation="fade-up">
-            <h2 className="text-3xl font-bold mb-6">Join Our Mission</h2>
-            <p className="text-xl mb-8 max-w-2xl mx-auto">
-              Be part of our journey to transform lives through education
-            </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link 
-                href="/donate"
-                className="bg-papaya-yellow text-papaya-green px-8 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
-              >
-                Donate Now
-              </Link>
-              <Link 
-                href="/volunteer" 
-                className="border-2 border-white text-white px-8 py-3 rounded-md font-semibold hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-              >
-                Volunteer
-              </Link>
-            </div>
-          </ScrollReveal>
         </div>
       </section>
 
