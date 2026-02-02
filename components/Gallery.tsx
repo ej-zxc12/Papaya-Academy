@@ -1,104 +1,85 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import ImageGallery from 'react-image-gallery';
 import 'react-image-gallery/styles/css/image-gallery.css';
-import ScrollReveal from './ScrollReveal'; // Import the reusable animator
+import ScrollReveal from './ScrollReveal';
 
 const Gallery = () => {
-  const images = [
-    {
-      original: '/images/gallery/classroom1.jpg',
-      thumbnail: '/images/gallery/classroom1-thumb.jpg',
-      description: 'Students engaged in classroom activities'
-    },
-    {
-      original: '/images/gallery/outdoor1.jpg',
-      thumbnail: '/images/gallery/outdoor1-thumb.jpg',
-      description: 'Outdoor learning sessions'
-    },
-    {
-      original: '/images/gallery/art1.jpg',
-      thumbnail: '/images/gallery/art1-thumb.jpg',
-      description: 'Student art exhibition'
-    },
-    {
-      original: '/images/gallery/sports1.jpg',
-      thumbnail: '/images/gallery/sports1-thumb.jpg',
-      description: 'Annual sports day'
-    },
-    {
-      original: '/images/gallery/graduation1.jpg',
-      thumbnail: '/images/gallery/graduation1-thumb.jpg',
-      description: 'Graduation ceremony'
-    },
-    {
-      original: '/images/gallery/community1.jpg',
-      thumbnail: '/images/gallery/community1-thumb.jpg',
-      description: 'Community outreach program'
-    }
-  ];
+  const galleryRef = useRef<ImageGallery>(null);
 
-  const renderItem = (item: any) => (
-    <div className="relative">
-      <img 
-        src={item.original} 
-        alt={item.description}
-        className="w-full h-64 md:h-96 object-cover"
-      />
-      {item.description && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-4">
-          {item.description}
-        </div>
-      )}
-    </div>
-  );
+  const images = Array.from({ length: 14 }, (_, i) => ({
+    original: `/images/gallery/glimpseofpapaya${i + 1}.jpg`,
+    thumbnail: `/images/gallery/glimpseofpapaya${i + 1}.jpg`,
+  }));
+
+  const slideToIndex = (index: number) => {
+    if (galleryRef.current) {
+      galleryRef.current.slideToIndex(index);
+    }
+  };
+
+  const renderItem = (item: any) => {
+    const isFullscreen = typeof document !== 'undefined' && !!document.fullscreenElement;
+    
+    return (
+      <div className={`relative w-full overflow-hidden ${isFullscreen ? 'h-screen' : 'h-80 md:h-[600px] rounded-2xl'}`}>
+        <img 
+          src={item.original} 
+          alt="Gallery Image"
+          className={`w-full h-full ${isFullscreen ? 'object-contain bg-black' : 'object-cover'}`}
+        />
+      </div>
+    );
+  };
 
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
         
-        {/* HEADER ANIMATION */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <ScrollReveal animation="fade-down">
-            <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-4">Gallery</h2>
-          </ScrollReveal>
-          
-          <ScrollReveal animation="fade-up" delay={200}>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              A glimpse into life at Papaya Academy
-            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-2">Our Life at Papaya</h2>
+            <div className="w-16 h-1 bg-papaya-yellow mx-auto mb-4"></div>
           </ScrollReveal>
         </div>
 
-        {/* MAIN SLIDER ANIMATION (Zoom In) */}
-        <div className="max-w-6xl mx-auto">
-          <ScrollReveal animation="zoom-in" duration={800}>
+        {/* MAIN CAROUSEL */}
+        <div className="max-w-4xl mx-auto shadow-2xl rounded-2xl overflow-hidden bg-gray-50">
+          <ScrollReveal animation="zoom-in">
             <ImageGallery
+              ref={galleryRef}
               items={images}
               renderItem={renderItem}
+              autoPlay={true}
+              slideInterval={5000}
+              slideDuration={800}
               showPlayButton={false}
               showFullscreenButton={true}
-              showThumbnails={true}
-              thumbnailPosition="bottom"
-              additionalClass="gallery-container"
+              showThumbnails={false}
+              showBullets={false}
+              additionalClass="fixed-gallery-carousel"
+              useBrowserFullscreen={true}
             />
           </ScrollReveal>
         </div>
 
-        {/* THUMBNAIL GRID - Staggered Waterfall Effect */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* YOUR ADOPTED GRID CODE */}
+        <div className="max-w-4xl mx-auto mt-12 grid grid-cols-2 md:grid-cols-4 gap-3">
           {images.map((image, index) => (
             <ScrollReveal 
               key={index} 
               animation="fade-up" 
-              delay={index * 100} // 100ms delay between each image
+              delay={(index % 4) * 50} 
             >
-              <div className="overflow-hidden rounded-lg shadow-md hover:shadow-lg transition-shadow h-full">
+              <div 
+                onClick={() => slideToIndex(index)}
+                className="group relative h-32 md:h-44 overflow-hidden rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 cursor-pointer"
+              >
                 <img 
                   src={image.original} 
-                  alt={image.description}
-                  className="w-full h-40 object-cover hover:scale-105 transition-transform duration-300"
+                  alt={`Glimpse ${index + 1}`}
+                  className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700"
                 />
               </div>
             </ScrollReveal>
@@ -107,20 +88,11 @@ const Gallery = () => {
       </div>
 
       <style jsx global>{`
-        .gallery-container .image-gallery-slide {
-          border-radius: 0.5rem;
-          overflow: hidden;
+        .image-gallery-content.fullscreen {
+          background: #000;
         }
-        .gallery-container .image-gallery-thumbnail {
-          border-radius: 0.25rem;
-          border: 2px solid transparent;
-        }
-        .gallery-container .image-gallery-thumbnail.active,
-        .gallery-container .image-gallery-thumbnail:hover {
-          border-color: #4CAF50;
-        }
-        .gallery-container .image-gallery-icon:hover {
-          color: #4CAF50;
+        .image-gallery-icon:hover {
+          color: #ffcc00 !important;
         }
       `}</style>
     </section>
