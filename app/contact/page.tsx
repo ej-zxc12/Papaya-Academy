@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import ScrollReveal from '../../components/ScrollReveal';
@@ -21,7 +21,6 @@ import {
   Bot, 
   ChevronDown, 
   ChevronUp, 
-  FileText, 
   HelpCircle 
 } from 'lucide-react';
 
@@ -43,6 +42,62 @@ interface FaqItem {
 }
 
 export default function ContactPage() {
+  // --- GOOGLE MAPS CONFIGURATION START ---
+  const mapRef = useRef<HTMLDivElement>(null);
+  
+  // Coordinates for Papaya Academy (Manila)
+  const schoolLocation = { lat: 14.646, lng: 121.099 }; 
+
+  useEffect(() => {
+    const initMap = () => {
+      // Check if mapRef has content to prevent double initialization
+      if (mapRef.current && window.google) {
+        // If the map is already rendered, don't render it again
+        if (mapRef.current.children.length > 0) return;
+
+        const map = new window.google.maps.Map(mapRef.current, {
+          center: schoolLocation,
+          zoom: 15,
+          disableDefaultUI: false,
+          zoomControl: true,
+          styles: [
+            { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#e9e9e9" }, { "lightness": 17 }] },
+            { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }, { "lightness": 20 }] },
+            { "featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }, { "lightness": 17 }] },
+            { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }, { "lightness": 21 }] }
+          ]
+        });
+
+        new window.google.maps.Marker({
+          position: schoolLocation,
+          map: map,
+          title: "Papaya Academy",
+          animation: window.google.maps.Animation.DROP,
+        });
+      }
+    };
+
+    // Check if the script is already added to avoid the "included multiple times" error
+    const scriptId = 'google-maps-script';
+    const existingScript = document.getElementById(scriptId);
+
+    if (!window.google) {
+      if (!existingScript) {
+        const script = document.createElement('script');
+        // REPLACE WITH YOUR ACTUAL API KEY
+        script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY`;
+        script.id = scriptId; // Assigning ID to prevent duplicates
+        script.async = true;
+        script.defer = true;
+        script.onload = initMap;
+        document.head.appendChild(script);
+      }
+    } else {
+      initMap();
+    }
+  }, []);
+  // --- GOOGLE MAPS CONFIGURATION END ---
+
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -424,13 +479,20 @@ export default function ContactPage() {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-papaya-green p-3 rounded-lg shadow-md">
-                      <MapPin className="w-6 h-6 text-white" />
+                  {/* Clickable Address to scroll to Map */}
+                  <div 
+                    className="flex items-start space-x-4 cursor-pointer group"
+                    onClick={() => document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  >
+                    <div className="bg-papaya-green p-3 rounded-lg shadow-md group-hover:bg-papaya-yellow transition-colors">
+                      <MapPin className="w-6 h-6 text-white group-hover:text-papaya-green" />
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg">Address</h3>
-                      <p className="text-gray-600 mt-1">123 Education Street<br />Manila, Philippines 1000</p>
+                      <p className="text-gray-600 mt-1 group-hover:text-papaya-green transition-colors">
+                        123 Education Street<br />Manila, Philippines 1000
+                      </p>
+                      <p className="text-xs text-papaya-green font-semibold mt-1 underline">See on Map</p>
                     </div>
                   </div>
 
@@ -467,7 +529,7 @@ export default function ContactPage() {
               </div>
             </ScrollReveal>
 
-            {/* Right Side: FAQ Accordion (Replaces Form) */}
+            {/* Right Side: FAQ Accordion */}
             <ScrollReveal animation="slide-left" delay={300}>
               <div className="bg-gray-50 p-8 rounded-2xl shadow-lg border border-gray-100">
                 <div className="flex items-center space-x-3 mb-6">
@@ -503,252 +565,277 @@ export default function ContactPage() {
                         }`}
                       >
                         <div className="p-4 pt-0 text-sm text-gray-600 leading-relaxed border-t border-gray-100 bg-gray-50/50">
+                          {faq.answer}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+                  <p className="text-sm text-gray-500 mb-3">Still have questions?</p>
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="inline-flex items-center space-x-2 text-papaya-green font-semibold hover:text-green-700 transition-colors"
+                  >
+                    <span>Chat with our AI Assistant</span>
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                <p className="text-sm text-gray-500 mb-3">Still have questions?</p>
-                <button
-                  onClick={() => setIsChatOpen(true)}
-                  className="inline-flex items-center space-x-2 text-papaya-green font-semibold hover:text-green-700 transition-colors"
-                >
-                  <span>Chat with our AI Assistant</span>
-                  <MessageCircle className="w-4 h-4" />
-                </button>
-              </div>
+            </ScrollReveal>
+
+          </div>
+        </div>
+      </section>
+
+      {/* --- GOOGLE MAPS SECTION START --- */}
+      <section id="map-section" className="py-12 bg-gray-50">
+        <div className="container mx-auto px-4">
+            <ScrollReveal animation="fade-up">
+                <div className="text-center mb-8">
+                    <h2 className="text-3xl font-bold text-papaya-green">Visit Our Campus</h2>
+                    <p className="text-gray-600 mt-2">Find us easily in Manila.</p>
+                </div>
+                {/* MAP CONTAINER */}
+                <div className="relative w-full h-[450px] rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
+                    <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+                </div>
+            </ScrollReveal>
+        </div>
+      </section>
+      {/* --- GOOGLE MAPS SECTION END --- */}
+
+      {/* Partnership Information */}
+      <section className="py-20 bg-[#1a2e25] relative overflow-hidden z-0">
+        {/* Subtle background decoration for depth */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-5">
+          <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-papaya-yellow rounded-full blur-3xl"></div>
+          <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-papaya-green rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <ScrollReveal animation="fade-down" delay={100}>
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Partner With Us</h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Join us in our mission to provide quality education to underprivileged children
+              </p>
+              <div className="w-24 h-1.5 bg-papaya-yellow mx-auto mt-6 rounded-full"></div>
             </div>
           </ScrollReveal>
 
-        </div>
-      </div>
-    </section>
-
-    {/* Partnership Information */}
-    <section className="py-20 bg-[#1a2e25] relative overflow-hidden z-0">
-      {/* Subtle background decoration for depth */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-5">
-        <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-papaya-yellow rounded-full blur-3xl"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-96 h-96 bg-papaya-green rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="container mx-auto px-4 relative z-10">
-        <ScrollReveal animation="fade-down" delay={100}>
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Partner With Us</h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Join us in our mission to provide quality education to underprivileged children
-            </p>
-            <div className="w-24 h-1.5 bg-papaya-yellow mx-auto mt-6 rounded-full"></div>
-          </div>
-        </ScrollReveal>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Card Component - Repeated for each partnership type */}
-          {[
-            { title: "Corporate Partnerships", icon: Handshake, delay: 200 },
-            { title: "Educational Institutions", icon: Award, delay: 300 },
-            { title: "Community Organizations", icon: Users, delay: 400 }
-          ].map((item, index) => (
-            <ScrollReveal key={index} animation="fade-up" delay={item.delay}>
-              <div className="bg-[#243d32] border border-white/10 rounded-2xl p-8 shadow-2xl transition-transform hover:-translate-y-2 duration-300">
-                <div className="bg-papaya-yellow w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-                  <item.icon className="w-8 h-8 text-papaya-green" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-4">{item.title}</h3>
-                <p className="text-gray-300 mb-6">
-                  {item.title === "Corporate Partnerships" && "Partner through CSR, employee volunteering, or sponsorship."}
-                  {item.title === "Educational Institutions" && "Collaborate for student exchange and teacher training."}
-                  {item.title === "Community Organizations" && "Expand impact through joint programs and outreach."}
-                </p>
-                <ul className="text-sm text-gray-400 space-y-3">
-                  <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 1</li>
-                  <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 2</li>
-                  <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 3</li>
-                </ul>
-              </div>
-            </ScrollReveal>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    {/* Partners Logos */}
-    <section className="py-16 bg-white z-0">
-      <div className="container mx-auto px-4">
-        <ScrollReveal animation="fade-down" delay={100}>
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-papaya-green mb-4">Our Valued Partners</h2>
-            <p className="text-xl text-gray-600">We're grateful for the support of these organizations</p>
-          </div>
-        </ScrollReveal>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-gray-100 rounded-lg p-8 flex items-center justify-center h-24">
-              <Globe className="w-12 h-12 text-gray-400" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    <Footer />
-
-    {/* --- AI CHATBOX --- */}
-    
-    {/* Floating Chat Icon */}
-    {!isChatOpen && (
-      <div 
-        className="fixed bottom-6 right-6"
-        style={{ zIndex: 2147483647 }}
-      >
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 animate-bounce group"
-        >
-          <MessageCircle className="w-7 h-7" />
-          <span className="absolute -top-1 -right-1 bg-papaya-yellow text-papaya-green text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
-            1
-          </span>
-        </button>
-      </div>
-    )}
-
-    {/* Chat Interface - HARDCODED STYLES & MAX Z-INDEX */}
-    {isChatOpen && (
-      <div 
-        className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
-        style={{ 
-          position: 'fixed',
-          bottom: '24px', 
-          right: '24px', 
-          width: '380px', 
-          height: '500px', 
-          backgroundColor: '#ffffff',
-          zIndex: 2147483647
-        }}
-      >
-        
-        {/* 1. Header - Fixed Height: 70px */}
-        <div 
-          className="flex items-center justify-between bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 shadow-md z-10"
-          style={{ height: '70px', minHeight: '70px' }} 
-        >
-          <div className="flex items-center space-x-3">
-            <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-wide">Papaya Assistant</h2>
-              <div className="flex items-center space-x-1.5">
-                <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></span>
-                <p className="text-xs text-green-100 font-medium">Online now</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Close Button - Fixed with Cursor Pointer */}
-          <div className="flex items-center">
-            <button
-              onClick={() => setIsChatOpen(false)}
-              className="text-white hover:bg-white/20 p-2 rounded-full transition-all duration-200 cursor-pointer relative z-50"
-              title="Close chat"
-              type="button"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* 2. Messages Area - Fixed Height: 290px */}
-        <div 
-          className="overflow-y-auto bg-gray-50 p-4 scroll-smooth"
-          style={{ height: '290px' }}
-        >
-            <div className="text-center text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">Today</div>
-            
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
-              >
-                <div className={`flex flex-col max-w-[80%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div
-                    className={`p-3.5 rounded-2xl shadow-sm text-sm leading-relaxed ${
-                      message.sender === 'user'
-                        ? 'bg-gradient-to-br from-papaya-green to-green-600 text-white rounded-br-none'
-                        : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
-                    }`}
-                  >
-                    <p className="whitespace-pre-line">{message.text}</p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Card Component - Repeated for each partnership type */}
+            {[
+              { title: "Corporate Partnerships", icon: Handshake, delay: 200 },
+              { title: "Educational Institutions", icon: Award, delay: 300 },
+              { title: "Community Organizations", icon: Users, delay: 400 }
+            ].map((item, index) => (
+              <ScrollReveal key={index} animation="fade-up" delay={item.delay}>
+                <div className="bg-[#243d32] border border-white/10 rounded-2xl p-8 shadow-2xl transition-transform hover:-translate-y-2 duration-300">
+                  <div className="bg-papaya-yellow w-16 h-16 rounded-xl flex items-center justify-center mb-6">
+                    <item.icon className="w-8 h-8 text-papaya-green" />
                   </div>
-                  {/* Tiny Time Size (text-[8px]) */}
-                  <span className="text-[8px] text-gray-400 mt-1 px-1 font-medium opacity-70">
-                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <h3 className="text-xl font-bold text-white mb-4">{item.title}</h3>
+                  <p className="text-gray-300 mb-6">
+                    {item.title === "Corporate Partnerships" && "Partner through CSR, employee volunteering, or sponsorship."}
+                    {item.title === "Educational Institutions" && "Collaborate for student exchange and teacher training."}
+                    {item.title === "Community Organizations" && "Expand impact through joint programs and outreach."}
+                  </p>
+                  <ul className="text-sm text-gray-400 space-y-3">
+                    <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 1</li>
+                    <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 2</li>
+                    <li className="flex items-center"><span className="w-1.5 h-1.5 bg-papaya-yellow rounded-full mr-2"></span> Benefit 3</li>
+                  </ul>
                 </div>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Partners Logos */}
+      <section className="py-16 bg-white z-0">
+        <div className="container mx-auto px-4">
+          <ScrollReveal animation="fade-down" delay={100}>
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-papaya-green mb-4">Our Valued Partners</h2>
+              <p className="text-xl text-gray-600">We're grateful for the support of these organizations</p>
+            </div>
+          </ScrollReveal>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-gray-100 rounded-lg p-8 flex items-center justify-center h-24">
+                <Globe className="w-12 h-12 text-gray-400" />
               </div>
             ))}
-            
-            {isTyping && (
-              <div className="flex justify-start mb-4">
-                <div className="bg-white text-gray-800 p-3 rounded-2xl rounded-bl-none border border-gray-100 shadow-sm">
-                  <div className="flex space-x-1.5">
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
+          </div>
+        </div>
+      </section>
+
+      <Footer />
+
+      {/* --- AI CHATBOX --- */}
+      
+      {/* Floating Chat Icon */}
+      {!isChatOpen && (
+        <div 
+          className="fixed bottom-6 right-6"
+          style={{ zIndex: 2147483647 }}
+        >
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 animate-bounce group"
+          >
+            <MessageCircle className="w-7 h-7" />
+            <span className="absolute -top-1 -right-1 bg-papaya-yellow text-papaya-green text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+              1
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Chat Interface - HARDCODED STYLES & MAX Z-INDEX */}
+      {isChatOpen && (
+        <div 
+          className="fixed bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
+          style={{ 
+            position: 'fixed',
+            bottom: '24px', 
+            right: '24px', 
+            width: '380px', 
+            height: '500px', 
+            backgroundColor: '#ffffff',
+            zIndex: 2147483647
+          }}
+        >
+          
+          {/* 1. Header - Fixed Height: 70px */}
+          <div 
+            className="flex items-center justify-between bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 shadow-md z-10"
+            style={{ height: '70px', minHeight: '70px' }} 
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm">
+                <Bot className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-wide">Papaya Assistant</h2>
+                <div className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></span>
+                  <p className="text-xs text-green-100 font-medium">Online now</p>
                 </div>
               </div>
-            )}
-            <div ref={messagesEndRef} />
-        </div>
-
-        {/* 3. Input Area - Fixed Height: 140px */}
-        <div 
-          className="bg-white border-t border-gray-100 p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] z-10"
-          style={{ height: '140px', minHeight: '140px' }}
-        >
-          <div className="flex space-x-2 mb-3">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-papaya-green/50 focus:border-transparent text-sm transition-all"
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-papaya-green text-white p-3 rounded-full hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!inputMessage.trim()}
-            >
-              <Send className="w-4 h-4 ml-0.5" />
-            </button>
-          </div>
-          
-          {/* Quick Actions */}
-          <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
-            {["Programs", "Donate", "Enroll", "Volunteer"].map((label) => (
-                <button
-                key={label}
-                onClick={() => {
-                  const msg = label === "Programs" ? "What programs do you offer?" : 
-                            label === "Donate" ? "How can I donate?" : 
-                            label === "Enroll" ? "How do I enroll my child?" : "How can I volunteer?";
-                  setInputMessage(msg);
-                  handleSendMessage();
-                }}
-                className="whitespace-nowrap text-xs bg-gray-100 text-gray-600 hover:bg-papaya-green hover:text-white px-3 py-1.5 rounded-full transition-colors font-medium border border-gray-200 hover:border-transparent"
+            </div>
+            
+            {/* Close Button - Fixed with Cursor Pointer */}
+            <div className="flex items-center">
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="text-white hover:bg-white/20 p-2 rounded-full transition-all duration-200 cursor-pointer relative z-50"
+                title="Close chat"
+                type="button"
               >
-                {label}
+                <X className="w-5 h-5" />
               </button>
-            ))}
+            </div>
+          </div>
+
+          {/* 2. Messages Area - Fixed Height: 290px */}
+          <div 
+            className="overflow-y-auto bg-gray-50 p-4 scroll-smooth"
+            style={{ height: '290px' }}
+          >
+              <div className="text-center text-[10px] text-gray-400 mb-4 font-medium uppercase tracking-wider">Today</div>
+              
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
+                >
+                  <div className={`flex flex-col max-w-[80%] ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div
+                      className={`p-3.5 rounded-2xl shadow-sm text-sm leading-relaxed ${
+                        message.sender === 'user'
+                          ? 'bg-gradient-to-br from-papaya-green to-green-600 text-white rounded-br-none'
+                          : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
+                      }`}
+                    >
+                      <p className="whitespace-pre-line">{message.text}</p>
+                    </div>
+                    {/* Tiny Time Size (text-[8px]) */}
+                    <span className="text-[8px] text-gray-400 mt-1 px-1 font-medium opacity-70">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              
+              {isTyping && (
+                <div className="flex justify-start mb-4">
+                  <div className="bg-white text-gray-800 p-3 rounded-2xl rounded-bl-none border border-gray-100 shadow-sm">
+                    <div className="flex space-x-1.5">
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+          </div>
+
+          {/* 3. Input Area - Fixed Height: 140px */}
+          <div 
+            className="bg-white border-t border-gray-100 p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] z-10"
+            style={{ height: '140px', minHeight: '140px' }}
+          >
+            <div className="flex space-x-2 mb-3">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type your message..."
+                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-papaya-green/50 focus:border-transparent text-sm transition-all"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="bg-papaya-green text-white p-3 rounded-full hover:bg-green-700 hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!inputMessage.trim()}
+              >
+                <Send className="w-4 h-4 ml-0.5" />
+              </button>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
+              {["Programs", "Donate", "Enroll", "Volunteer"].map((label) => (
+                  <button
+                  key={label}
+                  onClick={() => {
+                    const msg = label === "Programs" ? "What programs do you offer?" : 
+                                label === "Donate" ? "How can I donate?" : 
+                                label === "Enroll" ? "How do I enroll my child?" : "How can I volunteer?";
+                    setInputMessage(msg);
+                    handleSendMessage();
+                  }}
+                  className="whitespace-nowrap text-xs bg-gray-100 text-gray-600 hover:bg-papaya-green hover:text-white px-3 py-1.5 rounded-full transition-colors font-medium border border-gray-200 hover:border-transparent"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+}
+
+// Add this type definition at the end to satisfy TypeScript
+declare global {
+  interface Window {
+    google: any;
+  }
 }
