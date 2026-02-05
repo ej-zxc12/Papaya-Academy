@@ -21,7 +21,11 @@ import {
   Bot, 
   ChevronDown, 
   ChevronUp, 
-  HelpCircle 
+  HelpCircle,
+  Navigation,
+  Copy,
+  Bus,
+  Car
 } from 'lucide-react';
 
 const montserrat = Montserrat({ 
@@ -42,62 +46,6 @@ interface FaqItem {
 }
 
 export default function ContactPage() {
-  // --- GOOGLE MAPS CONFIGURATION START ---
-  const mapRef = useRef<HTMLDivElement>(null);
-  
-  // Coordinates for Papaya Academy (Manila)
-  const schoolLocation = { lat: 14.646, lng: 121.099 }; 
-
-  useEffect(() => {
-    const initMap = () => {
-      // Check if mapRef has content to prevent double initialization
-      if (mapRef.current && window.google) {
-        // If the map is already rendered, don't render it again
-        if (mapRef.current.children.length > 0) return;
-
-        const map = new window.google.maps.Map(mapRef.current, {
-          center: schoolLocation,
-          zoom: 15,
-          disableDefaultUI: false,
-          zoomControl: true,
-          styles: [
-            { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#e9e9e9" }, { "lightness": 17 }] },
-            { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }, { "lightness": 20 }] },
-            { "featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }, { "lightness": 17 }] },
-            { "featureType": "poi", "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }, { "lightness": 21 }] }
-          ]
-        });
-
-        new window.google.maps.Marker({
-          position: schoolLocation,
-          map: map,
-          title: "Papaya Academy",
-          animation: window.google.maps.Animation.DROP,
-        });
-      }
-    };
-
-    // Check if the script is already added to avoid the "included multiple times" error
-    const scriptId = 'google-maps-script';
-    const existingScript = document.getElementById(scriptId);
-
-    if (!window.google) {
-      if (!existingScript) {
-        const script = document.createElement('script');
-        // REPLACE WITH YOUR ACTUAL API KEY
-        script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY`;
-        script.id = scriptId; // Assigning ID to prevent duplicates
-        script.async = true;
-        script.defer = true;
-        script.onload = initMap;
-        document.head.appendChild(script);
-      }
-    } else {
-      initMap();
-    }
-  }, []);
-  // --- GOOGLE MAPS CONFIGURATION END ---
-
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -112,6 +60,16 @@ export default function ContactPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [copied, setCopied] = useState(false);
+  
+  // State for the Get Directions Button Hover Effect
+  const [isBtnHovered, setIsBtnHovered] = useState(false);
+
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText("Kasiglahan Village, San Jose, Rodriguez, 1860 Rizal");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const faqs: FaqItem[] = [
     {
@@ -128,7 +86,7 @@ export default function ContactPage() {
     },
     {
       question: "Where exactly is the school located?",
-      answer: "Our campus is located at 123 Education Street, Manila, Philippines 1000. We are easily accessible via public transport. Check the map on our Home page for directions!"
+      answer: "Our campus is located at Kasiglahan Village, San Jose, Rodriguez, Rizal. We are easily accessible via public transport. Check the map on our Home page for directions!"
     },
     {
       question: "What track/strands do you offer for Senior High?",
@@ -200,8 +158,8 @@ export default function ContactPage() {
       id: 'location',
       patterns: ['where is the school', 'school location', 'school address', 'where are you located'],
       responses: [
-        "Our safe and secure campus is located at 123 Education Street, Manila. We'd love to show you around!",
-        "You can find us at 123 Education Street, Manila. Our campus is designed to be a safe and nurturing environment for young learners."
+        "Our safe and secure campus is located at Kasiglahan Village, San Jose, Rodriguez, Rizal. We'd love to show you around!",
+        "You can find us at Kasiglahan Village, San Jose, Rodriguez, Rizal. Our campus is designed to be a safe and nurturing environment for young learners."
       ]
     },
     {
@@ -490,7 +448,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg">Address</h3>
                       <p className="text-gray-600 mt-1 group-hover:text-papaya-green transition-colors">
-                        123 Education Street<br />Manila, Philippines 1000
+                        Kasiglahan Village<br />San Jose, Rodriguez, 1860 Rizal
                       </p>
                       <p className="text-xs text-papaya-green font-semibold mt-1 underline">See on Map</p>
                     </div>
@@ -588,22 +546,122 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* --- GOOGLE MAPS SECTION START --- */}
-      <section id="map-section" className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-            <ScrollReveal animation="fade-up">
-                <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-papaya-green">Visit Our Campus</h2>
-                    <p className="text-gray-600 mt-2">Find us easily in Manila.</p>
+      {/* --- UPDATED GOOGLE MAPS SECTION START --- */}
+      <section id="map-section" className="py-20 bg-gray-50 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle,rgba(46,139,87,0.05)_0%,transparent_70%)] pointer-events-none" />
+
+        <div className="container mx-auto px-4 relative z-10">
+          <ScrollReveal animation="fade-up">
+            <div className="text-center mb-12">
+               <h2 className="text-3xl font-bold text-papaya-green">Visit Our Campus</h2>
+               <p className="text-gray-600 mt-2">Plan your trip to Papaya Academy.</p>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-8">
+                
+                {/* LEFT: THE MAP BOX (Spans 2 columns) - FIXED HEIGHT */}
+                <div className="lg:col-span-2 bg-white p-2 rounded-[2rem] shadow-xl border border-gray-100 h-full min-h-[600px]">
+                    <div className="relative w-full h-full rounded-[1.8rem] overflow-hidden">
+                        <iframe 
+                            src="https://maps.google.com/maps?q=Kasiglahan%20Village%2C%20San%20Jose%2C%20Rodriguez%2C%20Rizal&t=&z=14&ie=UTF8&iwloc=&output=embed" 
+                            className="w-full h-full"
+                            style={{ border: 0 }} 
+                            allowFullScreen 
+                            loading="lazy" 
+                            referrerPolicy="no-referrer-when-downgrade"
+                        ></iframe>
+                    </div>
                 </div>
-                {/* MAP CONTAINER */}
-                <div className="relative w-full h-[450px] rounded-2xl overflow-hidden shadow-2xl border-4 border-white">
-                    <div ref={mapRef} className="absolute inset-0 w-full h-full" />
+
+                {/* RIGHT: ACTION BUTTONS DASHBOARD (Spans 1 column) */}
+                <div className="space-y-6">
+                    
+                    {/* 1. Main Location Card */}
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+                        <div className="flex items-start space-x-4">
+                           <div className="bg-papaya-green/10 p-3 rounded-full">
+                              <MapPin className="w-6 h-6 text-papaya-green" />
+                           </div>
+                           <div>
+                              <h3 className="font-bold text-gray-800 text-lg">Papaya Academy</h3>
+                              <p className="text-gray-500 text-sm mt-1 leading-relaxed">
+                                Kasiglahan Village, San Jose<br/>Rodriguez, 1860 Rizal
+                              </p>
+                              <button 
+                                onClick={handleCopyAddress}
+                                className="mt-3 flex items-center space-x-2 text-xs font-semibold text-papaya-green hover:text-green-700 transition-colors bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200"
+                              >
+                                {copied ? (
+                                    <>
+                                        <span>Copied!</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="w-3.5 h-3.5" />
+                                        <span>Copy Address</span>
+                                    </>
+                                )}
+                              </button>
+                           </div>
+                        </div>
+                    </div>
+
+                    {/* 2. Action Buttons (Updated: Design Copied & Directions URL) */}
+                    <div className="w-full">
+                        <a 
+                           href="https://www.google.com/maps/dir/?api=1&destination=Papaya+Academy+Inc.,+Kasiglahan+Village,+San+Jose,+Rodriguez,+Rizal"
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           onMouseEnter={() => setIsBtnHovered(true)}
+                           onMouseLeave={() => setIsBtnHovered(false)}
+                           className="flex items-center justify-center gap-2 px-8 py-4 w-full rounded-md font-bold text-sm tracking-widest border border-[#1B3E2A] border-b-4 shadow-md transition-all duration-300"
+                           style={{
+                             backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                             backgroundSize: '100% 200%',
+                             backgroundPosition: isBtnHovered ? 'bottom' : 'top',
+                             color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
+                             borderColor: '#1B3E2A',
+                             boxShadow: isBtnHovered ? '0 6px 20px rgba(27, 62, 42, 0.4)' : '0 4px 6px rgba(0,0,0,0.1)',
+                           }}
+                        >
+                            {/* Icon on Left with slide animation */}
+                            <Navigation 
+                                className={`w-5 h-5 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
+                            />
+                            GET DIRECTIONS
+                        </a>
+                    </div>
+
+                    {/* 3. Transport Info */}
+                    <div className="bg-[#f8faf9] p-6 rounded-2xl border border-dashed border-gray-300">
+                        <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+                            <Bus className="w-4 h-4 mr-2 text-gray-500" />
+                            How to get here
+                        </h4>
+                        <div className="space-y-4">
+                            <div className="flex items-start space-x-3">
+                                <div className="min-w-[4px] h-full bg-papaya-yellow rounded-full"></div>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold text-gray-900 block mb-0.5">By Jeepney</span>
+                                    Take the "Montalban/San Jose" route jeepney. Drop off at Education Street intersection.
+                                </p>
+                            </div>
+                            <div className="flex items-start space-x-3">
+                                <div className="min-w-[4px] h-full bg-papaya-green rounded-full"></div>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-semibold text-gray-900 block mb-0.5">By Car</span>
+                                    Parking is available at the main gate. Visitor passes required upon entry.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-            </ScrollReveal>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
-      {/* --- GOOGLE MAPS SECTION END --- */}
+      {/* --- UPDATED GOOGLE MAPS SECTION END --- */}
 
       {/* Partnership Information */}
       <section className="py-20 bg-[#1a2e25] relative overflow-hidden z-0">
@@ -831,11 +889,4 @@ export default function ContactPage() {
       )}
     </div>
   );
-}
-
-// Add this type definition at the end to satisfy TypeScript
-declare global {
-  interface Window {
-    google: any;
-  }
 }
