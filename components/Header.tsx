@@ -15,19 +15,13 @@ const montserrat = Montserrat({
 export default function Header() {
   const [isHovered, setIsHovered] = useState(false);
 
-  const scrollToDonate = () => {
-    const donateSection = document.getElementById('donate-section');
-    if (donateSection) {
-      donateSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   return (
     <header className={`bg-papaya-green text-white ${montserrat.className} relative z-50`}>
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo with Link to Home */}
         <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
-          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white flex-shrink-0">
+          {/* UPDATED: Removed 'border-2 border-white' from the className below */}
+          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
             <Image 
               src="/images/papaya.jpg" 
               alt="Papaya Academy Logo" 
@@ -56,21 +50,22 @@ export default function Header() {
         </nav>
         
         {/* Donate Button */}
-        <button
-          onClick={scrollToDonate}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
-          style={{
-            backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
-            backgroundSize: '100% 200%',
-            backgroundPosition: isHovered ? 'bottom' : 'top',
-            color: isHovered ? '#1B3E2A' : '#F2C94C',
-            boxShadow: isHovered ? '0 6px 20px rgba(242,201,76,0.8)' : '0 4px 14px 0 rgba(242,201,76,0.5)',
-          }}
-        >
-          DONATE
-        </button>
+        <Link href="/#donate-section">
+          <button
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
+            style={{
+              backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
+              backgroundSize: '100% 200%',
+              backgroundPosition: isHovered ? 'bottom' : 'top',
+              color: isHovered ? '#1B3E2A' : '#F2C94C',
+              // Removed the custom boxShadow (gold glow)
+            }}
+          >
+            DONATE
+          </button>
+        </Link>
       </div>
     </header>
   );
