@@ -14,23 +14,61 @@ const Footer = () => {
               <h3 className="text-xl font-bold text-white mb-6">Pages</h3>
             </ScrollReveal>
             <ul className="space-y-3">
-              {['Home', 'Papaya School', 'Apple Project', 'Pineapple Project', 'What can you do?'].map((item, index) => (
-                <ScrollReveal 
-                  key={item} 
-                  animation="slide-right" 
-                  delay={index * 100} // Staggered delay for list items
-                >
-                  <li>
-                    <Link 
-                      href={`/${item.toLowerCase().replace(/\s+/g, '-')}`} 
-                      className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
-                    >
-                      <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
-                      <span className="hover:underline">{item}</span>
-                    </Link>
-                  </li>
-                </ScrollReveal>
-              ))}
+              <ScrollReveal animation="slide-right" delay={0}>
+                <li>
+                  <Link 
+                    href="/" 
+                    className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                    <span className="hover:underline">Home</span>
+                  </Link>
+                </li>
+              </ScrollReveal>
+              <ScrollReveal animation="slide-right" delay={100}>
+                <li>
+                  <Link 
+                    href="/about" 
+                    className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                    <span className="hover:underline">About Us</span>
+                  </Link>
+                </li>
+              </ScrollReveal>
+              <ScrollReveal animation="slide-right" delay={200}>
+                <li>
+                  <Link 
+                    href="/projects/apple-scholarships" 
+                    className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                    <span className="hover:underline">Apple Scholarships</span>
+                  </Link>
+                </li>
+              </ScrollReveal>
+              <ScrollReveal animation="slide-right" delay={300}>
+                <li>
+                  <Link 
+                    href="/projects/pineapple-project" 
+                    className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                    <span className="hover:underline">Pineapple Project</span>
+                  </Link>
+                </li>
+              </ScrollReveal>
+              <ScrollReveal animation="slide-right" delay={400}>
+                <li>
+                  <Link 
+                    href="/programs" 
+                    className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                    <span className="hover:underline">All Programs</span>
+                  </Link>
+                </li>
+              </ScrollReveal>
             </ul>
           </div>
 

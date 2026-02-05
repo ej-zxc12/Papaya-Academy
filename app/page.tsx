@@ -265,7 +265,7 @@ export default function Home() {
                     <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
                       <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                       <img 
-                        src="/images/scholarship.jpg" 
+                        src="/images/apple.jpg" 
                         alt="Scholarship Program"
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                       />
@@ -289,7 +289,7 @@ export default function Home() {
                     <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
                       <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                       <img 
-                        src="/images/livelihood.jpg" 
+                        src="/images/pineapple.jpg" 
                         alt="Livelihood Program"
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                       />

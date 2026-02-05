@@ -121,7 +121,7 @@ function AboutPageContent() {
               <ScrollReveal animation="zoom-in" delay={300}>
                 <div className="relative h-64 rounded-lg overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105">
                   <img 
-                    src="/images/classroom.jpg" 
+                    src="/images/luna.jpg" 
                     alt="Students in classroom"
                     className="w-full h-full object-cover"
                   />
@@ -131,7 +131,7 @@ function AboutPageContent() {
               <ScrollReveal animation="zoom-in" delay={400} className="col-span-2">
                 <div className="relative h-48 rounded-lg overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105">
                   <img 
-                    src="/images/students-group.jpg" 
+                    src="/images/group.jpg" 
                     alt="Group of students"
                     className="w-full h-full object-cover"
                   />
@@ -241,7 +241,7 @@ function AboutPageContent() {
               <div className="flex flex-col items-center">
                 <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-papaya-green shadow-lg mb-4 bg-white">
                   <img
-                    src="/images/1.jpg"
+                    src="/images/sheryl.jpg"
                     alt="Sheryl Ann B. Queliza"
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -272,44 +272,44 @@ function AboutPageContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             {[
               { 
-                name: 'Jennie G. Ramos', 
+                name: 'Geenie G. Ramos', 
                 role: 'Grade 6 Adviser',
-                image: '/images/staff/jennie-ramos.jpg'
+                image: '/images/geen.jpg'
               },
               { 
-                name: 'Jerico T. Santos', 
+                name: 'Daina Marie R. Lumbao', 
                 role: 'Grade 5 Adviser',
-                image: '/images/staff/jerico-santos.jpg'
+                image: '/images/dina.jpg'
               },
               { 
-                name: 'Daina Marie A. Roma', 
+                name: 'Erwin Q. Molabola', 
                 role: 'Grade 4 Adviser',
-                image: '/images/staff/daina-roma.jpg'
+                image: '/images/erwin.jpg'
               },
               { 
-                name: 'Aileen B. Villanueva', 
+                name: 'Marvin Christopher Agabin', 
                 role: 'Grade 3 Adviser',
-                image: '/images/staff/aileen-villanueva.jpg'
+                image: '/images/marvin.jpg'
               },
               { 
-                name: 'Hazel R. Mercado', 
+                name: 'Leizl R. Mercado', 
                 role: 'Grade 2 Adviser',
-                image: '/images/staff/hazel-mercado.jpg'
+                image: '/images/liezl.jpg'
               },
               { 
-                name: 'Jeanbel C. Borres', 
+                name: 'Jeanebi C. Borres', 
                 role: 'Grade 1 Adviser',
-                image: '/images/staff/jeanbel-borres.jpg'
+                image: '/images/jeanebi.jpg'
               },
               { 
                 name: 'Katrina A. Ocampo', 
                 role: 'Kinder Adviser',
-                image: '/images/staff/katrina-ocampo.jpg'
+                image: '/images/kat.jpg'
               },
               { 
-                name: 'Marie Sean A. Barbacena', 
+                name: 'Marie Sean B. Lira', 
                 role: 'Science / Registrar',
-                image: '/images/staff/marie-barbacena.jpg'
+                image: '/images/sean.jpg'
               },
             ].map((person, index) => (
               <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
@@ -346,17 +346,17 @@ function AboutPageContent() {
               { 
                 name: 'Ma. Luzviminda M. Macabuhay', 
                 role: 'Office Manager',
-                image: '/images/staff/luzviminda-macabuhay.jpg'
+                image: '/images/luz.jpg'
               },
               { 
                 name: 'Salvacion M. Macasacuit', 
                 role: 'Housekeeper',
-                image: '/images/staff/salvacion-macasacuit.jpg'
+                image: '/images/salve.jpg'
               },
               { 
                 name: 'Roger C. Macasacuit', 
-                role: 'Driver / Maintenance',
-                image: '/images/staff/roger-macasacuit.jpg'
+                role: 'School Driver / Maintenance',
+                image: '/images/roger.jpg'
               },
             ].map((person, index) => (
               <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
@@ -381,67 +381,6 @@ function AboutPageContent() {
             ))}
           </div>
 
-          {/* OTHER SCHOOL STAFF */}
-          <ScrollReveal animation="fade-up">
-            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center mt-16">
-              School Staff
-            </h3>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {[
-              { 
-                name: 'Maria Lourdes T. Cruz', 
-                role: 'School Nurse',
-                image: '/images/staff/maria-cruz.jpg'
-              },
-              { 
-                name: 'Roberto M. Garcia', 
-                role: 'Guidance Counselor',
-                image: '/images/staff/roberto-garcia.jpg'
-              },
-              { 
-                name: 'Lorna S. Reyes', 
-                role: 'Librarian',
-                image: '/images/staff/lorna-reyes.jpg'
-              },
-              { 
-                name: 'Antonio B. Dela Cruz', 
-                role: 'IT Support',
-                image: '/images/staff/antonio-dela-cruz.jpg'
-              },
-              { 
-                name: 'Teresa M. Santos', 
-                role: 'Registrar',
-                image: '/images/staff/teresa-santos.jpg'
-              },
-              { 
-                name: 'Ricardo J. Gonzales', 
-                role: 'Maintenance Head',
-                image: '/images/staff/ricardo-gonzales.jpg'
-              },
-            ].map((staff, index) => (
-              <ScrollReveal key={index} animation="fade-up" delay={100 + (index * 50)}>
-                <div className="flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-blue mb-4 shadow-md bg-gray-100">
-                    <img 
-                      src={staff.image}
-                      alt={staff.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const t = e.target as HTMLImageElement;
-                        t.src = `https://ui-avatars.com/api/?name=${staff.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
-                      }}
-                    />
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-blue hover:shadow-md transition-shadow duration-300">
-                    <p className="font-semibold text-papaya-green">{staff.name}</p>
-                    <p className="text-sm text-gray-600 mt-1">{staff.role}</p>
-                  </div>
-                </div>
-              </ScrollReveal>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -459,33 +398,37 @@ function AboutPageContent() {
               {
                 title: 'Papaya Academy Inc.',
                 members: [
-                  { name: 'Ailyn C. Gardose', role: 'President', image: '/images/board/ailyn.jpg' },
-                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
-                  { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/board/hadassah.jpg' },
-                  { name: 'Maria Julie Collado', role: 'Member', image: '' },
-                  { name: 'Tristan Ian C. Santos', role: 'Member', image: '' },
+                  { name: 'Ailyn C. Gardose', role: 'President', image: '/images/ailyn.jpg' },
+                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/michelle.jpg' },
+                  { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/hadassah.jpg' },
+                  { name: 'Maria Julie Collado', role: 'Member', image: '/images/maria.jpg' },
+                  { name: 'Tristan Ian C. Santos', role: 'Member', image: '/images/tristan.jpg' },
                 ],
               },
               {
                 title: 'Kalinga at Pag-ibig Foundation Board (PH)',
                 members: [
-                  { name: 'John Van Dijk', role: 'President', image: '/images/board/john.jpg' },
-                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/board/michelle.jpg' },
-                  { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/board/ailyn.jpg' },
-                  { name: 'Hadassah A. Castro', role: 'Member', image: '/images/board/hadassah.jpg' },
-                  { name: 'Alberto Villamor', role: 'Member', image: '/images/board/alberto.jpg' },
-                  { name: 'Niall Highland', role: 'Member', image: '' },
+                  { name: 'John Van Dijk', role: 'President', image: '/images/john.jpg' },
+                  { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/michelle.jpg' },
+                  { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/ailyn.jpg' },
+                  { name: 'Hadassah A. Castro', role: 'Member', image: '/images/hadassah.jpg' },
+                  { name: 'Alberto Villamor', role: 'Member', image: '/images/alberto.jpg' },
+                  { name: 'Max Willem Heinen', role: 'Member', image: 'images/max.jpg' },
                 ],
               },
               {
                 title: 'Stichting Kalingaboard (NL)',
                 members: [
-                  { name: 'Janneke Heinen', role: 'Chairwoman', image: '/images/board/janneke.jpg' },
-                  { name: 'Arno Van Workum', role: 'Treasurer', image: '/images/board/arno.jpg' },
-                  { name: 'Miranda Van Loon', role: 'Secretary', image: '/images/board/miranda.jpg' },
-                  { name: 'Peter Van Schijndel', role: 'General Board Member', image: '/images/board/peter.jpg' },
-                  { name: 'Heleen Scheer', role: 'General Board Member', image: '/images/board/heleen.jpg' },
-                  { name: 'Daniel Van Scherpenzeel', role: 'General Board Member', image: '/images/board/daniel.jpg' },
+                  { name: 'Janneke Heinen', role: 'Chairwoman', image: '/images/janneke.jpg' },
+                  { name: 'Arno Van Workum', role: 'Treasurer', image: '/images/arno.jpg' },
+                  { name: 'Miranda Van Loon', role: 'Secretary', image: '/images/miranda.jpg' },
+                  { name: 'Peter Van Schijndel', role: 'General Board Member', image: '/images/peter.jpg' },
+                  { name: 'Heleen Scheer', role: 'General Board Member', image: '/images/helen.jpg' },
+                  { name: 'Daniel Van Scherpenzeel', role: 'General Board Member', image: '/images/daniel.jpg' },
+                  { name: 'Mirjam Van Bruggen', role: 'General Board Member', image: '/images/mirjam.jpg' },
+                  { name: 'Alwin Tettero', role: 'General Board Member', image: '/images/alwin.jpg' },
+                  { name: 'Pim Van Hattum', role: 'General Board Member', image: '/images/pim.jpg' },
+                  { name: 'Felisart Joana Loren', role: 'General Board Member', image: '/images/mirjam1.jpg' },
                 ],
               },
             ].map((board, colIndex) => (
@@ -529,11 +472,11 @@ function AboutPageContent() {
 
                         {/* Info */}
                         <div className="flex-1">
-                          <div className="inline-block bg-papaya-yellow text-papaya-green text-[11px] font-semibold px-2 py-0.5 rounded mb-1">
-                            {member.role}
-                          </div>
                           <p className="text-sm font-medium text-gray-800">
                             {member.name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {member.role}
                           </p>
                         </div>
                       </div>

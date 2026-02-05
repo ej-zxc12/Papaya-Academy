@@ -28,56 +28,151 @@ const montserrat = Montserrat({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-// --- MOCK DATA ---
-const NEWS_DATA = [
+// --- ACHIEVEMENTS DATA ---
+const ACHIEVEMENTS_DATA = [
+  // 2025 Events
   {
     id: 1,
-    title: "Enrollment for School Year 2024-2025 Now Open",
-    category: "Admissions",
-    date: "March 18, 2024",
-    image: "/images/1.jpg", // Ensure this exists
-    excerpt: "Registration for the upcoming school year is now open. Parents can enroll their children from March 20-30, 2024. Early bird discounts available.",
-    isFeatured: true
-  },
-  {
-    id: 2,
-    title: "Students Excel in Regional Math Competition",
-    category: "Academic",
-    date: "March 15, 2024",
-    image: "/images/3.jpg",
-    excerpt: "Our Grade 6 students brought home 3 gold medals from the Regional Mathematics Competition, surpassing 50 other schools.",
+    title: "Amazing FILIPINIANA Event at ISM! 🇵🇭",
+    category: "Cultural",
+    date: "December 12, 2025",
+    image: "/images/placeholder-filipiniana.jpg",
+    excerpt: "This year's theme, KUNDIMAN, truly captured the heart of our Filipino culture — full of grace, tradition, and pride. Our students showcased exceptional performances celebrating Filipino heritage.",
     isFeatured: false
   },
   {
+    id: 2,
+    title: "Papaya Academy Shines at ROPRISA 2025 with Multiple Championships",
+    category: "Featured",
+    date: "September 13, 2025",
+    image: "/images/placeholder-feature.jpg",
+    excerpt: "Outstanding performances across folk dance, vocal solo, table tennis, and volleyball competitions bring home multiple medals and championships to Papaya Academy.",
+    isFeatured: true
+  },
+  {
     id: 3,
-    title: "Annual Family Day Celebration Set for April",
-    category: "Events",
-    date: "March 12, 2024",
-    image: "/images/gallery/community1.jpg",
-    excerpt: "Join us for our annual Family Day! Fun activities, food stalls, and games await students and parents alike.",
+    title: "Folk Dance – ROPRISA Competition (3rd Place)",
+    category: "Cultural",
+    date: "September 13, 2025",
+    image: "/images/placeholder-folk-dance.jpg",
+    excerpt: "The Papaya Folk Dancers delivered an energetic performance of the traditional 'Itik-Itik' dance, earning 3rd Place in the ROPRISA Literary and Musical Competition.",
     isFeatured: false
   },
   {
     id: 4,
-    title: "New Computer Lab Facilities Inaugurated",
-    category: "Facilities",
-    date: "March 08, 2024",
-    image: "/images/jeep.jpg",
-    excerpt: "We are excited to announce the opening of our state-of-the-art computer lab equipped with 30 new workstations.",
+    title: "Intermediate Vocal Solo – ROPRISA Competition (2nd Place)",
+    category: "Cultural",
+    date: "September 13, 2025",
+    image: "/images/placeholder-vocal.jpg",
+    excerpt: "Mygs Filaro achieved 2nd Place in the Intermediate Vocal Solo Category under the guidance of coach Ms. Geen, showcasing exceptional vocal talent.",
     isFeatured: false
   },
   {
     id: 5,
-    title: "Ms. Reyes Named Teacher of the Year",
-    category: "Faculty",
-    date: "March 05, 2024",
-    image: "/images/1.jpg",
-    excerpt: "Recognizing excellence in teaching and dedication to student growth. Congratulations to Ms. Reyes!",
+    title: "Table Tennis – ROPRISA Sports Fest 2025 (Championship)",
+    category: "Sports",
+    date: "2025",
+    image: "/images/placeholder-table-tennis.jpg",
+    excerpt: "Elementary boys and girls athletes secured the championship title in Table Tennis Elementary Division, demonstrating exceptional teamwork and skill.",
+    isFeatured: false
+  },
+  {
+    id: 6,
+    title: "Volleyball – ROPRISA Sports Fest 2025 (Championship)",
+    category: "Sports",
+    date: "2025",
+    image: "/images/placeholder-volleyball.jpg",
+    excerpt: "Papaya Academy celebrated victory after securing the championship title in Volleyball Elementary Division for both Boys and Girls.",
+    isFeatured: false
+  },
+  
+  // 2024 Events
+  {
+    id: 7,
+    title: "Folk Dance – ROPRISA 2024 (2nd Place)",
+    category: "Cultural",
+    date: "2024",
+    image: "/images/placeholder-subli.jpg",
+    excerpt: "The Papaya Folk Dancers won 2nd Place with their Subli Folk Dance presentation, showcasing the richness of Filipino culture.",
+    isFeatured: false
+  },
+  {
+    id: 8,
+    title: "Declamation – ROPRISA LITMUS (2nd Place)",
+    category: "Academic",
+    date: "2024",
+    image: "/images/placeholder-declamation.jpg",
+    excerpt: "Mcqueen Imperial earned 2nd Place in the Declamation Contest with 'Respect Starts with Me,' under the coaching of Sir Erwin.",
+    isFeatured: false
+  },
+  {
+    id: 9,
+    title: "Poetry Recitation – ROPRISA 2024 (2nd Place)",
+    category: "Academic",
+    date: "2024",
+    image: "/images/placeholder-poetry.jpg",
+    excerpt: "Grade 2 student Aaron 'Chok' Sargento won 2nd Place in Poetry Recitation, impressing judges with outstanding tula delivery.",
+    isFeatured: false
+  },
+  {
+    id: 10,
+    title: "Provincial Volleyball Sports Competition (Silver Medalist)",
+    category: "Sports",
+    date: "2024",
+    image: "/images/placeholder-provincial-volley.jpg",
+    excerpt: "Proudly represented Team Rodriguez, earning Silver Medal in Provincial Volleyball for Elementary Boys and Girls Division.",
+    isFeatured: false
+  },
+  {
+    id: 11,
+    title: "Table Tennis – Rizal Province (Multiple Gold Medals)",
+    category: "Sports",
+    date: "2024",
+    image: "/images/placeholder-rizal-table.jpg",
+    excerpt: "Outstanding results in Rizal Province Table Tennis Competition: Boys Division - Gold in Single A & B, Silver in Doubles; Girls Division - Gold in Single A & B and Doubles.",
+    isFeatured: false
+  },
+  {
+    id: 12,
+    title: "Municipal Meet 2024 – Montalban, Rizal (Multiple Medals)",
+    category: "Sports",
+    date: "2024",
+    image: "/images/placeholder-municipal.jpg",
+    excerpt: "Athletes earned multiple medals: Golds from Daniela Joy Napa and Ahira Faith Mantos, Silvers from Princesca Valencia and Aldrich Agarin, and Bronzes from Jannel Imperial, Ronyhiel Mark Agustin, and Xackaree Dylan Mamansag.",
+    isFeatured: false
+  },
+  {
+    id: 13,
+    title: "Provincial Volleyball – Girls Division (1st Place)",
+    category: "Sports",
+    date: "2024",
+    image: "/images/placeholder-girls-volley.jpg",
+    excerpt: "Girls' volleyball team secured 1st Place and Gold Medal at Provincial Volleyball Sports Competition in Montalban.",
+    isFeatured: false
+  },
+  
+  // 2019 Events
+  {
+    id: 14,
+    title: "Table Tennis – ROPRISA SY 2018-2019 (Championships)",
+    category: "Sports",
+    date: "2019",
+    image: "/images/placeholder-2019-table.jpg",
+    excerpt: "Raymond Pesidas and Elias Bulseco won 1st Place in Doubles; Alexis Versaga earned 2nd Place in Singles; Chris Artaghin won 1st Place in Singles.",
+    isFeatured: false
+  },
+  {
+    id: 15,
+    title: "DAMA Girls – ROPRISA SY 2018-2019 (2nd Place)",
+    category: "Sports",
+    date: "2019",
+    image: "/images/placeholder-dama.jpg",
+    excerpt: "Nicole Mahinay earned 2nd Place in DAMA Girls category, showcasing impressive performance and bringing honor to the school.",
     isFeatured: false
   }
 ];
 
-const CATEGORIES = ["All", "Admissions", "Academic", "Events", "Facilities", "Faculty"];
+const CATEGORIES = ["All", "Featured", "Cultural", "Academic", "Sports"];
 
 export default function NewsPage() {
   const [isHovered, setIsHovered] = useState(false);
@@ -85,10 +180,10 @@ export default function NewsPage() {
 
   // Filter logic
   const filteredNews = activeCategory === "All" 
-    ? NEWS_DATA 
-    : NEWS_DATA.filter(item => item.category === activeCategory);
+    ? ACHIEVEMENTS_DATA 
+    : ACHIEVEMENTS_DATA.filter(item => item.category === activeCategory);
 
-  const featuredStory = NEWS_DATA.find(item => item.isFeatured);
+  const featuredStory = ACHIEVEMENTS_DATA.find(item => item.isFeatured);
   const standardStories = filteredNews.filter(item => !item.isFeatured || activeCategory !== "All");
 
   return (

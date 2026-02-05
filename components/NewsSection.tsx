@@ -22,6 +22,14 @@ const NewsSection = () => {
   const newsItems = [
     {
       id: 1,
+      title: 'Amazing FILIPINIANA Event at ISM! 🇵🇭',
+      excerpt: 'This year\'s theme, KUNDIMAN, truly captured the heart of our Filipino culture — full of grace, tradition, and pride. Our students showcased exceptional performances celebrating Filipino heritage.',
+      date: 'December 12, 2025',
+      category: 'Cultural Events',
+      icon: <Award className="w-5 h-5 text-papaya-green" />
+    },
+    {
+      id: 2,
       title: 'New Literacy Program Launches',
       excerpt: 'Our new after-school literacy initiative is showing promising results after just three months.',
       date: 'January 15, 2024',
@@ -29,7 +37,7 @@ const NewsSection = () => {
       icon: <BookOpen className="w-5 h-5 text-papaya-green" />
     },
     {
-      id: 2,
+      id: 3,
       title: 'Annual Report 2023',
       excerpt: 'Read about our achievements and impact in the community over the past year.',
       date: 'December 20, 2023',
@@ -37,7 +45,7 @@ const NewsSection = () => {
       icon: <Newspaper className="w-5 h-5 text-papaya-green" />
     },
     {
-      id: 3,
+      id: 4,
       title: 'Student Achievements',
       excerpt: 'Celebrating our students who have excelled in national competitions this quarter.',
       date: 'November 5, 2023',

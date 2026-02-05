@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import AboutDropdown from './AboutDropdown';
+import ProgramsDropdown from './ProgramsDropdown';
 import { Montserrat } from 'next/font/google';
 
 const montserrat = Montserrat({ 
@@ -45,9 +46,7 @@ export default function Header() {
             Home
           </Link>
           <AboutDropdown />
-          <Link href="/programs" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
-            Programs
-          </Link>
+          <ProgramsDropdown />
           <Link href="/news" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
             News
           </Link>

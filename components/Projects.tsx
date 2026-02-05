@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import ScrollReveal from './ScrollReveal'; // Import the reusable animator
 
 const Projects = () => {
@@ -8,13 +9,13 @@ const Projects = () => {
     {
       title: "Apple Scholarships",
       description: "Scholarship program supporting high-potential students through secondary and tertiary education.",
-      image: "/images/project2.jpg",
+      image: "/images/apple.jpg",
       link: "/projects/apple-scholarships"
     },
     {
       title: "Pineapple Project",
       description: "Community development initiative focusing on sustainable livelihood programs for families.",
-      image: "/images/project3.jpg",
+      image: "/images/Pineapple.jpg",
       link: "/projects/pineapple-project"
     }
   ];
@@ -43,10 +44,12 @@ const Projects = () => {
                 
                 {/* Image Area with Zoom Effect on Hover */}
                 <div className="h-48 bg-gray-200 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center bg-papaya-green bg-opacity-20 transform transition-transform duration-500 group-hover:scale-110">
-                    {/* Note: Ideally use Next/Image here when you have real images */}
-                    <span className="text-gray-500 font-medium">Project Image</span>
-                  </div>
+                  <Image
+                    src={project.image}
+                    alt={project.title}
+                    fill
+                    className="object-cover transform transition-transform duration-500 group-hover:scale-110"
+                  />
                 </div>
 
                 <div className="p-6 flex flex-col flex-grow">

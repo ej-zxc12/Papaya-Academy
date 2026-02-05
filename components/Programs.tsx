@@ -17,16 +17,16 @@ const Programs = () => {
       link: '/programs/highschool'
     },
     {
-      title: 'Vocational Training',
-      description: 'Hands-on skills development in various trades to prepare students for immediate employment.',
-      icon: '🔧',
-      link: '/programs/vocational'
+      title: 'Apple Scholarships',
+      description: 'Scholarship program supporting high-potential students through secondary and tertiary education.',
+      icon: '🍎',
+      link: '/projects/apple-scholarships'
     },
     {
-      title: 'Scholarship Program',
-      description: 'Financial assistance for high-achieving students to continue their education at higher levels.',
-      icon: '🏆',
-      link: '/programs/scholarships'
+      title: 'Pineapple Project',
+      description: 'Community development initiative focusing on sustainable livelihood programs for families.',
+      icon: '🍍',
+      link: '/projects/pineapple-project'
     },
   ];
 
