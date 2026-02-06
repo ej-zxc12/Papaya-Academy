@@ -36,7 +36,7 @@ const ACHIEVEMENTS_DATA = [
     title: "Amazing FILIPINIANA Event at ISM! 🇵🇭",
     category: "Cultural",
     date: "December 12, 2025",
-    image: "/images/placeholder-filipiniana.jpg",
+    image: "/images/Filipina.jpg",
     excerpt: "This year's theme, KUNDIMAN, truly captured the heart of our Filipino culture — full of grace, tradition, and pride. Our students showcased exceptional performances celebrating Filipino heritage.",
     isFeatured: false
   },
@@ -54,7 +54,7 @@ const ACHIEVEMENTS_DATA = [
     title: "Folk Dance – ROPRISA Competition (3rd Place)",
     category: "Cultural",
     date: "September 13, 2025",
-    image: "/images/placeholder-folk-dance.jpg",
+    image: "/images/itik.jpg",
     excerpt: "The Papaya Folk Dancers delivered an energetic performance of the traditional 'Itik-Itik' dance, earning 3rd Place in the ROPRISA Literary and Musical Competition.",
     isFeatured: false
   },
@@ -63,7 +63,7 @@ const ACHIEVEMENTS_DATA = [
     title: "Intermediate Vocal Solo – ROPRISA Competition (2nd Place)",
     category: "Cultural",
     date: "September 13, 2025",
-    image: "/images/placeholder-vocal.jpg",
+    image: "/images/vocal.jpg",
     excerpt: "Mygs Filaro achieved 2nd Place in the Intermediate Vocal Solo Category under the guidance of coach Ms. Geen, showcasing exceptional vocal talent.",
     isFeatured: false
   },
@@ -72,7 +72,7 @@ const ACHIEVEMENTS_DATA = [
     title: "Table Tennis – ROPRISA Sports Fest 2025 (Championship)",
     category: "Sports",
     date: "2025",
-    image: "/images/placeholder-table-tennis.jpg",
+    image: "/images/table.jpg",
     excerpt: "Elementary boys and girls athletes secured the championship title in Table Tennis Elementary Division, demonstrating exceptional teamwork and skill.",
     isFeatured: false
   },
@@ -81,7 +81,7 @@ const ACHIEVEMENTS_DATA = [
     title: "Volleyball – ROPRISA Sports Fest 2025 (Championship)",
     category: "Sports",
     date: "2025",
-    image: "/images/placeholder-volleyball.jpg",
+    image: "/images/volley.jpg",
     excerpt: "Papaya Academy celebrated victory after securing the championship title in Volleyball Elementary Division for both Boys and Girls.",
     isFeatured: false
   },
@@ -273,18 +273,14 @@ export default function NewsPage() {
               {standardStories.map((item, index) => (
                 <ScrollReveal key={item.id} animation="fade-up" delay={index * 100}>
                   <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group h-full flex flex-col">
-                    <div className="h-48 relative overflow-hidden">
+                    <div className="h-48 relative overflow-hidden bg-gray-100">
                       <Image 
                         src={item.image} 
                         alt={item.title} 
-                        fill 
+                        fill
                         className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw"
                       />
-                      <div className="absolute top-4 left-4">
-                         <span className="bg-papaya-green/90 text-white px-2 py-1 text-xs font-bold rounded-sm uppercase">
-                            {item.category}
-                         </span>
-                      </div>
                     </div>
                     <div className="p-6 flex flex-col flex-grow">
                       <div className="flex items-center text-xs text-gray-500 mb-3">

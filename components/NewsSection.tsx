@@ -26,7 +26,8 @@ const NewsSection = () => {
       excerpt: 'This year\'s theme, KUNDIMAN, truly captured the heart of our Filipino culture — full of grace, tradition, and pride. Our students showcased exceptional performances celebrating Filipino heritage.',
       date: 'December 12, 2025',
       category: 'Cultural Events',
-      icon: <Award className="w-5 h-5 text-papaya-green" />
+      icon: <Award className="w-5 h-5 text-papaya-green" />,
+      image: '/images/Filipina.jpg'
     },
     {
       id: 2,
@@ -34,7 +35,8 @@ const NewsSection = () => {
       excerpt: 'Our new after-school literacy initiative is showing promising results after just three months.',
       date: 'January 15, 2024',
       category: 'Programs',
-      icon: <BookOpen className="w-5 h-5 text-papaya-green" />
+      icon: <BookOpen className="w-5 h-5 text-papaya-green" />,
+      image: '/images/news/literacy-program.jpg'
     },
     {
       id: 3,
@@ -42,7 +44,8 @@ const NewsSection = () => {
       excerpt: 'Read about our achievements and impact in the community over the past year.',
       date: 'December 20, 2023',
       category: 'News',
-      icon: <Newspaper className="w-5 h-5 text-papaya-green" />
+      icon: <Newspaper className="w-5 h-5 text-papaya-green" />,
+      image: '/images/news/annual-report-2023.jpg'
     },
     {
       id: 4,
@@ -50,7 +53,8 @@ const NewsSection = () => {
       excerpt: 'Celebrating our students who have excelled in national competitions this quarter.',
       date: 'November 5, 2023',
       category: 'Success Stories',
-      icon: <Award className="w-5 h-5 text-papaya-green" />
+      icon: <Award className="w-5 h-5 text-papaya-green" />,
+      image: '/images/news/student-achievements.jpg'
     }
   ];
 
@@ -81,11 +85,23 @@ const NewsSection = () => {
             >
               <article className="group border border-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col hover:-translate-y-1">
                 
-                {/* Image Placeholder Area */}
+                {/* Image Area */}
                 <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
-                  <div className="bg-papaya-green/10 p-4 rounded-full transform transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
-                    {item.icon}
-                  </div>
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.src = `https://ui-avatars.com/api/?name=${item.title.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=128`;
+                      }}
+                    />
+                  ) : (
+                    <div className="bg-papaya-green/10 p-4 rounded-full transform transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
+                      {item.icon}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6 flex flex-col flex-grow">

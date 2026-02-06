@@ -41,7 +41,7 @@ export default function FilipinianaEventPage() {
       <div className="relative h-[400px] md:h-[500px] bg-gradient-to-br from-[#1B3E2A] to-[#2d5f3f] overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="/images/placeholder-filipiniana.jpg"
+            src="/images/Filipina.jpg"
             alt="FILIPINIANA Event at ISM"
             fill
             className="object-cover opacity-30"
@@ -135,7 +135,7 @@ export default function FilipinianaEventPage() {
           <ScrollReveal animation="fade-up" delay={200} className="mb-12">
             <div className="relative h-[400px] md:h-[500px] rounded-xl overflow-hidden shadow-xl">
               <Image
-                src="/images/placeholder-filipiniana.jpg"
+                src="/images/Filipina.jpg"
                 alt="FILIPINIANA Event KUNDIMAN Theme"
                 fill
                 className="object-cover"
