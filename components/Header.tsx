@@ -20,7 +20,6 @@ export default function Header() {
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo with Link to Home */}
         <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
-          {/* UPDATED: Removed 'border-2 border-white' from the className below */}
           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
             <Image 
               src="/images/papaya.jpg" 
@@ -49,8 +48,8 @@ export default function Header() {
           </Link>
         </nav>
         
-        {/* Donate Button */}
-        <Link href="/#donate-section">
+        {/* Donate Button - UPDATED LINK */}
+        <Link href="/donate">
           <button
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -60,7 +59,6 @@ export default function Header() {
               backgroundSize: '100% 200%',
               backgroundPosition: isHovered ? 'bottom' : 'top',
               color: isHovered ? '#1B3E2A' : '#F2C94C',
-              // Removed the custom boxShadow (gold glow)
             }}
           >
             DONATE
