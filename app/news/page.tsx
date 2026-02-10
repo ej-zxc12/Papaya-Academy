@@ -192,19 +192,22 @@ export default function NewsPage() {
       {/* --- HEADER --- */}
       <Header />
 
-      {/* --- PAGE HEADER --- */}
-      <div className="bg-[#1B3E2A] text-white py-16">
-        <div className="container mx-auto px-4 text-center">
-          <ScrollReveal animation="fade-down">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">News & Updates</h1>
-          </ScrollReveal>
-          <ScrollReveal animation="fade-up" delay={200}>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Stay connected with the latest happenings, achievements, and announcements from Papaya Academy.
-            </p>
+{/* --- NEWS PAGE HEADER --- */}
+      <section className="relative bg-gradient-to-br from-papaya-green to-green-800 text-white py-20 z-0">
+        <div className="absolute inset-0 bg-black opacity-20"></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <ScrollReveal animation="fade-down" delay={100}>
+            <div className="text-center">
+              <h1 className="text-5xl md:text-6xl font-light tracking-wide mb-6 leading-tight drop-shadow-lg text-white">
+                Latest Updates
+              </h1>
+              <p className="text-xl md:text-2xl font-light text-green-100 max-w-3xl mx-auto">
+                Stay informed about our global donation impact and community milestones.
+              </p>
+            </div>
           </ScrollReveal>
         </div>
-      </div>
+      </section>
 
       <div className="container mx-auto px-4 py-12">
         <div className="flex flex-col lg:flex-row gap-12">

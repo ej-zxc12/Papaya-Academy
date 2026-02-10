@@ -33,8 +33,71 @@ const montserrat = Montserrat({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-export default function FilipinianaEventPage() {
+// Base news article data structure - customize this for each article
+interface NewsArticle {
+  id: number;
+  title: string;
+  subtitle: string;
+  date: string;
+  category: string;
+  readTime: string;
+  featuredImage: string;
+  imageAlt: string;
+  content: {
+    introduction: string;
+    culturalPerformances?: string;
+    musicalExcellence?: string;
+    eventHighlights?: {
+      title: string;
+      description: string;
+    }[];
+  };
+  relatedArticles?: {
+    title: string;
+    href: string;
+  }[];
+}
+
+// Sample article data - replace with props or data fetching for dynamic content
+const sampleArticle: NewsArticle = {
+  id: 2,
+  title: "Kalinga Gala Dinner 2026",
+  subtitle: "Annual Fundraising Event",
+  date: "January 15, 2026",
+  category: "Fundraising",
+  readTime: "4 minutes",
+  featuredImage: "/images/gala-dinner.jpg",
+  imageAlt: "Kalinga Gala Dinner 2026",
+  content: {
+    introduction: "The annual Kalinga Gala Dinner 2026 was a tremendous success, bringing together supporters, donors, and community members for an evening of celebration and fundraising. This year's event focused on raising funds for our scholarship programs and facility improvements.",
+    culturalPerformances: "Students showcased their talents through various cultural performances, highlighting the importance of preserving our Filipino heritage while supporting educational initiatives.",
+    musicalExcellence: "The evening featured exceptional musical performances from our school choir and guest artists, creating an atmosphere of joy and unity.",
+    eventHighlights: [
+      {
+        title: "Fundraising Success",
+        description: "Event exceeded fundraising goals with overwhelming community support and generous donations."
+      },
+      {
+        title: "Student Performances",
+        description: "Talented students demonstrated their skills through cultural dances and musical presentations."
+      },
+      {
+        title: "Community Unity",
+        description: "Brought together parents, alumni, and community members in support of education."
+      }
+    ]
+  },
+  relatedArticles: [
+    { title: "FILIPINIANA Event", href: "/news/1" },
+    { title: "Folk Dance Competition", href: "/news/3" }
+  ]
+};
+
+export default function NewsArticlePage({ params }: { params: { id: string } }) {
   const [isLiked, setIsLiked] = useState(false);
+  
+  // In a real app, you would fetch article data based on params.id
+  const article = sampleArticle; // Replace with data fetching logic
 
   return (
     <div className={`min-h-screen bg-gray-50 ${montserrat.className}`}>
@@ -46,8 +109,8 @@ export default function FilipinianaEventPage() {
       <div className="relative h-[600px] md:h-[700px] bg-gradient-to-br from-papaya-green via-papaya-green/95 to-[#1B3E2A] overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="/images/Filipina.jpg"
-            alt="FILIPINIANA Event at ISM"
+            src={article.featuredImage}
+            alt={article.imageAlt}
             fill
             className="object-cover opacity-20"
           />
@@ -60,17 +123,17 @@ export default function FilipinianaEventPage() {
               <div className="flex flex-wrap items-center gap-4 text-white/95 mb-8">
                 <div className="flex items-center space-x-2 bg-papaya-yellow/20 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Calendar className="w-4 h-4 text-papaya-yellow" />
-                  <span className="text-sm font-medium">December 12, 2025</span>
+                  <span className="text-sm font-medium">{article.date}</span>
                 </div>
                 <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Tag className="w-4 h-4 text-papaya-yellow" />
-                  <span className="text-sm font-medium">Cultural Events</span>
+                  <span className="text-sm font-medium">{article.category}</span>
                 </div>
               </div>
               
               <h1 className="text-5xl md:text-7xl font-bold text-white mb-8 leading-tight tracking-tight">
-                Amazing FILIPINIANA Event at ISM
-                <span className="block text-3xl md:text-4xl font-normal text-papaya-yellow mt-3">KUNDIMAN Theme</span>
+                {article.title}
+                <span className="block text-3xl md:text-4xl font-normal text-papaya-yellow mt-3">{article.subtitle}</span>
               </h1>
             </ScrollReveal>
           </div>
@@ -89,7 +152,7 @@ export default function FilipinianaEventPage() {
               News & Updates
             </Link>
             <span className="text-gray-300">/</span>
-            <span className="text-papaya-green font-semibold">FILIPINIANA Event</span>
+            <span className="text-papaya-green font-semibold">{article.title}</span>
           </nav>
         </div>
       </div>
@@ -109,7 +172,7 @@ export default function FilipinianaEventPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Published</p>
-                      <p className="font-semibold text-gray-800">December 12, 2025</p>
+                      <p className="font-semibold text-gray-800">{article.date}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
@@ -118,7 +181,7 @@ export default function FilipinianaEventPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Reading Time</p>
-                      <p className="font-semibold text-gray-800">5 minutes</p>
+                      <p className="font-semibold text-gray-800">{article.readTime}</p>
                     </div>
                   </div>
                 </div>
@@ -149,8 +212,8 @@ export default function FilipinianaEventPage() {
           <ScrollReveal animation="fade-up" delay={200} className="mb-12">
             <div className="group relative h-[400px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl">
               <Image
-                src="/images/Filipina.jpg"
-                alt="FILIPINIANA Event KUNDIMAN Theme"
+                src={article.featuredImage}
+                alt={article.imageAlt}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
@@ -162,8 +225,8 @@ export default function FilipinianaEventPage() {
                     <div className="w-2 h-2 bg-papaya-yellow rounded-full"></div>
                     <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800">KUNDIMAN Theme - Filipino Cultural Celebration</p>
-                  <p className="text-xs text-gray-600 mt-1">International School Manila • December 2025</p>
+                  <p className="text-sm font-semibold text-gray-800">{article.subtitle} - Annual Celebration</p>
+                  <p className="text-xs text-gray-600 mt-1">Papaya Academy • January 2026</p>
                 </div>
               </div>
             </div>
@@ -178,100 +241,83 @@ export default function FilipinianaEventPage() {
                   <div className="w-12 h-1 bg-papaya-yellow rounded-full"></div>
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-6 leading-tight">
-                  Celebrating Filipino Heritage Through KUNDIMAN
+                  Celebrating Community Through {article.subtitle}
                 </h2>
                 
                 <div className="space-y-6 text-gray-700 leading-relaxed">
                   <p className="text-lg">
-                    The International School Manila (ISM) recently hosted an extraordinary FILIPINIANA event that brought the vibrant spirit of Filipino culture to life. This year's theme, <span className="font-semibold text-papaya-green">KUNDIMAN</span>, served as a beautiful tribute to traditional Filipino art forms, music, and dance that have shaped our cultural identity.
-                  </p>
-
-                  <p className="text-lg">
-                    KUNDIMAN, a traditional genre of Filipino love songs, became the perfect backdrop for showcasing the depth and beauty of our heritage. The event featured exceptional performances from our talented students who demonstrated remarkable skill in interpreting various Filipino cultural pieces.
+                    {article.content.introduction}
                   </p>
                 </div>
               </div>
             </ScrollReveal>
 
-            <ScrollReveal animation="fade-up" delay={400}>
-              <div className="grid md:grid-cols-2 gap-8 mb-8">
-                <div className="group bg-gradient-to-br from-papaya-green/5 to-papaya-yellow/5 rounded-2xl p-8 border border-papaya-green/20 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-12 h-12 bg-papaya-green/20 rounded-full flex items-center justify-center">
-                      <Theater className="w-6 h-6 text-papaya-green" />
+            {/* Cultural Performances and Musical Excellence */}
+            {article.content.culturalPerformances && article.content.musicalExcellence && (
+              <ScrollReveal animation="fade-up" delay={400}>
+                <div className="grid md:grid-cols-2 gap-8 mb-8">
+                  <div className="group bg-gradient-to-br from-papaya-green/5 to-papaya-yellow/5 rounded-2xl p-8 border border-papaya-green/20 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-12 h-12 bg-papaya-green/20 rounded-full flex items-center justify-center">
+                        <Theater className="w-6 h-6 text-papaya-green" />
+                      </div>
+                      <h3 className="text-xl font-bold text-papaya-green">Cultural Performances</h3>
                     </div>
-                    <h3 className="text-xl font-bold text-papaya-green">Cultural Performances</h3>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed">
-                    Students showcased traditional Filipino dances and musical performances that highlighted the grace and elegance of our cultural heritage.
-                  </p>
-                  <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
-                    <span className="text-sm">Learn more</span>
-                    <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-                
-                <div className="group bg-gradient-to-br from-papaya-yellow/5 to-papaya-green/5 rounded-2xl p-8 border border-papaya-yellow/20 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-12 h-12 bg-papaya-yellow/20 rounded-full flex items-center justify-center">
-                      <Music className="w-6 h-6 text-papaya-green" />
-                    </div>
-                    <h3 className="text-xl font-bold text-papaya-green">Musical Excellence</h3>
-                  </div>
-                  <p className="text-gray-700 leading-relaxed">
-                    The KUNDIMAN theme provided a platform for students to demonstrate their vocal talents through traditional Filipino songs.
-                  </p>
-                  <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
-                    <span className="text-sm">Learn more</span>
-                    <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              </div>
-            </ScrollReveal>
-
-            <ScrollReveal animation="fade-up" delay={500}>
-              <div className="bg-gradient-to-br from-white to-papaya-light/20 rounded-2xl p-8 md:p-12 shadow-lg border border-papaya-green/10 mb-8">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="w-8 h-8 bg-papaya-green rounded-full flex items-center justify-center">
-                    <Star className="w-4 h-4 text-white" />
-                  </div>
-                  <h3 className="text-2xl md:text-3xl font-bold text-papaya-green">Event Highlights</h3>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="group flex items-start space-x-4 p-4 rounded-xl hover:bg-papaya-green/5 transition-colors">
-                    <div className="w-10 h-10 bg-papaya-yellow rounded-full flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform">
-                      <span className="text-papaya-green font-bold">1</span>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 mb-2 text-lg">Traditional Dance Showcase</h4>
-                      <p className="text-gray-600 leading-relaxed">Students performed various regional dances that represent different provinces of the Philippines, showcasing the diversity of our cultural heritage.</p>
+                    <p className="text-gray-700 leading-relaxed">
+                      {article.content.culturalPerformances}
+                    </p>
+                    <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
+                      <span className="text-sm">Learn more</span>
+                      <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                   
-                  <div className="group flex items-start space-x-4 p-4 rounded-xl hover:bg-papaya-green/5 transition-colors">
-                    <div className="w-10 h-10 bg-papaya-yellow rounded-full flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform">
-                      <span className="text-papaya-green font-bold">2</span>
+                  <div className="group bg-gradient-to-br from-papaya-yellow/5 to-papaya-green/5 rounded-2xl p-8 border border-papaya-yellow/20 hover:shadow-lg transition-all duration-300">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="w-12 h-12 bg-papaya-yellow/20 rounded-full flex items-center justify-center">
+                        <Music className="w-6 h-6 text-papaya-green" />
+                      </div>
+                      <h3 className="text-xl font-bold text-papaya-green">Musical Excellence</h3>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 mb-2 text-lg">KUNDIMAN Musical Numbers</h4>
-                      <p className="text-gray-600 leading-relaxed">Beautiful renditions of classic Filipino love songs that touched the hearts of the audience and demonstrated exceptional vocal talent.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="group flex items-start space-x-4 p-4 rounded-xl hover:bg-papaya-green/5 transition-colors">
-                    <div className="w-10 h-10 bg-papaya-yellow rounded-full flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform">
-                      <span className="text-papaya-green font-bold">3</span>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 mb-2 text-lg">Cultural Costume Display</h4>
-                      <p className="text-gray-600 leading-relaxed">Students wore stunning traditional Filipino costumes that showcased our rich textile heritage and craftsmanship.</p>
+                    <p className="text-gray-700 leading-relaxed">
+                      {article.content.musicalExcellence}
+                    </p>
+                    <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
+                      <span className="text-sm">Learn more</span>
+                      <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </div>
-              </div>
-            </ScrollReveal>
+              </ScrollReveal>
+            )}
 
+            {/* Event Highlights */}
+            {article.content.eventHighlights && (
+              <ScrollReveal animation="fade-up" delay={500}>
+                <div className="bg-gradient-to-br from-white to-papaya-light/20 rounded-2xl p-8 md:p-12 shadow-lg border border-papaya-green/10 mb-8">
+                  <div className="flex items-center space-x-3 mb-8">
+                    <div className="w-8 h-8 bg-papaya-green rounded-full flex items-center justify-center">
+                      <Star className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="text-2xl md:text-3xl font-bold text-papaya-green">Event Highlights</h3>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {article.content.eventHighlights.map((highlight, index) => (
+                      <div key={index} className="group flex items-start space-x-4 p-4 rounded-xl hover:bg-papaya-green/5 transition-colors">
+                        <div className="w-10 h-10 bg-papaya-yellow rounded-full flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform">
+                          <span className="text-papaya-green font-bold">{index + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-800 mb-2 text-lg">{highlight.title}</h4>
+                          <p className="text-gray-600 leading-relaxed">{highlight.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </ScrollReveal>
+            )}
           </div>
 
           {/* --- NAVIGATION --- */}
@@ -293,25 +339,23 @@ export default function FilipinianaEventPage() {
                   </div>
                 </div>
                 
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-papaya-green/20">
-                  <p className="text-sm font-semibold text-papaya-green mb-3">More Cultural Events:</p>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Link 
-                      href="/news/3"
-                      className="group flex items-center space-x-2 text-papaya-green hover:text-papaya-yellow transition-colors font-medium"
-                    >
-                      <span>Folk Dance Competition</span>
-                      <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <Link 
-                      href="/news/2"
-                      className="group flex items-center space-x-2 text-papaya-green hover:text-papaya-yellow transition-colors font-medium"
-                    >
-                      <span>Kalinga Gala Dinner</span>
-                      <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                {article.relatedArticles && article.relatedArticles.length > 0 && (
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-papaya-green/20">
+                    <p className="text-sm font-semibold text-papaya-green mb-3">More Events:</p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {article.relatedArticles.map((related, index) => (
+                        <Link 
+                          key={index}
+                          href={related.href}
+                          className="group flex items-center space-x-2 text-papaya-green hover:text-papaya-yellow transition-colors font-medium"
+                        >
+                          <span>{related.title}</span>
+                          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </ScrollReveal>

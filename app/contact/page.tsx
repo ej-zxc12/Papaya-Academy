@@ -402,14 +402,16 @@ export default function ContactPage() {
     <div className={`min-h-screen ${montserrat.className} relative`}>
       <Header />
       
-      {/* Hero Section */}
+    {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-papaya-green to-green-800 text-white py-20 z-0">
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div className="container mx-auto px-4 relative z-10">
           <ScrollReveal animation="fade-down" delay={100}>
             <div className="text-center">
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
-              <p className="text-xl md:text-2xl text-green-100 max-w-3xl mx-auto">
+              <h1 className="text-5xl md:text-6xl font-light tracking-wide mb-6 leading-tight drop-shadow-lg text-white">
+                Contact Us
+              </h1>
+              <p className="text-xl md:text-2xl font-light text-green-100 max-w-3xl mx-auto">
                 Get in touch with Papaya Academy for partnerships, donations, or general inquiries
               </p>
             </div>
