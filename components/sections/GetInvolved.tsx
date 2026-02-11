@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Calendar, Users, HeartHandshake } from 'lucide-react';
-import ScrollReveal from './ScrollReveal'; // Reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Reusable animator
 
 const GetInvolved = () => {
   const [activeTab, setActiveTab] = useState('volunteer');

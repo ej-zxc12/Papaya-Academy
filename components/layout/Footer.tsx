@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Youtube, Instagram, Facebook } from 'lucide-react';
-import ScrollReveal from './ScrollReveal'; // Import the reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable animator
 
 const Footer = () => {
   return (

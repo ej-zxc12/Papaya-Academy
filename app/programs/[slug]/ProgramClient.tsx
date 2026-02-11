@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 
 // Adjust these imports if needed based on your folder structure
-import ScrollReveal from '../../../components/ScrollReveal'; 
-import Footer from '../../../components/Footer'; 
+import ScrollReveal from '../../../components/ui/ScrollReveal'; 
+import Footer from '../../../components/layout/Footer'; 
 import AboutDropdown from '../../../components/AboutDropdown'; 
 
 const montserrat = Montserrat({ 

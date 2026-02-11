@@ -1,5 +1,5 @@
 import React from 'react';
-import ScrollReveal from './ScrollReveal'; // Import the reusable animator
+import ScrollReveal from './ui/ScrollReveal'; // Import the reusable animator
 
 const ImpactMetrics = () => {
   const metrics = [

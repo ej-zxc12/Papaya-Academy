@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
-import ScrollReveal from '../../components/ScrollReveal';
+import Header from '../../components/layout/Header';
+import Footer from '../../components/layout/Footer';
+import ScrollReveal from '../../components/ui/ScrollReveal';
 import { Montserrat } from 'next/font/google';
 import { 
   Mail, 

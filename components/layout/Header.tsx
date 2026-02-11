@@ -3,8 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import AboutDropdown from './AboutDropdown';
-import ProgramsDropdown from './ProgramsDropdown';
+import AboutDropdown from '../AboutDropdown';
+import ProgramsDropdown from '../ProgramsDropdown';
 import { Montserrat } from 'next/font/google';
 
 const montserrat = Montserrat({ 

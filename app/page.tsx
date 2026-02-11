@@ -3,15 +3,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import Header from '../components/Header';
-import WhatWeDo from '../components/WhatWeDo';
-import Projects from '../components/Projects';
-import DonationSection from '../components/DonationSection';
-import Gallery from '../components/Gallery';
-import GetInvolved from '../components/GetInvolved';
-import NewsSection from '../components/NewsSection';
-import Footer from '../components/Footer';
+import Header from '../components/layout/Header';
+import WhatWeDo from '../components/sections/WhatWeDo';
+import Projects from '../components/sections/Projects';
+import DonationSection from '../components/sections/DonationSection';
+import Gallery from '../components/sections/Gallery';
+import GetInvolved from '../components/sections/GetInvolved';
+import NewsSection from '../components/sections/NewsSection';
+import Footer from '../components/layout/Footer';
 import AboutDropdown from '../components/AboutDropdown';
+import ScrollReveal from '../components/ui/ScrollReveal';
 import { Montserrat } from 'next/font/google';
 
 // --- 1. SETUP FONTS ---
@@ -20,61 +21,7 @@ const montserrat = Montserrat({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-// --- 2. REUSABLE ANIMATION COMPONENT ---
-// (Kept so Hero elements can use it)
-type AnimationType = 'fade-up' | 'fade-down' | 'slide-left' | 'slide-right' | 'zoom-in';
-
-export const ScrollReveal = ({ 
-  children, 
-  animation = 'fade-up', 
-  delay = 0, 
-  duration = 700, 
-  className = '' 
-}: { 
-  children: React.ReactNode, 
-  animation?: AnimationType, 
-  delay?: number, 
-  duration?: number,
-  className?: string 
-}) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.isIntersecting);
-      },
-      { threshold: 0.15 } 
-    );
-
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const getTransforms = () => {
-    switch (animation) {
-      case 'fade-up': return isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10';
-      case 'fade-down': return isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10';
-      case 'slide-left': return isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10';
-      case 'slide-right': return isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10';
-      case 'zoom-in': return isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95 blur-sm';
-      default: return isVisible ? 'opacity-100' : 'opacity-0';
-    }
-  };
-
-  return (
-    <div
-      ref={ref}
-      className={`transition-all ease-out ${getTransforms()} ${className}`}
-      style={{ transitionDuration: `${duration}ms`, transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
-
-// --- 3. MAIN PAGE COMPONENT ---
+// --- 2. MAIN PAGE COMPONENT ---
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const images = ['/images/1.jpg', '/images/3.jpg', '/images/jeep.jpg'];

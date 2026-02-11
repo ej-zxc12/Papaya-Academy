@@ -4,9 +4,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import ScrollReveal from '@/components/ScrollReveal';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import ScrollReveal from '@/components/ui/ScrollReveal';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 
 export default function AboutPage() {
   return (

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { BookOpen, Newspaper, Award } from 'lucide-react';
-import ScrollReveal from './ScrollReveal'; // Reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Reusable animator
 
 const NewsSection = () => {
   const [email, setEmail] = useState('');

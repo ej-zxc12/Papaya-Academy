@@ -1,5 +1,5 @@
 import React from 'react';
-import ScrollReveal from './ScrollReveal'; // Import the reusable component
+import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable component
 
 const DonationSection = () => {
   const donationOptions = [

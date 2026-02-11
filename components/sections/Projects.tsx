@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import ScrollReveal from './ScrollReveal'; // Import the reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable animator
 
 const Projects = () => {
   const projects = [

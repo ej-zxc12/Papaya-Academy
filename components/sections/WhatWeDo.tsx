@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import ScrollReveal from './ScrollReveal'; // Import the reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable animator
 
 const WhatWeDo = () => {
   return (

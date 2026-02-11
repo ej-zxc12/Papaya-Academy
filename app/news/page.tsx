@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Montserrat } from 'next/font/google';
@@ -18,173 +18,96 @@ import {
 } from 'lucide-react';
 
 // --- IMPORTS ---
-import Header from '../../components/Header';
-import ScrollReveal from '../../components/ScrollReveal'; 
-import Footer from '../../components/Footer'; 
-import AboutDropdown from '../../components/AboutDropdown'; 
+import Header from '../../components/layout/Header';
+import ScrollReveal from '../../components/ui/ScrollReveal'; 
+import Footer from '../../components/layout/Footer'; 
+import AboutDropdown from '../../components/AboutDropdown';
+import NewsArticleCard from '../../components/NewsArticleCard';
+import { getNewsArticles, NewsArticle, formatNewsDate } from '@/lib/news';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
 });
 
-// --- ACHIEVEMENTS DATA ---
-const ACHIEVEMENTS_DATA = [
-  // 2025 Events
-  {
-    id: 1,
-    title: "Amazing FILIPINIANA Event at ISM! 🇵🇭",
-    category: "Cultural",
-    date: "December 12, 2025",
-    image: "/images/Filipina.jpg",
-    excerpt: "This year's theme, KUNDIMAN, truly captured the heart of our Filipino culture — full of grace, tradition, and pride. Our students showcased exceptional performances celebrating Filipino heritage.",
-    isFeatured: false
-  },
-  {
-    id: 2,
-    title: "Papaya Academy Shines at ROPRISA 2025 with Multiple Championships",
-    category: "Featured",
-    date: "September 13, 2025",
-    image: "/images/placeholder-feature.jpg",
-    excerpt: "Outstanding performances across folk dance, vocal solo, table tennis, and volleyball competitions bring home multiple medals and championships to Papaya Academy.",
-    isFeatured: true
-  },
-  {
-    id: 3,
-    title: "Folk Dance – ROPRISA Competition (3rd Place)",
-    category: "Cultural",
-    date: "September 13, 2025",
-    image: "/images/itik.jpg",
-    excerpt: "The Papaya Folk Dancers delivered an energetic performance of the traditional 'Itik-Itik' dance, earning 3rd Place in the ROPRISA Literary and Musical Competition.",
-    isFeatured: false
-  },
-  {
-    id: 4,
-    title: "Intermediate Vocal Solo – ROPRISA Competition (2nd Place)",
-    category: "Cultural",
-    date: "September 13, 2025",
-    image: "/images/vocal.jpg",
-    excerpt: "Mygs Filaro achieved 2nd Place in the Intermediate Vocal Solo Category under the guidance of coach Ms. Geen, showcasing exceptional vocal talent.",
-    isFeatured: false
-  },
-  {
-    id: 5,
-    title: "Table Tennis – ROPRISA Sports Fest 2025 (Championship)",
-    category: "Sports",
-    date: "2025",
-    image: "/images/table.jpg",
-    excerpt: "Elementary boys and girls athletes secured the championship title in Table Tennis Elementary Division, demonstrating exceptional teamwork and skill.",
-    isFeatured: false
-  },
-  {
-    id: 6,
-    title: "Volleyball – ROPRISA Sports Fest 2025 (Championship)",
-    category: "Sports",
-    date: "2025",
-    image: "/images/volley.jpg",
-    excerpt: "Papaya Academy celebrated victory after securing the championship title in Volleyball Elementary Division for both Boys and Girls.",
-    isFeatured: false
-  },
-  
-  // 2024 Events
-  {
-    id: 7,
-    title: "Folk Dance – ROPRISA 2024 (2nd Place)",
-    category: "Cultural",
-    date: "2024",
-    image: "/images/placeholder-subli.jpg",
-    excerpt: "The Papaya Folk Dancers won 2nd Place with their Subli Folk Dance presentation, showcasing the richness of Filipino culture.",
-    isFeatured: false
-  },
-  {
-    id: 8,
-    title: "Declamation – ROPRISA LITMUS (2nd Place)",
-    category: "Academic",
-    date: "2024",
-    image: "/images/placeholder-declamation.jpg",
-    excerpt: "Mcqueen Imperial earned 2nd Place in the Declamation Contest with 'Respect Starts with Me,' under the coaching of Sir Erwin.",
-    isFeatured: false
-  },
-  {
-    id: 9,
-    title: "Poetry Recitation – ROPRISA 2024 (2nd Place)",
-    category: "Academic",
-    date: "2024",
-    image: "/images/placeholder-poetry.jpg",
-    excerpt: "Grade 2 student Aaron 'Chok' Sargento won 2nd Place in Poetry Recitation, impressing judges with outstanding tula delivery.",
-    isFeatured: false
-  },
-  {
-    id: 10,
-    title: "Provincial Volleyball Sports Competition (Silver Medalist)",
-    category: "Sports",
-    date: "2024",
-    image: "/images/placeholder-provincial-volley.jpg",
-    excerpt: "Proudly represented Team Rodriguez, earning Silver Medal in Provincial Volleyball for Elementary Boys and Girls Division.",
-    isFeatured: false
-  },
-  {
-    id: 11,
-    title: "Table Tennis – Rizal Province (Multiple Gold Medals)",
-    category: "Sports",
-    date: "2024",
-    image: "/images/placeholder-rizal-table.jpg",
-    excerpt: "Outstanding results in Rizal Province Table Tennis Competition: Boys Division - Gold in Single A & B, Silver in Doubles; Girls Division - Gold in Single A & B and Doubles.",
-    isFeatured: false
-  },
-  {
-    id: 12,
-    title: "Municipal Meet 2024 – Montalban, Rizal (Multiple Medals)",
-    category: "Sports",
-    date: "2024",
-    image: "/images/placeholder-municipal.jpg",
-    excerpt: "Athletes earned multiple medals: Golds from Daniela Joy Napa and Ahira Faith Mantos, Silvers from Princesca Valencia and Aldrich Agarin, and Bronzes from Jannel Imperial, Ronyhiel Mark Agustin, and Xackaree Dylan Mamansag.",
-    isFeatured: false
-  },
-  {
-    id: 13,
-    title: "Provincial Volleyball – Girls Division (1st Place)",
-    category: "Sports",
-    date: "2024",
-    image: "/images/placeholder-girls-volley.jpg",
-    excerpt: "Girls' volleyball team secured 1st Place and Gold Medal at Provincial Volleyball Sports Competition in Montalban.",
-    isFeatured: false
-  },
-  
-  // 2019 Events
-  {
-    id: 14,
-    title: "Table Tennis – ROPRISA SY 2018-2019 (Championships)",
-    category: "Sports",
-    date: "2019",
-    image: "/images/placeholder-2019-table.jpg",
-    excerpt: "Raymond Pesidas and Elias Bulseco won 1st Place in Doubles; Alexis Versaga earned 2nd Place in Singles; Chris Artaghin won 1st Place in Singles.",
-    isFeatured: false
-  },
-  {
-    id: 15,
-    title: "DAMA Girls – ROPRISA SY 2018-2019 (2nd Place)",
-    category: "Sports",
-    date: "2019",
-    image: "/images/placeholder-dama.jpg",
-    excerpt: "Nicole Mahinay earned 2nd Place in DAMA Girls category, showcasing impressive performance and bringing honor to the school.",
-    isFeatured: false
-  }
-];
-
 const CATEGORIES = ["All", "Featured", "Cultural", "Academic", "Sports"];
 
 export default function NewsPage() {
   const [isHovered, setIsHovered] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoading(true);
+        console.log('Starting to fetch articles...');
+        const data = await getNewsArticles();
+        console.log('Articles fetched successfully:', data);
+        setArticles(data);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('Error fetching articles:', err);
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticles();
+  }, []);
 
   // Filter logic
-  const filteredNews = activeCategory === "All" 
-    ? ACHIEVEMENTS_DATA 
-    : ACHIEVEMENTS_DATA.filter(item => item.category === activeCategory);
+  const filteredArticles = activeCategory === "All" 
+    ? articles 
+    : articles.filter(item => {
+        if (activeCategory === "Featured") {
+          return item.featured_image !== null; // Consider articles with images as featured
+        }
+        // For other categories, you might want to add a category field to your database
+        return true; // For now, show all for non-featured categories
+      });
 
-  const featuredStory = ACHIEVEMENTS_DATA.find(item => item.isFeatured);
-  const standardStories = filteredNews.filter(item => !item.isFeatured || activeCategory !== "All");
+  const featuredStory = filteredArticles.find(item => item.featured_image !== null);
+  const standardStories = filteredArticles.filter(item => !item.featured_image || activeCategory !== "All");
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex flex-col bg-gray-50 ${montserrat.className}`}>
+        <Header />
+        <div className="container mx-auto px-4 py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B3E2A] mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading news articles...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-screen flex flex-col bg-gray-50 ${montserrat.className}`}>
+        <Header />
+        <div className="container mx-auto px-4 py-20">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Error Loading News</h1>
+            <p className="text-gray-600 mb-8">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center px-6 py-3 bg-[#1B3E2A] text-white rounded-lg hover:bg-[#163021] transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen flex flex-col bg-gray-50 ${montserrat.className}`}>
@@ -220,12 +143,14 @@ export default function NewsPage() {
               <ScrollReveal animation="fade-up" className="mb-12">
                 <div className="group relative rounded-xl overflow-hidden shadow-xl bg-white">
                   <div className="h-[400px] relative overflow-hidden">
-                    <Image 
-                      src={featuredStory.image} 
-                      alt={featuredStory.title} 
-                      fill 
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
+                    {featuredStory.featured_image && (
+                      <Image 
+                        src={featuredStory.featured_image} 
+                        alt={featuredStory.title} 
+                        fill 
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="absolute top-4 left-4">
                       <span className="bg-[#F2C94C] text-[#1B3E2A] px-3 py-1 text-xs font-bold tracking-widest uppercase rounded-sm">
@@ -235,16 +160,24 @@ export default function NewsPage() {
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white">
                     <div className="flex items-center space-x-4 text-sm mb-3 opacity-90">
-                      <span className="flex items-center"><Calendar className="w-4 h-4 mr-1 text-[#F2C94C]" /> {featuredStory.date}</span>
-                      <span className="flex items-center"><Tag className="w-4 h-4 mr-1 text-[#F2C94C]" /> {featuredStory.category}</span>
+                      <span className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-1 text-[#F2C94C]" /> 
+                        {formatNewsDate(featuredStory.published_at || featuredStory.created_at)}
+                      </span>
+                      {featuredStory.author && (
+                        <span className="flex items-center">
+                          <Tag className="w-4 h-4 mr-1 text-[#F2C94C]" /> 
+                          {featuredStory.author}
+                        </span>
+                      )}
                     </div>
                     <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight group-hover:text-[#F2C94C] transition-colors">
-                      <Link href={`/news/${featuredStory.id}`}>{featuredStory.title}</Link>
+                      <Link href={`/news/${featuredStory.slug}`}>{featuredStory.title}</Link>
                     </h2>
                     <p className="text-gray-200 mb-6 max-w-2xl line-clamp-2 md:line-clamp-none">
-                      {featuredStory.excerpt}
+                      {featuredStory.content.substring(0, 200)}...
                     </p>
-                    <Link href={`/news/${featuredStory.id}`}>
+                    <Link href={`/news/${featuredStory.slug}`}>
                       <button className="flex items-center font-bold text-[#F2C94C] hover:text-white transition-colors">
                         READ FULL STORY <ArrowRight className="w-4 h-4 ml-2" />
                       </button>
@@ -275,41 +208,26 @@ export default function NewsPage() {
             <div className="grid md:grid-cols-2 gap-8">
               {standardStories.map((item, index) => (
                 <ScrollReveal key={item.id} animation="fade-up" delay={index * 100}>
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 group h-full flex flex-col">
-                    <div className="h-48 relative overflow-hidden bg-gray-100">
-                      <Image 
-                        src={item.image} 
-                        alt={item.title} 
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw"
-                      />
-                    </div>
-                    <div className="p-6 flex flex-col flex-grow">
-                      <div className="flex items-center text-xs text-gray-500 mb-3">
-                         <Calendar className="w-3 h-3 mr-1" /> {item.date}
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-800 mb-3 leading-snug group-hover:text-papaya-green transition-colors">
-                        <Link href={`/news/${item.id}`}>{item.title}</Link>
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">
-                        {item.excerpt}
-                      </p>
-                      <Link href={`/news/${item.id}`} className="inline-flex items-center text-papaya-green font-bold text-sm hover:text-[#F2C94C] mt-auto">
-                        Read More <ArrowRight className="w-4 h-4 ml-1" />
-                      </Link>
-                    </div>
-                  </div>
+                  <NewsArticleCard article={item} />
                 </ScrollReveal>
               ))}
             </div>
             
+            {/* No articles message */}
+            {standardStories.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No articles found in this category.</p>
+              </div>
+            )}
+            
             {/* Load More */}
-            <div className="mt-12 text-center">
-              <button className="px-8 py-3 border border-gray-300 text-gray-600 font-bold rounded-md hover:bg-papaya-green hover:text-white hover:border-papaya-green transition-all">
-                LOAD MORE ARTICLES
-              </button>
-            </div>
+            {standardStories.length > 0 && (
+              <div className="mt-12 text-center">
+                <button className="px-8 py-3 border border-gray-300 text-gray-600 font-bold rounded-md hover:bg-papaya-green hover:text-white hover:border-papaya-green transition-all">
+                  LOAD MORE ARTICLES
+                </button>
+              </div>
+            )}
           </div>
 
           {/* --- SIDEBAR --- */}

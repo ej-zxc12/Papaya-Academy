@@ -7,9 +7,9 @@ import { BookOpen, Heart, PenTool, Utensils, Check, ArrowRight } from 'lucide-re
 import { Montserrat } from 'next/font/google';
 
 // --- IMPORTS ---
-import Header from '../../components/Header';
-import ScrollReveal from '../../components/ScrollReveal'; 
-import Footer from '../../components/Footer'; 
+import Header from '../../components/layout/Header';
+import ScrollReveal from '../../components/ui/ScrollReveal'; 
+import Footer from '../../components/layout/Footer'; 
 
 // --- FONT SETUP ---
 const montserrat = Montserrat({ 

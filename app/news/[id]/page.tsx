@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Montserrat } from 'next/font/google';
@@ -24,80 +24,83 @@ import {
 } from 'lucide-react';
 
 // --- IMPORTS ---
-import Header from '../../../components/Header';
-import ScrollReveal from '../../../components/ScrollReveal';
-import Footer from '../../../components/Footer';
+import Header from '../../../components/layout/Header';
+import ScrollReveal from '../../../components/ui/ScrollReveal';
+import Footer from '../../../components/layout/Footer';
+import { getNewsArticleBySlug, NewsArticle, formatNewsDate } from '@/lib/news';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
 });
 
-// Base news article data structure - customize this for each article
-interface NewsArticle {
-  id: number;
-  title: string;
-  subtitle: string;
-  date: string;
-  category: string;
-  readTime: string;
-  featuredImage: string;
-  imageAlt: string;
-  content: {
-    introduction: string;
-    culturalPerformances?: string;
-    musicalExcellence?: string;
-    eventHighlights?: {
-      title: string;
-      description: string;
-    }[];
-  };
-  relatedArticles?: {
-    title: string;
-    href: string;
-  }[];
-}
-
-// Sample article data - replace with props or data fetching for dynamic content
-const sampleArticle: NewsArticle = {
-  id: 1,
-  title: "Amazing FILIPINIANA Event at ISM",
-  subtitle: "KUNDIMAN Theme",
-  date: "December 12, 2025",
-  category: "Cultural Events",
-  readTime: "5 minutes",
-  featuredImage: "/images/Filipina.jpg",
-  imageAlt: "FILIPINIANA Event KUNDIMAN Theme",
-  content: {
-    introduction: "The International School Manila (ISM) recently hosted an extraordinary FILIPINIANA event that brought the vibrant spirit of Filipino culture to life. This year's theme, KUNDIMAN, served as a beautiful tribute to traditional Filipino art forms, music, and dance that have shaped our cultural identity.",
-    culturalPerformances: "Students showcased traditional Filipino dances and musical performances that highlighted the grace and elegance of our cultural heritage.",
-    musicalExcellence: "The KUNDIMAN theme provided a platform for students to demonstrate their vocal talents through traditional Filipino songs.",
-    eventHighlights: [
-      {
-        title: "Traditional Dance Showcase",
-        description: "Students performed various regional dances that represent different provinces of the Philippines, showcasing the diversity of our cultural heritage."
-      },
-      {
-        title: "KUNDIMAN Musical Numbers",
-        description: "Beautiful renditions of classic Filipino love songs that touched the hearts of the audience and demonstrated exceptional vocal talent."
-      },
-      {
-        title: "Cultural Costume Display",
-        description: "Students wore stunning traditional Filipino costumes that showcased our rich textile heritage and craftsmanship."
-      }
-    ]
-  },
-  relatedArticles: [
-    { title: "Folk Dance Competition", href: "/news/3" },
-    { title: "Kalinga Gala Dinner", href: "/news/2" }
-  ]
-};
-
-export default function NewsArticlePage({ params }: { params: { id: string } }) {
+export default function NewsArticlePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const slug = resolvedParams.id;
+  
+  const [article, setArticle] = useState<NewsArticle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   
-  // In a real app, you would fetch the article data based on params.id
-  const article = sampleArticle; // Replace with data fetching logic
+  useEffect(() => {
+    const fetchArticle = async () => {
+      try {
+        setLoading(true);
+        const data = await getNewsArticleBySlug(slug);
+        
+        if (data) {
+          setArticle(data);
+        } else {
+          setError('Article not found');
+        }
+      } catch (err) {
+        setError('Failed to load article');
+        console.error('Error fetching article:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticle();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen bg-gray-50 ${montserrat.className}`}>
+        <Header />
+        <div className="container mx-auto px-4 py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1B3E2A] mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading article...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className={`min-h-screen bg-gray-50 ${montserrat.className}`}>
+        <Header />
+        <div className="container mx-auto px-4 py-20">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Article Not Found</h1>
+            <p className="text-gray-600 mb-8">{error || 'The article you are looking for does not exist.'}</p>
+            <Link 
+              href="/news"
+              className="inline-flex items-center px-6 py-3 bg-[#1B3E2A] text-white rounded-lg hover:bg-[#163021] transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 mr-2" />
+              Back to News
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-gray-50 ${montserrat.className}`}>
@@ -107,14 +110,16 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
 
       {/* --- HERO SECTION --- */}
       <div className="relative h-[600px] md:h-[700px] bg-gradient-to-br from-papaya-green via-papaya-green/95 to-[#1B3E2A] overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src={article.featuredImage}
-            alt={article.imageAlt}
-            fill
-            className="object-cover opacity-20"
-          />
-        </div>
+        {article.featured_image && (
+          <div className="absolute inset-0">
+            <Image
+              src={article.featured_image}
+              alt={article.title}
+              fill
+              className="object-cover opacity-20"
+            />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         
         <div className="relative container mx-auto px-4 h-full flex items-center">
@@ -123,18 +128,21 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
               <div className="flex flex-wrap items-center gap-4 text-white/95 mb-8">
                 <div className="flex items-center space-x-2 bg-papaya-yellow/20 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Calendar className="w-4 h-4 text-papaya-yellow" />
-                  <span className="text-sm font-medium">{article.date}</span>
+                  <span className="text-sm font-medium">{formatNewsDate(article.published_at || article.created_at)}</span>
                 </div>
                 <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Tag className="w-4 h-4 text-papaya-yellow" />
-                  <span className="text-sm font-medium">{article.category}</span>
+                  <span className="text-sm font-medium">News</span>
                 </div>
               </div>
               
               <h1 className="text-5xl md:text-7xl font-bold text-white mb-8 leading-tight tracking-tight">
                 {article.title}
-                <span className="block text-3xl md:text-4xl font-normal text-papaya-yellow mt-3">{article.subtitle}</span>
               </h1>
+              
+              {article.author && (
+                <p className="text-xl text-white/90 mb-4">By {article.author}</p>
+              )}
             </ScrollReveal>
           </div>
         </div>
@@ -172,18 +180,20 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Published</p>
-                      <p className="font-semibold text-gray-800">{article.date}</p>
+                      <p className="font-semibold text-gray-800">{formatNewsDate(article.published_at || article.created_at)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-papaya-yellow/10 rounded-full flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-papaya-yellow" />
+                  {article.author && (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-papaya-yellow/10 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-papaya-yellow" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Author</p>
+                        <p className="font-semibold text-gray-800">{article.author}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Reading Time</p>
-                      <p className="font-semibold text-gray-800">{article.readTime}</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 
                 <div className="flex items-center space-x-3">
@@ -209,28 +219,30 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
           </ScrollReveal>
 
           {/* --- FEATURED IMAGE --- */}
-          <ScrollReveal animation="fade-up" delay={200} className="mb-12">
-            <div className="group relative h-[400px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl">
-              <Image
-                src={article.featuredImage}
-                alt={article.imageAlt}
-                fill
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-xl border border-white/20">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-2 h-2 bg-papaya-green rounded-full"></div>
-                    <div className="w-2 h-2 bg-papaya-yellow rounded-full"></div>
-                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+          {article.featured_image && (
+            <ScrollReveal animation="fade-up" delay={200} className="mb-12">
+              <div className="group relative h-[400px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl">
+                <Image
+                  src={article.featured_image}
+                  alt={article.title}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                  <div className="bg-white/95 backdrop-blur-md px-6 py-4 rounded-xl border border-white/20">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-2 h-2 bg-papaya-green rounded-full"></div>
+                      <div className="w-2 h-2 bg-papaya-yellow rounded-full"></div>
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800">News Article</p>
+                    <p className="text-xs text-gray-600 mt-1">Papaya Academy • {formatNewsDate(article.published_at || article.created_at)}</p>
                   </div>
-                  <p className="text-sm font-semibold text-gray-800">{article.subtitle} - Filipino Cultural Celebration</p>
-                  <p className="text-xs text-gray-600 mt-1">International School Manila • December 2025</p>
                 </div>
               </div>
-            </div>
-          </ScrollReveal>
+            </ScrollReveal>
+          )}
 
           {/* --- ARTICLE CONTENT --- */}
           <div className="prose prose-lg max-w-none">
@@ -240,84 +252,16 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
                   <div className="w-12 h-1 bg-papaya-green rounded-full"></div>
                   <div className="w-12 h-1 bg-papaya-yellow rounded-full"></div>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-6 leading-tight">
-                  Celebrating Filipino Heritage Through {article.subtitle}
-                </h2>
                 
                 <div className="space-y-6 text-gray-700 leading-relaxed">
-                  <p className="text-lg">
-                    {article.content.introduction}
-                  </p>
+                  {article.content.split('\n').map((paragraph, index) => (
+                    <p key={index} className="text-lg">
+                      {paragraph}
+                    </p>
+                  ))}
                 </div>
               </div>
             </ScrollReveal>
-
-            {/* Cultural Performances and Musical Excellence */}
-            {article.content.culturalPerformances && article.content.musicalExcellence && (
-              <ScrollReveal animation="fade-up" delay={400}>
-                <div className="grid md:grid-cols-2 gap-8 mb-8">
-                  <div className="group bg-gradient-to-br from-papaya-green/5 to-papaya-yellow/5 rounded-2xl p-8 border border-papaya-green/20 hover:shadow-lg transition-all duration-300">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-12 h-12 bg-papaya-green/20 rounded-full flex items-center justify-center">
-                        <Theater className="w-6 h-6 text-papaya-green" />
-                      </div>
-                      <h3 className="text-xl font-bold text-papaya-green">Cultural Performances</h3>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">
-                      {article.content.culturalPerformances}
-                    </p>
-                    <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
-                      <span className="text-sm">Learn more</span>
-                      <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                  
-                  <div className="group bg-gradient-to-br from-papaya-yellow/5 to-papaya-green/5 rounded-2xl p-8 border border-papaya-yellow/20 hover:shadow-lg transition-all duration-300">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-12 h-12 bg-papaya-yellow/20 rounded-full flex items-center justify-center">
-                        <Music className="w-6 h-6 text-papaya-green" />
-                      </div>
-                      <h3 className="text-xl font-bold text-papaya-green">Musical Excellence</h3>
-                    </div>
-                    <p className="text-gray-700 leading-relaxed">
-                      {article.content.musicalExcellence}
-                    </p>
-                    <div className="mt-4 flex items-center text-papaya-green font-medium group-hover:text-papaya-yellow transition-colors">
-                      <span className="text-sm">Learn more</span>
-                      <ArrowRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-            )}
-
-            {/* Event Highlights */}
-            {article.content.eventHighlights && (
-              <ScrollReveal animation="fade-up" delay={500}>
-                <div className="bg-gradient-to-br from-white to-papaya-light/20 rounded-2xl p-8 md:p-12 shadow-lg border border-papaya-green/10 mb-8">
-                  <div className="flex items-center space-x-3 mb-8">
-                    <div className="w-8 h-8 bg-papaya-green rounded-full flex items-center justify-center">
-                      <Star className="w-4 h-4 text-white" />
-                    </div>
-                    <h3 className="text-2xl md:text-3xl font-bold text-papaya-green">Event Highlights</h3>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    {article.content.eventHighlights.map((highlight, index) => (
-                      <div key={index} className="group flex items-start space-x-4 p-4 rounded-xl hover:bg-papaya-green/5 transition-colors">
-                        <div className="w-10 h-10 bg-papaya-yellow rounded-full flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform">
-                          <span className="text-papaya-green font-bold">{index + 1}</span>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-800 mb-2 text-lg">{highlight.title}</h4>
-                          <p className="text-gray-600 leading-relaxed">{highlight.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </ScrollReveal>
-            )}
           </div>
 
           {/* --- NAVIGATION --- */}
@@ -338,24 +282,6 @@ export default function NewsArticlePage({ params }: { params: { id: string } }) 
                     <p className="text-sm text-gray-600 mt-1">Explore more stories and events</p>
                   </div>
                 </div>
-                
-                {article.relatedArticles && article.relatedArticles.length > 0 && (
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-papaya-green/20">
-                    <p className="text-sm font-semibold text-papaya-green mb-3">More Cultural Events:</p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {article.relatedArticles.map((related, index) => (
-                        <Link 
-                          key={index}
-                          href={related.href}
-                          className="group flex items-center space-x-2 text-papaya-green hover:text-papaya-yellow transition-colors font-medium"
-                        >
-                          <span>{related.title}</span>
-                          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </ScrollReveal>
