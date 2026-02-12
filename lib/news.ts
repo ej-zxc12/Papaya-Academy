@@ -74,7 +74,7 @@ export async function getNewsArticles(): Promise<NewsArticle[]> {
     }
 
     // Filter for published articles on client side
-    const filteredData = data.filter(article => 
+    const filteredData = data.filter((article: NewsArticle) => 
       !article.status || article.status === 'Published'
     )
 

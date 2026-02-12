@@ -111,7 +111,7 @@ function AboutPageContent() {
               <ScrollReveal animation="zoom-in" delay={200}>
                 <div className="relative h-64 rounded-lg overflow-hidden shadow-lg transform transition-transform duration-500 hover:scale-105">
                   <img 
-                    src="/images/school-building.jpg" 
+                    src="/images/apple-scholar.jpg" 
                     alt="Papaya Academy Building"
                     className="w-full h-full object-cover"
                   />
