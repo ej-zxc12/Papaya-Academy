@@ -54,16 +54,8 @@ export default function Header() {
         </nav>
         
         {/* Action Buttons */}
-        <div className="flex items-center space-x-4">
-          {/* Unified Portal Button */}
-          <Link href="/portal/login">
-            <button
-              className="px-6 py-2.5 rounded-md font-bold text-sm tracking-widest border border-white shadow-md transition-all duration-300 hover:bg-white hover:text-[#1B3E2A]"
-            >
-              PORTAL LOGIN
-            </button>
-          </Link>
-          {/* Donate Button - UPDATED LINK */}
+        <div className="flex items-center space-x-6">
+          {/* Donate Button */}
           <Link href="/donate">
             <button
               onMouseEnter={() => setIsHovered(true)}
@@ -83,6 +75,30 @@ export default function Header() {
             >
               DONATE
             </button>
+          </Link>
+
+          {/* Portal Login Icon (Graduation Cap) */}
+          <Link 
+            href="/portal/login" 
+            className="flex items-center justify-center hover:opacity-80 transition-opacity" 
+            aria-label="Teacher Portal Login"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="w-8 h-8 text-white"
+            >
+              <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+              <path d="M22 10v6" />
+              <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+            </svg>
           </Link>
         </div>
       </div>
