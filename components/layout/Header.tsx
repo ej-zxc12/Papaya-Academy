@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AboutDropdown from '../AboutDropdown';
 import ProgramsDropdown from '../ProgramsDropdown';
 import { Montserrat } from 'next/font/google';
@@ -14,6 +14,11 @@ const montserrat = Montserrat({
 
 export default function Header() {
   const [isHovered, setIsHovered] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <header className={`bg-papaya-green text-white ${montserrat.className} relative z-50`}>
@@ -48,22 +53,38 @@ export default function Header() {
           </Link>
         </nav>
         
-        {/* Donate Button - UPDATED LINK */}
-        <Link href="/donate">
-          <button
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
-            style={{
-              backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
-              backgroundSize: '100% 200%',
-              backgroundPosition: isHovered ? 'bottom' : 'top',
-              color: isHovered ? '#1B3E2A' : '#F2C94C',
-            }}
-          >
-            DONATE
-          </button>
-        </Link>
+        {/* Action Buttons */}
+        <div className="flex items-center space-x-4">
+          {/* Unified Portal Button */}
+          <Link href="/portal/login">
+            <button
+              className="px-6 py-2.5 rounded-md font-bold text-sm tracking-widest border border-white shadow-md transition-all duration-300 hover:bg-white hover:text-[#1B3E2A]"
+            >
+              PORTAL LOGIN
+            </button>
+          </Link>
+          {/* Donate Button - UPDATED LINK */}
+          <Link href="/donate">
+            <button
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
+              style={isClient ? {
+                backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
+                backgroundSize: '100% 200%',
+                backgroundPosition: isHovered ? 'bottom' : 'top',
+                color: isHovered ? '#1B3E2A' : '#F2C94C',
+              } : {
+                backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
+                backgroundSize: '100% 200%',
+                backgroundPosition: 'top',
+                color: '#F2C94C',
+              }}
+            >
+              DONATE
+            </button>
+          </Link>
+        </div>
       </div>
     </header>
   );

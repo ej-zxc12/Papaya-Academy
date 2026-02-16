@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   title: 'Papaya Academy, Inc. - Education for Disadvantaged Youth in the Philippines',
   description: 'Papaya Academy, Inc. provides education and opportunities for disadvantaged youth in the Philippines, helping them build a better future.',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/images/papaya.jpg',
+    apple: '/images/papaya.jpg',
   },
 };
 

@@ -3,14 +3,19 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import { Smartphone, Globe, Heart, CheckCircle2, Mail } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
+import { loadStripe } from '@stripe/stripe-js';
 
 // --- CONFIGURATION ---
 const CAROUSEL_IMAGES = [
   '/images/1.jpg',   
   '/images/3.jpg',
-  '/images/jeep.jpg'
+  '/images/jeep.jpg',
+  '/images/4.jpg',
+  '/images/5.jpg'
 ];
 
 const PRESET_AMOUNTS = [500, 1000, 2000, 5000];
