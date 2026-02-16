@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PrincipalCredentials } from '@/types';
-import { Eye, EyeOff, LogIn, User, Lock, Shield } from 'lucide-react';
+import { Eye, EyeOff, LogIn, User, Lock, Shield, GraduationCap } from 'lucide-react';
 
 export default function PrincipalLogin() {
   const [credentials, setCredentials] = useState<PrincipalCredentials>({
@@ -54,11 +54,11 @@ export default function PrincipalLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#1B3E2A] to-[#2d5a3f] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
-            <Shield className="w-8 h-8 text-purple-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#F2C94C]/20 rounded-full mb-4">
+            <GraduationCap className="w-8 h-8 text-[#1B3E2A]" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Principal Portal</h1>
           <p className="text-gray-600 mt-2">Sign in to access administrative dashboard</p>
@@ -79,7 +79,7 @@ export default function PrincipalLogin() {
                 name="email"
                 value={credentials.email}
                 onChange={handleInputChange}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent outline-none transition"
                 placeholder="principal@school.edu"
                 required
               />
@@ -100,7 +100,7 @@ export default function PrincipalLogin() {
                 name="password"
                 value={credentials.password}
                 onChange={handleInputChange}
-                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent outline-none transition"
                 placeholder="Enter your password"
                 required
               />
@@ -127,7 +127,7 @@ export default function PrincipalLogin() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-200 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
+            className="w-full bg-[#1B3E2A] text-white py-2 px-4 rounded-lg hover:bg-[#2d5a3f] focus:ring-4 focus:ring-[#1B3E2A]/20 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>

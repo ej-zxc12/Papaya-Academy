@@ -1,260 +1,165 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Teacher, Student, Subject } from '@/types';
 import { 
-  BookOpen, 
-  Users, 
-  FileText, 
-  LogOut, 
-  User as UserIcon,
-  GraduationCap,
-  Calendar,
+  Users,
+  BookOpen,
+  FileText,
   TrendingUp,
-  DollarSign
+  UserCheck,
+  Calendar,
+  Clock
 } from 'lucide-react';
+import TeacherLayout from '../components/TeacherLayout';
 
 export default function TeacherDashboard() {
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    // Check authentication
-    const session = localStorage.getItem('teacherSession');
-    if (!session) {
-      router.push('/teacher/login');
-      return;
-    }
+    // Load mock data for demonstration
+    const loadMockData = () => {
+      // Mock students data
+      const mockStudents: Student[] = [
+        { id: '1', name: 'Ana Santos', lrn: '123456789012', grade: 'Grade 7', section: 'A' },
+        { id: '2', name: 'Ben Reyes', lrn: '123456789013', grade: 'Grade 7', section: 'A' },
+        { id: '3', name: 'Cruz Martinez', lrn: '123456789014', grade: 'Grade 7', section: 'A' },
+        { id: '4', name: 'Diana Lim', lrn: '123456789015', grade: 'Grade 7', section: 'A' },
+        { id: '5', name: 'Eduardo Tan', lrn: '123456789016', grade: 'Grade 7', section: 'A' },
+      ];
 
-    const teacherData = JSON.parse(session);
-    setTeacher(teacherData.teacher);
+      // Mock subjects data
+      const mockSubjects: Subject[] = [
+        { id: '1', name: 'Mathematics', code: 'MATH7' },
+        { id: '2', name: 'English', code: 'ENG7' },
+        { id: '3', name: 'Science', code: 'SCI7' },
+        { id: '4', name: 'Filipino', code: 'FIL7' },
+      ];
 
-    // Load teacher's data
-    loadTeacherData(teacherData.teacher.id);
-  }, [router]);
-
-  const loadTeacherData = async (teacherId: string) => {
-    try {
-      // Simulate API calls - replace with actual endpoints
-      const [studentsRes, subjectsRes] = await Promise.all([
-        fetch(`/api/teacher/students?teacherId=${teacherId}`),
-        fetch(`/api/teacher/subjects?teacherId=${teacherId}`)
-      ]);
-
-      if (studentsRes.ok) {
-        const studentsData = await studentsRes.json();
-        setStudents(studentsData);
-      }
-
-      if (subjectsRes.ok) {
-        const subjectsData = await subjectsRes.json();
-        setSubjects(subjectsData);
-      }
-    } catch (error) {
-      console.error('Failed to load teacher data:', error);
-    } finally {
+      setStudents(mockStudents);
+      setSubjects(mockSubjects);
       setIsLoading(false);
-    }
-  };
+    };
 
-  const handleLogout = () => {
-    localStorage.removeItem('teacherSession');
-    router.push('/teacher/login');
-  };
+    loadMockData();
+  }, []);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <TeacherLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A]"></div>
+        </div>
+      </TeacherLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <GraduationCap className="w-8 h-8 text-blue-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">Teacher Portal</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <UserIcon className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-700">{teacher?.name}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
+    <TeacherLayout 
+      title="Dashboard" 
+      subtitle="Welcome back! Here's an overview of your class."
+    >
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 text-sm">Total Students</p>
+            <p className="font-bold text-xl">{students.length}</p>
           </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Welcome back, {teacher?.name}!
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {teacher?.department} • Grade {teacher?.gradeLevel}
-          </p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Students</p>
-                <p className="text-2xl font-bold text-gray-900">{students.length}</p>
-              </div>
-              <Users className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Subjects</p>
-                <p className="text-2xl font-bold text-gray-900">{subjects.length}</p>
-              </div>
-              <BookOpen className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">SF10 Forms</p>
-                <p className="text-2xl font-bold text-gray-900">12</p>
-              </div>
-              <FileText className="w-8 h-8 text-purple-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">This Month</p>
-                <p className="text-2xl font-bold text-gray-900">85%</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-orange-500" />
-            </div>
+          <div className="bg-blue-500 text-white p-2 rounded-full">
+            <Users className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Grade Management */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Grade Management</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => router.push('/teacher/grades/input')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium">Input Grades</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
-                </button>
-
-                <button
-                  onClick={() => router.push('/teacher/grades/view')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                    <span className="font-medium">View Class Records</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
-                </button>
-              </div>
-            </div>
+        <div className="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 text-sm">Grade Entries</p>
+            <p className="font-bold text-xl">{subjects.length}</p>
           </div>
-
-          {/* SF10 Management */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">SF10 Management</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => router.push('/teacher/sf10/create')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-purple-600" />
-                    <span className="font-medium">Create SF10</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
-                </button>
-
-                <button
-                  onClick={() => router.push('/teacher/sf10/list')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-orange-600" />
-                    <span className="font-medium">View SF10 Records</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Monthly Contributions */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Contributions</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => router.push('/teacher/contributions')}
-                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="w-5 h-5 text-green-600" />
-                    <span className="font-medium">Manage Contributions</span>
-                  </div>
-                  <span className="text-gray-400">→</span>
-                </button>
-              </div>
-            </div>
+          <div className="bg-green-500 text-white p-2 rounded-full">
+            <BookOpen className="w-5 h-5" />
           </div>
         </div>
 
-        {/* Recent Subjects */}
-        <div className="mt-8 bg-white rounded-lg shadow">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Subjects</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subjects.map((subject) => (
-                <div key={subject.id} className="border border-gray-200 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900">{subject.name}</h4>
-                  <p className="text-sm text-gray-600">{subject.code}</p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Grade {subject.gradeLevel} • {subject.semester}
-                  </p>
+        <div className="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 text-sm">SF10 Records</p>
+            <p className="font-bold text-xl">0</p>
+          </div>
+          <div className="bg-purple-500 text-white p-2 rounded-full">
+            <FileText className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg shadow flex items-center justify-between">
+          <div>
+            <p className="text-gray-500 text-sm">Total Collections</p>
+            <p className="font-bold text-xl">₱2,500</p>
+          </div>
+          <div className="bg-orange-500 text-white p-2 rounded-full">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Students and Contributions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Students */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Recent Students</h3>
+          </div>
+          <div className="p-4">
+            <div className="space-y-3">
+              {students.slice(0, 5).map((student) => (
+                <div key={student.id} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
+                      <UserCheck className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{student.name}</p>
+                      <p className="text-xs text-gray-500">LRN: {student.lrn}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500">{student.section}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
+        {/* Contribution Status */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Contribution Status</h3>
+          </div>
+          <div className="p-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                  <span className="text-sm">Monthly Fee</span>
+                </div>
+                <span className="text-sm font-medium">₱500</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                  <span className="text-sm">Paid Students</span>
+                </div>
+                <span className="text-sm font-medium">5/5</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+              </div>
+              <p className="text-xs text-gray-500 text-center">All students have paid their contributions</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </TeacherLayout>
   );
 }

@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Student, Subject, type GradeInput } from '@/types';
 import { 
-  ArrowLeft, 
   Save, 
   Users, 
   BookOpen, 
@@ -12,6 +10,7 @@ import {
   AlertCircle,
   Filter
 } from 'lucide-react';
+import TeacherLayout from '../../components/TeacherLayout';
 
 export default function GradeInput() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -23,45 +22,38 @@ export default function GradeInput() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
-    // Check authentication
-    const session = localStorage.getItem('teacherSession');
-    if (!session) {
-      router.push('/teacher/login');
-      return;
-    }
+    // Load mock data for demonstration
+    const loadMockData = () => {
+      // Mock students data
+      const mockStudents: Student[] = [
+        { id: '1', name: 'Ana Santos', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+        { id: '2', name: 'Ben Reyes', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+        { id: '3', name: 'Cruz Martinez', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+        { id: '4', name: 'Diana Lim', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+        { id: '5', name: 'Eduardo Tan', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+      ];
 
-    const teacherData = JSON.parse(session);
-    loadData(teacherData.teacher.id);
-  }, [router]);
+      // Mock subjects data
+      const mockSubjects: Subject[] = [
+        { id: '1', name: 'Mathematics', code: 'MATH7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+        { id: '2', name: 'English', code: 'ENG7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+        { id: '3', name: 'Science', code: 'SCI7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+        { id: '4', name: 'Filipino', code: 'FIL7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+      ];
 
-  const loadData = async (teacherId: string) => {
-    try {
-      const [studentsRes, subjectsRes] = await Promise.all([
-        fetch(`/api/teacher/students?teacherId=${teacherId}`),
-        fetch(`/api/teacher/subjects?teacherId=${teacherId}`)
-      ]);
-
-      if (studentsRes.ok) {
-        const studentsData = await studentsRes.json();
-        setStudents(studentsData);
+      setStudents(mockStudents);
+      setSubjects(mockSubjects);
+      if (mockSubjects.length > 0) {
+        setSelectedSubject(mockSubjects[0].id);
       }
-
-      if (subjectsRes.ok) {
-        const subjectsData = await subjectsRes.json();
-        setSubjects(subjectsData);
-        if (subjectsData.length > 0) {
-          setSelectedSubject(subjectsData[0].id);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    } finally {
       setIsLoading(false);
-    }
-  };
+    };
+
+    loadMockData();
+  }, []);
+
 
   const handleGradeChange = (studentId: string, value: string) => {
     const numValue = parseFloat(value);
@@ -143,32 +135,16 @@ export default function GradeInput() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <TeacherLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A]"></div>
+        </div>
+      </TeacherLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.push('/teacher/dashboard')}
-                className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900">Input Grades</h1>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <TeacherLayout title="Input Grades" subtitle="Enter grades for your students.">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -280,7 +256,7 @@ export default function GradeInput() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        Grade {student.grade}
+                        {student.grade}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -318,7 +294,6 @@ export default function GradeInput() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </TeacherLayout>
   );
 }
