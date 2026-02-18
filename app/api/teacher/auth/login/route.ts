@@ -22,6 +22,16 @@ const mockTeachers: Teacher[] = [
     subjects: ['Biology', 'Chemistry'],
     gradeLevel: 'Grade 8',
     isActive: true
+  },
+  {
+    id: 'test-teacher',
+    name: 'Test Teacher',
+    email: 'test@papaya.edu',
+    employeeId: 'TEST001',
+    department: 'Computer Science',
+    subjects: ['Web Development', 'Database Management'],
+    gradeLevel: 'Grade 10',
+    isActive: true
   }
 ];
 

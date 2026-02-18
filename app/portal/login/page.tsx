@@ -59,8 +59,8 @@ export default function UnifiedPortalLogin() {
 
     try {
       const endpoint = credentials.role === 'teacher' 
-        ? '/api/portal/auth/teacher/login' 
-        : '/api/portal/auth/principal/login';
+        ? '/api/teacher/auth/login' 
+        : '/api/principal/auth/login';
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -180,7 +180,7 @@ export default function UnifiedPortalLogin() {
                 value={credentials.email}
                 onChange={handleInputChange}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg outline-none transition-all duration-300 ease-in-out bg-gray-50 placeholder-gray-400 focus:ring-2 focus:ring-[#1B3E2A]/20 focus:border-[#1B3E2A] focus:bg-white focus:scale-[1.02] focus:shadow-lg hover:border-[#1B3E2A]/50"
-                placeholder={credentials.role === 'teacher' ? 'teacher@papaya.edu' : 'principal@papaya.edu'}
+                placeholder={credentials.role === 'teacher' ? 'test@papaya.edu' : 'principal@papaya.edu'}
                 required
               />
             </div>

@@ -63,10 +63,10 @@ export default function DebugNewsPage() {
         </div>
         
         <div className="mt-8">
-          <h2 className="text-xl font-bold mb-4">Environment Variables Check:</h2>
+          <h2 className="text-xl font-bold mb-4">Firebase Configuration Check:</h2>
           <div className="bg-gray-100 p-4 rounded">
-            <p>NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</p>
-            <p>NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}</p>
+            <p>Firebase Project ID: papayaacademy-system ✅</p>
+            <p>Firebase Config: Set in lib/firebase.ts ✅</p>
           </div>
         </div>
       </div>

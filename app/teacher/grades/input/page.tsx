@@ -8,7 +8,10 @@ import {
   BookOpen, 
   CheckCircle,
   AlertCircle,
-  Filter
+  Filter,
+  Plus,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
 
@@ -22,37 +25,93 @@ export default function GradeInput() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Student management states
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({ name: '', grade: 'Grade 7' });
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   useEffect(() => {
-    // Load mock data for demonstration
-    const loadMockData = () => {
-      // Mock students data
-      const mockStudents: Student[] = [
-        { id: '1', name: 'Ana Santos', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '2', name: 'Ben Reyes', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '3', name: 'Cruz Martinez', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '4', name: 'Diana Lim', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '5', name: 'Eduardo Tan', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-      ];
+    // Load data from Firebase
+    const loadData = async () => {
+      try {
+        const session = localStorage.getItem('teacherSession');
+        if (!session) {
+          setMessage({ type: 'error', text: 'Please login first' });
+          setIsLoading(false);
+          return;
+        }
 
-      // Mock subjects data
-      const mockSubjects: Subject[] = [
-        { id: '1', name: 'Mathematics', code: 'MATH7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
-        { id: '2', name: 'English', code: 'ENG7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
-        { id: '3', name: 'Science', code: 'SCI7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
-        { id: '4', name: 'Filipino', code: 'FIL7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
-      ];
+        const teacherData = JSON.parse(session);
+        
+        // Load students from Firebase
+        const studentsResponse = await fetch('/api/teacher/students', {
+          headers: {
+            'Authorization': `Bearer ${teacherData.teacher.id}`
+          }
+        });
+        
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          setStudents(studentsData);
+        }
 
-      setStudents(mockStudents);
-      setSubjects(mockSubjects);
-      if (mockSubjects.length > 0) {
-        setSelectedSubject(mockSubjects[0].id);
+        // Load existing grades for current subject and grading period
+        if (selectedSubject) {
+          await loadExistingGrades(teacherData.teacher.id, selectedSubject, selectedGradingPeriod);
+        }
+
+        // Mock subjects for now (you can create a subjects API later)
+        const mockSubjects: Subject[] = [
+          { id: '1', name: 'Mathematics', code: 'MATH7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+          { id: '2', name: 'English', code: 'ENG7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+          { id: '3', name: 'Science', code: 'SCI7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+          { id: '4', name: 'Filipino', code: 'FIL7', gradeLevel: 'Grade 7', teacherId: 'teacher1', semester: 'First', schoolYear: '2024-2025' },
+        ];
+        
+        setSubjects(mockSubjects);
+        if (mockSubjects.length > 0 && !selectedSubject) {
+          setSelectedSubject(mockSubjects[0].id);
+        }
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setMessage({ type: 'error', text: 'Failed to load data' });
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
-    loadMockData();
-  }, []);
+    loadData();
+  }, [selectedSubject, selectedGradingPeriod]);
+
+  const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
+    try {
+      const response = await fetch(`/api/teacher/grades?teacherId=${teacherId}&subjectId=${subjectId}&gradingPeriod=${gradingPeriod}`, {
+        headers: {
+          'Authorization': `Bearer ${teacherId}`
+        }
+      });
+      
+      if (response.ok) {
+        const existingGrades = await response.json();
+        const gradesMap: { [key: string]: string } = {};
+        const remarksMap: { [key: string]: string } = {};
+        
+        existingGrades.forEach((grade: GradeInput) => {
+          gradesMap[grade.studentId] = grade.grade.toString();
+          if (grade.remarks) {
+            remarksMap[grade.studentId] = grade.remarks;
+          }
+        });
+        
+        setGrades(gradesMap);
+        setRemarks(remarksMap);
+      }
+    } catch (error) {
+      console.error('Error loading existing grades:', error);
+    }
+  };
 
 
   const handleGradeChange = (studentId: string, value: string) => {
@@ -64,6 +123,58 @@ export default function GradeInput() {
 
   const handleRemarkChange = (studentId: string, value: string) => {
     setRemarks(prev => ({ ...prev, [studentId]: value }));
+  };
+
+  // Student management functions
+  const handleAddStudent = async () => {
+    if (!newStudent.name.trim()) {
+      setMessage({ type: 'error', text: 'Student name is required' });
+      return;
+    }
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = JSON.parse(session!);
+
+      const response = await fetch('/api/teacher/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${teacherData.teacher.id}`
+        },
+        body: JSON.stringify({
+          name: newStudent.name.trim(),
+          grade: newStudent.grade,
+          enrolledDate: new Date().toISOString()
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setStudents(prev => [...prev, result.student]);
+        setNewStudent({ name: '', grade: 'Grade 7' });
+        setShowAddStudent(false);
+        setMessage({ type: 'success', text: 'Student added successfully' });
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.message || 'Failed to add student' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to add student' });
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!confirm('Are you sure you want to delete this student?')) {
+      return;
+    }
+
+    try {
+      // Note: You'll need to implement DELETE method in the API
+      setMessage({ type: 'error', text: 'Delete functionality needs API implementation' });
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to delete student' });
+    }
   };
 
   const validateGrades = () => {
@@ -107,8 +218,9 @@ export default function GradeInput() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${teacherData.teacher.id}`
         },
-        body: JSON.stringify({ grades: gradeData }),
+        body: JSON.stringify({ grades: gradeData })
       });
 
       if (response.ok) {
@@ -203,6 +315,65 @@ export default function GradeInput() {
           </div>
         </div>
 
+        {/* Add Student Section */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Users className="w-5 h-5 text-gray-600" />
+              Student Management
+            </h3>
+            <button
+              onClick={() => setShowAddStudent(!showAddStudent)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Student
+            </button>
+          </div>
+
+          {showAddStudent && (
+            <div className="border-t pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Student Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newStudent.name}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    placeholder="Enter student name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Grade Level
+                  </label>
+                  <select
+                    value={newStudent.grade}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, grade: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  >
+                    <option value="Grade 7">Grade 7</option>
+                    <option value="Grade 8">Grade 8</option>
+                    <option value="Grade 9">Grade 9</option>
+                    <option value="Grade 10">Grade 10</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleAddStudent}
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
+                  >
+                    Add Student
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Message */}
         {message && (
           <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
@@ -244,6 +415,9 @@ export default function GradeInput() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Remarks
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -279,6 +453,15 @@ export default function GradeInput() {
                         className="w-48 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                         placeholder="Optional remarks"
                       />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleDeleteStudent(student.id)}
+                        className="text-red-600 hover:text-red-800 transition duration-200"
+                        title="Delete student"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}

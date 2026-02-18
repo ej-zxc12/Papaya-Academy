@@ -1,71 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Student } from '@/types';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, addDoc, Timestamp } from 'firebase/firestore';
 
-// Mock student data - replace with actual database
-const mockStudents: Student[] = [
-  {
-    id: '2024001',
-    name: 'Ana Reyes',
-    grade: 'Grade 7',
-    enrolledDate: '2024-06-01',
-    attendance: [],
-    grades: []
-  },
-  {
-    id: '2024002',
-    name: 'Carlos Mendoza',
-    grade: 'Grade 7',
-    enrolledDate: '2024-06-01',
-    attendance: [],
-    grades: []
-  },
-  {
-    id: '2024003',
-    name: 'Sofia Rodriguez',
-    grade: 'Grade 7',
-    enrolledDate: '2024-06-01',
-    attendance: [],
-    grades: []
-  },
-  {
-    id: '2024004',
-    name: 'Miguel Santos',
-    grade: 'Grade 8',
-    enrolledDate: '2024-06-01',
-    attendance: [],
-    grades: []
-  },
-  {
-    id: '2024005',
-    name: 'Isabella Cruz',
-    grade: 'Grade 8',
-    enrolledDate: '2024-06-01',
-    attendance: [],
-    grades: []
+// Simple middleware to check for teacher session
+function getTeacherSession(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // For now, accept a simple Bearer token for development
+    // In production, this should verify Firebase ID tokens
+    return authHeader.substring(7);
   }
-];
+  
+  // Check for session in cookies (alternative approach)
+  const sessionCookie = request.cookies.get('teacherSession')?.value;
+  if (sessionCookie) {
+    try {
+      const sessionData = JSON.parse(sessionCookie);
+      return sessionData.teacher?.id;
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacherId');
-
-    // In a real application, filter students by teacher's assigned classes
-    // For demo, we'll return students based on teacher
-    let filteredStudents = mockStudents;
-
-    if (teacherId === 'teacher1') {
-      // Grade 7 students for Math teacher
-      filteredStudents = mockStudents.filter(s => s.grade === 'Grade 7');
-    } else if (teacherId === 'teacher2') {
-      // Grade 8 students for Science teacher
-      filteredStudents = mockStudents.filter(s => s.grade === 'Grade 8');
+    // Check teacher session
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json(filteredStudents);
+    const { searchParams } = new URL(request.url);
+    const gradeLevel = searchParams.get('gradeLevel');
+
+    const studentsCollection = collection(db, 'students');
+    let q = query(studentsCollection);
+
+    // Add filters if provided
+    const constraints = [];
+    if (gradeLevel) {
+      constraints.push(where('grade', '==', gradeLevel));
+    }
+    // In a real application, you would filter by teacher's assigned classes
+    // This might involve querying a separate teacher-student assignment collection
+
+    if (constraints.length > 0) {
+      q = query(studentsCollection, ...constraints);
+    }
+
+    const querySnapshot = await getDocs(q);
+    const students = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data
+      };
+    });
+
+    return NextResponse.json(students);
 
   } catch (error) {
     console.error('Error fetching students:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Check teacher session
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
+    const { name, grade, enrolledDate } = await request.json();
+
+    // Validate required fields
+    if (!name || !grade) {
+      return NextResponse.json(
+        { message: 'Name and grade are required' },
+        { status: 400 }
+      );
+    }
+
+    // Create new student
+    const studentsCollection = collection(db, 'students');
+    const studentData = {
+      name: name.trim(),
+      grade: grade.trim(),
+      enrolledDate: enrolledDate ? Timestamp.fromDate(new Date(enrolledDate)) : Timestamp.fromDate(new Date()),
+      attendance: [],
+      grades: []
+    };
+
+    const docRef = await addDoc(studentsCollection, studentData);
+    const newStudent = {
+      id: docRef.id,
+      ...studentData,
+      enrolledDate: studentData.enrolledDate.toDate().toISOString()
+    };
+
+    return NextResponse.json({
+      message: 'Student created successfully',
+      student: newStudent
+    });
+
+  } catch (error) {
+    console.error('Error creating student:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

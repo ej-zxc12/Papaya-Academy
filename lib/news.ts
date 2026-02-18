@@ -1,143 +1,95 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Anon Key:', supabaseAnonKey ? 'Set' : 'Not Set')
-
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+import { db } from './firebase';
+import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
 
 export interface NewsArticle {
-  id: string // UUID in your database
+  id: string // Document ID in Firestore
   title: string
   slug: string
-  excerpt?: string // Added from your schema
+  excerpt?: string
   content: string
   author?: string
   featured_image?: string
-  status?: string // Nullable in your schema
-  published_at?: string // Nullable in your schema
-  created_at?: string // Might not exist, but let's check
+  status?: string
+  published_at?: string
+  created_at?: string
 }
 
 export async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
-    console.log('Testing Supabase connection...')
-    console.log('Using URL:', supabaseUrl)
+    console.log('Fetching news articles from Firebase...');
     
-    // Test basic connection first
-    const { data: testData, error: testError } = await supabase
-      .from('news_articles')
-      .select('count')
-      .single()
-
-    console.log('Connection test response:', { testData, testError })
-
-    if (testError) {
-      console.error('Basic connection test failed:', testError)
-      
-      // Check for specific error types
-      if (testError.message?.includes('fetch') || testError.message?.includes('network')) {
-        throw new Error(`Network error: Cannot reach Supabase at ${supabaseUrl}. Check URL and network connectivity.`)
-      }
-      
-      if (testError.message?.includes('JWT') || testError.message?.includes('apikey')) {
-        throw new Error(`Authentication error: Invalid Supabase credentials. Check your anon key.`)
-      }
-      
-      if (testError.message?.includes('relation') || testError.message?.includes('does not exist')) {
-        throw new Error(`Database error: 'news_articles' table doesn't exist or no RLS policy for public access.`)
-      }
-      
-      throw new Error(`RLS/Permission error: ${testError.message || JSON.stringify(testError)}`)
-    }
-
-    console.log('Total articles count:', testData?.count)
-
-    // Now fetch actual articles
-    const { data, error } = await supabase
-      .from('news_articles')
-      .select('*')
-      .order('published_at', { ascending: false, nullsFirst: false })
-
-    console.log('Supabase query result:', { data: data?.length, error })
-
-    if (error) {
-      console.error('Error fetching news articles:', error)
-      throw new Error(`Supabase query error: ${error.message}`)
-    }
-
-    if (!data || data.length === 0) {
-      console.log('No articles found in database')
-      return []
-    }
-
-    // Filter for published articles on client side
-    const filteredData = data.filter((article: NewsArticle) => 
+    const newsRef = collection(db, 'news_articles');
+    const q = query(newsRef, orderBy('published_at', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    const articles: NewsArticle[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      articles.push({
+        id: doc.id,
+        ...data
+      } as NewsArticle);
+    });
+    
+    // Filter for published articles
+    const filteredArticles = articles.filter((article: NewsArticle) => 
       !article.status || article.status === 'Published'
-    )
-
-    console.log(`Filtered ${filteredData.length} published articles from ${data.length} total`)
-    return filteredData
+    );
+    
+    console.log(`Fetched ${filteredArticles.length} published articles from ${articles.length} total`);
+    return filteredArticles;
   } catch (error) {
-    console.error('News fetch error:', error)
-    throw error
+    console.error('Error fetching news articles:', error);
+    throw new Error(`Firebase fetch error: ${error}`);
   }
 }
 
 export async function getNewsArticleBySlug(slug: string): Promise<NewsArticle | null> {
   try {
-    console.log('Fetching article by slug:', slug)
+    console.log('Fetching article by slug:', slug);
     
-    const { data, error } = await supabase
-      .from('news_articles')
-      .select('*, published_at') // Include published_at
-      .eq('slug', slug)
-      .single()
-
-    console.log('Article fetch result:', { data, error })
-
-    if (error) {
-      console.error('Error fetching news article:', error)
-      
-      // Handle specific error cases
-      if (error.code === 'PGRST116') {
-        console.log('Article not found (PGRST116)')
-        return null
-      }
-      
-      if (error.message?.includes('fetch') || error.message?.includes('network')) {
-        throw new Error(`Network error: Cannot reach Supabase. Check URL and connectivity.`)
-      }
-      
-      throw new Error(`Database error: ${error.message || JSON.stringify(error)}`)
+    const newsRef = collection(db, 'news_articles');
+    const q = query(newsRef, where('slug', '==', slug));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      console.log('Article not found');
+      return null;
     }
-
-    return data
+    
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id,
+      ...data
+    } as NewsArticle;
   } catch (error) {
-    console.error('News article fetch error:', error)
-    throw error // Re-throw to show the actual error
+    console.error('Error fetching news article:', error);
+    throw new Error(`Firebase fetch error: ${error}`);
   }
 }
 
-export async function getNewsArticleById(id: string): Promise<NewsArticle | null> { // Changed to string for UUID
+export async function getNewsArticleById(id: string): Promise<NewsArticle | null> {
   try {
-    const { data, error } = await supabase
-      .from('news_articles')
-      .select('*')
-      .eq('id', id) // UUID string
-      .single()
-
-    if (error) {
-      console.error('Error fetching news article by ID:', error)
-      return null
+    console.log('Fetching article by ID:', id);
+    
+    const docRef = doc(db, 'news_articles', id);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      console.log('Article not found');
+      return null;
     }
-
-    return data
+    
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...data
+    } as NewsArticle;
   } catch (error) {
-    console.error('News article fetch error:', error)
-    return null
+    console.error('Error fetching news article by ID:', error);
+    return null;
   }
 }
 

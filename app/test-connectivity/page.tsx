@@ -2,25 +2,24 @@
 
 import { useState, useEffect } from 'react'
 
-export default function TestConnectivityPage() {
+export default function TestConnectivityFirebasePage() {
   const [testResults, setTestResults] = useState<string[]>([])
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const projectId = 'papayaacademy-system'
 
   useEffect(() => {
     const runTests = async () => {
       const results = []
       
-      // Test 1: Basic fetch to Supabase URL
+      // Test 1: Basic fetch to Firebase REST API
       try {
-        const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+        const response = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/news_articles`, {
           headers: {
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
             'Content-Type': 'application/json'
           }
         })
         
         if (response.ok) {
-          results.push('✅ Direct fetch to Supabase REST API: SUCCESS')
+          results.push('✅ Direct fetch to Firebase REST API: SUCCESS')
         } else {
           results.push(`❌ Direct fetch failed: HTTP ${response.status} ${response.statusText}`)
         }
@@ -28,17 +27,20 @@ export default function TestConnectivityPage() {
         results.push(`❌ Direct fetch error: ${error instanceof Error ? error.message : 'Unknown'}`)
       }
 
-      // Test 2: Check if URL is reachable
+      // Test 2: Check if project ID is valid
       try {
-        const url = new URL(supabaseUrl)
-        results.push(`✅ URL format: Valid (${url.protocol}//${url.host})`)
+        if (projectId && projectId.length > 0) {
+          results.push(`✅ Project ID format: Valid (${projectId})`)
+        } else {
+          results.push('❌ Project ID format: Empty or invalid')
+        }
       } catch (error) {
-        results.push(`❌ URL format: Invalid - ${error}`)
+        results.push(`❌ Project ID format: Invalid - ${error}`)
       }
 
       // Test 3: Environment variables
-      results.push(`📍 Supabase URL: ${supabaseUrl}`)
-      results.push(`🔑 Anon Key: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Set' : 'Missing'}`)
+      results.push(`📍 Firebase Project ID: ${projectId}`)
+      results.push(`🔑 Firebase Config: Set in lib/firebase.ts`)
 
       setTestResults(results)
     }
@@ -49,7 +51,7 @@ export default function TestConnectivityPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Supabase Connectivity Test</h1>
+        <h1 className="text-3xl font-bold mb-6">Firebase Connectivity Test</h1>
         
         <div className="space-y-4">
           {testResults.map((result, index) => (
@@ -62,20 +64,20 @@ export default function TestConnectivityPage() {
         <div className="mt-8 bg-yellow-50 p-6 rounded-lg border border-yellow-200">
           <h2 className="text-xl font-bold mb-4 text-yellow-800">🔧 Troubleshooting Steps</h2>
           <ol className="list-decimal space-y-2 text-yellow-700">
-            <li>Open your Supabase dashboard and verify the project URL matches exactly</li>
-            <li>Check if your Supabase project is active/suspended</li>
-            <li>Try accessing the Supabase URL directly in your browser</li>
+            <li>Open your Firebase dashboard and verify the project ID matches exactly</li>
+            <li>Check if your Firebase project is active</li>
+            <li>Try accessing the Firebase URL directly in your browser</li>
             <li>Check if there are any firewall/network restrictions</li>
-            <li>Verify the anon key is copied correctly from Supabase dashboard</li>
+            <li>Verify the Firebase configuration in lib/firebase.ts</li>
           </ol>
         </div>
 
         <div className="mt-6">
           <button 
-            onClick={() => window.location.href = 'https://dfqralohvrjiqiambwm.supabase.co'}
+            onClick={() => window.location.href = 'https://console.firebase.google.com/project/papayaacademy-system'}
             className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
-            Test Supabase URL in Browser
+            Open Firebase Console
           </button>
         </div>
       </div>

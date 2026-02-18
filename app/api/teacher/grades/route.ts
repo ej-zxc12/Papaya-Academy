@@ -1,11 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GradeInput } from '@/types';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 
-// In-memory storage for demo - replace with actual database
-let gradesDatabase: GradeInput[] = [];
+// Simple middleware to check for teacher session
+function getTeacherSession(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // For now, accept a simple Bearer token for development
+    // In production, this should verify Firebase ID tokens
+    return authHeader.substring(7);
+  }
+  
+  // Check for session in cookies (alternative approach)
+  const sessionCookie = request.cookies.get('teacherSession')?.value;
+  if (sessionCookie) {
+    try {
+      const sessionData = JSON.parse(sessionCookie);
+      return sessionData.teacher?.id;
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Check teacher session
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
     const { grades } = await request.json();
 
     if (!Array.isArray(grades)) {
@@ -32,8 +63,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save grades (in real app, this would be a database operation)
-    gradesDatabase.push(...grades);
+    // Save grades to Firebase
+    const gradesCollection = collection(db, 'grades');
+    const savedGrades = [];
+
+    for (const grade of grades) {
+      const gradeData = {
+        ...grade,
+        dateInput: Timestamp.fromDate(new Date(grade.dateInput))
+      };
+      const docRef = await addDoc(gradesCollection, gradeData);
+      savedGrades.push({ id: docRef.id, ...grade });
+    }
 
     return NextResponse.json({
       message: 'Grades saved successfully',
@@ -51,26 +92,49 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Check teacher session
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
-    const teacherId = searchParams.get('teacherId');
     const subjectId = searchParams.get('subjectId');
     const gradingPeriod = searchParams.get('gradingPeriod');
 
-    let filteredGrades = gradesDatabase;
+    const gradesCollection = collection(db, 'grades');
+    let q = query(gradesCollection);
 
+    // Add filters if provided
+    const constraints = [];
     if (teacherId) {
-      filteredGrades = filteredGrades.filter(g => g.teacherId === teacherId);
+      constraints.push(where('teacherId', '==', teacherId));
     }
-
     if (subjectId) {
-      filteredGrades = filteredGrades.filter(g => g.subjectId === subjectId);
+      constraints.push(where('subjectId', '==', subjectId));
     }
-
     if (gradingPeriod) {
-      filteredGrades = filteredGrades.filter(g => g.gradingPeriod === gradingPeriod);
+      constraints.push(where('gradingPeriod', '==', gradingPeriod));
     }
 
-    return NextResponse.json(filteredGrades);
+    if (constraints.length > 0) {
+      q = query(gradesCollection, ...constraints);
+    }
+
+    const querySnapshot = await getDocs(q);
+    const grades = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        dateInput: data.dateInput?.toDate?.()?.toISOString() || data.dateInput
+      };
+    });
+
+    return NextResponse.json(grades);
 
   } catch (error) {
     console.error('Error fetching grades:', error);
