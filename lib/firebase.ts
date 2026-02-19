@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -22,9 +23,7 @@ const auth = getAuth(app);
 // Only initialize analytics on client side
 let analytics = null;
 if (typeof window !== 'undefined') {
-  import("firebase/analytics").then(({ getAnalytics }) => {
-    analytics = getAnalytics(app);
-  }).catch(console.error);
+  analytics = getAnalytics(app);
 }
 
 export { app, analytics, db, auth };
