@@ -39,17 +39,30 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const gradeLevel = searchParams.get('gradeLevel');
+    const gradeLevels = searchParams
+      .getAll('gradeLevels')
+      .filter(Boolean)
+      .map((g) => g.trim())
+      .filter(Boolean);
 
     const studentsCollection = collection(db, 'students');
     let q = query(studentsCollection);
 
     // Add filters if provided
     const constraints = [];
-    if (gradeLevel) {
-      constraints.push(where('grade', '==', gradeLevel));
+    if (gradeLevels.length > 0) {
+      if (gradeLevels.length > 10) {
+        return NextResponse.json(
+          { message: 'gradeLevels must contain at most 10 values' },
+          { status: 400 }
+        );
+      }
+      constraints.push(where('gradeLevel', 'in', gradeLevels));
+    } else if (gradeLevel) {
+      constraints.push(where('gradeLevel', '==', gradeLevel));
     }
-    // In a real application, you would filter by teacher's assigned classes
-    // This might involve querying a separate teacher-student assignment collection
+    // Filter by teacher's ID to ensure teachers only see their own students
+    constraints.push(where('teacherId', '==', teacherId));
 
     if (constraints.length > 0) {
       q = query(studentsCollection, ...constraints);
@@ -86,12 +99,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, grade, enrolledDate } = await request.json();
+    const { name, gradeLevel } = await request.json();
 
     // Validate required fields
-    if (!name || !grade) {
+    if (!name || !gradeLevel) {
       return NextResponse.json(
-        { message: 'Name and grade are required' },
+        { message: 'Name and grade level are required' },
         { status: 400 }
       );
     }
@@ -100,17 +113,14 @@ export async function POST(request: NextRequest) {
     const studentsCollection = collection(db, 'students');
     const studentData = {
       name: name.trim(),
-      grade: grade.trim(),
-      enrolledDate: enrolledDate ? Timestamp.fromDate(new Date(enrolledDate)) : Timestamp.fromDate(new Date()),
-      attendance: [],
-      grades: []
+      gradeLevel: gradeLevel.trim(),
+      teacherId: teacherId // Add teacherId for authorization
     };
 
     const docRef = await addDoc(studentsCollection, studentData);
     const newStudent = {
       id: docRef.id,
-      ...studentData,
-      enrolledDate: studentData.enrolledDate.toDate().toISOString()
+      ...studentData
     };
 
     return NextResponse.json({

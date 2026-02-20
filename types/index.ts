@@ -25,11 +25,8 @@ export interface Donation {
 export interface Student {
   id: string;
   name: string;
-  grade: string;
-  enrolledDate: string;
-  sponsorId?: string;
-  attendance: AttendanceRecord[];
-  grades: GradeRecord[];
+  gradeLevel: string;
+  teacherId: string;
 }
 
 export interface AttendanceRecord {
@@ -89,9 +86,9 @@ export interface Subject {
   id: string;
   name: string;
   code: string;
-  gradeLevel: string;
+  gradeLevels: string[];
+  gradeLevel?: string;
   teacherId: string;
-  semester: string;
   schoolYear: string;
 }
 

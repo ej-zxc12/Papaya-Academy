@@ -1,155 +1,238 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { ContributionQuota, MonthlyContribution, SF10Record, Teacher } from '@/types';
+import { useState, useEffect, useRef } from 'react';
+import { MonthlyContribution, ContributionQuota, Student, Teacher } from '@/types';
 import { 
-  Users,
-  Clock,
-  FileText,
+  Plus, 
+  Edit, 
+  Trash2, 
+  Search, 
+  Filter,
   DollarSign,
-  ArrowRight,
+  Calendar,
+  Users,
   TrendingUp,
-  PlusCircle,
-  FilePlus,
-  AlertCircle
+  CheckCircle,
+  Clock,
+  Download,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
 
-type ActivityItem = {
-  id: string;
-  type: 'sf10' | 'contribution';
-  title: string;
-  description: string;
-  timestampLabel: string;
-  icon: typeof FileText;
-  color: string;
-  bg: string;
+// Papaya Theme Colors (Reference)
+const PAPAYA_THEME = {
+  green: '#1B3E2A',
+  gold: '#F2C94C',
+  greenHover: '#2d5a3f',
+  goldHover: '#e5b840',
+  greenLight: '#f0f7f3',
+  goldLight: '#fef9e7'
 };
 
-function formatRelativeTime(input: string | undefined) {
-  if (!input) return '—';
-  const date = new Date(input);
-  if (Number.isNaN(date.getTime())) return '—';
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / (60 * 1000));
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin} min ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? '' : 's'} ago`;
-  const diffDay = Math.floor(diffHr / 24);
-  return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
-}
+const GRADE_LEVELS = [
+  'Pre-School',
+  'Kinder',
+  'Grade 1',
+  'Grade 2',
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6'
+];
 
-export default function TeacherDashboard() {
+export default function ContributionManagement() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [sf10Records, setSf10Records] = useState<SF10Record[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [contributions, setContributions] = useState<MonthlyContribution[]>([]);
   const [quotas, setQuotas] = useState<ContributionQuota[]>([]);
-  const router = useRouter();
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  
+  // State for Custom Dropdown
+  const [selectedGrade, setSelectedGrade] = useState('');
+  const [isGradeDropdownOpen, setIsGradeDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddPayment, setShowAddPayment] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<MonthlyContribution | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // UI Interaction States
+  const [isBtnHovered, setIsBtnHovered] = useState(false);
+  const [isExportBtnHovered, setIsExportBtnHovered] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const [formData, setFormData] = useState<{
+    studentId: string;
+    amount: number;
+    month: string;
+    year: string;
+    paymentMethod: 'cash' | 'bank' | 'online' | 'other';
+    receiptNumber: string;
+    notes: string;
+  }>({
+    studentId: '',
+    amount: 500, // Default monthly contribution
+    month: new Date().toISOString().slice(0, 7),
+    year: new Date().getFullYear().toString(),
+    paymentMethod: 'cash',
+    receiptNumber: '',
+    notes: ''
+  });
+
+  // Handle Click Outside for Dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsGradeDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
 
   useEffect(() => {
-    const load = async () => {
+    // Initialize empty data
+    setStudents([]);
+    setContributions([]);
+    setQuotas([]);
+    setIsLoading(false);
+  }, []);
+
+  const handleAddPayment = () => {
+    setShowAddPayment(true);
+    setEditingPayment(null);
+    setFormData({
+      studentId: '',
+      amount: 500,
+      month: selectedMonth,
+      year: selectedYear,
+      paymentMethod: 'cash',
+      receiptNumber: '',
+      notes: ''
+    });
+  };
+
+  const handleEditPayment = (payment: MonthlyContribution) => {
+    setShowAddPayment(true);
+    setEditingPayment(payment);
+    setFormData({
+      studentId: payment.studentId,
+      amount: payment.amount,
+      month: payment.month,
+      year: payment.year,
+      paymentMethod: payment.paymentMethod,
+      receiptNumber: payment.receiptNumber || '',
+      notes: payment.notes || ''
+    });
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!formData.studentId || !formData.amount) {
+      setMessage({ type: 'error', text: 'Please select a student and enter amount' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
       const session = localStorage.getItem('teacherSession');
-      if (!session) {
-        router.push('/teacher/login');
-        return;
+      const teacherData = JSON.parse(session!);
+
+      const paymentData = {
+        ...formData,
+        recordedBy: teacherData.teacher.id,
+        recordedByName: teacherData.teacher.name,
+        paymentDate: new Date().toISOString(),
+        status: 'paid'
+      };
+
+      const url = editingPayment 
+        ? `/api/contributions/${editingPayment.id}`
+        : '/api/contributions';
+      
+      const method = editingPayment ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Payment ${editingPayment ? 'updated' : 'recorded'} successfully!` });
+        setShowAddPayment(false);
+        setEditingPayment(null);
+        // In a real app, reload data here
+      } else {
+        setMessage({ type: 'error', text: `Failed to ${editingPayment ? 'update' : 'record'} payment` });
       }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-      try {
-        const parsed = JSON.parse(session);
-        const teacherData: Teacher | undefined = parsed?.teacher;
-        setTeacher(teacherData ?? null);
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Are you sure you want to delete this payment record?')) return;
 
-        const year = new Date().getFullYear().toString();
-        const teacherId = teacherData?.id;
+    try {
+      const response = await fetch(`/api/contributions/${paymentId}`, {
+        method: 'DELETE'
+      });
 
-        const [sf10Res, contributionsRes, quotasRes] = await Promise.all([
-          fetch(`/api/teacher/sf10${teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : ''}`),
-          fetch('/api/contributions'),
-          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}`),
-        ]);
-
-        if (!sf10Res.ok) throw new Error('Failed to load SF10 records');
-        if (!contributionsRes.ok) throw new Error('Failed to load contributions');
-        if (!quotasRes.ok) throw new Error('Failed to load contribution quotas');
-
-        const [sf10Json, contributionsJson, quotasJson] = await Promise.all([
-          sf10Res.json(),
-          contributionsRes.json(),
-          quotasRes.json(),
-        ]);
-
-        setSf10Records(Array.isArray(sf10Json) ? sf10Json : []);
-        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
-        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
-        setLoadError(null);
-      } catch {
-        setLoadError('Some dashboard data could not be loaded.');
-      } finally {
-        setTimeout(() => setIsLoading(false), 500);
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Payment deleted successfully' });
+        // In a real app, reload data here
+      } else {
+        setMessage({ type: 'error', text: 'Failed to delete payment' });
       }
-    };
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    }
+  };
 
-    load();
-  }, [router]);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  const totalStudents = quotas.length;
-  const totalSf10 = sf10Records.length;
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'fully_paid': return 'bg-green-100 text-green-800';
+      case 'partially_paid': return 'bg-yellow-100 text-yellow-800';
+      case 'not_paid': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
-  const totalExpected = quotas.reduce((sum, q) => sum + (q.yearlyQuota || 0), 0);
-  const totalCollected = quotas.reduce((sum, q) => sum + (q.totalPaid || 0), 0);
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const filteredContributions = contributions.filter(contribution =>
+    contribution.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contribution.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+  ).filter(contribution =>
+    !selectedGrade || contribution.gradeLevel === selectedGrade
+  );
 
-  const recentActivities: ActivityItem[] = (() => {
-    const sf10Items: ActivityItem[] = sf10Records
-      .slice()
-      .sort((a, b) => new Date(b.dateCompleted).getTime() - new Date(a.dateCompleted).getTime())
-      .slice(0, 6)
-      .map((r) => ({
-        id: r.id,
-        type: 'sf10',
-        title: 'SF10 Generated',
-        description: `Generated form for ${r.studentName} (${r.gradeLevel})`,
-        timestampLabel: formatRelativeTime(r.dateCompleted),
-        icon: FileText,
-        color: 'text-blue-500',
-        bg: 'bg-blue-50',
-      }));
+  const filteredQuotas = quotas.filter(quota =>
+    quota.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quota.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+  ).filter(quota =>
+    !selectedGrade || quota.gradeLevel === selectedGrade
+  );
 
-    const contribItems: ActivityItem[] = contributions
-      .slice()
-      .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
-      .slice(0, 6)
-      .map((c) => ({
-        id: c.id,
-        type: 'contribution',
-        title: 'Payment Recorded',
-        description: `Received ₱${c.amount} from ${c.studentName}`,
-        timestampLabel: formatRelativeTime(c.paymentDate),
-        icon: DollarSign,
-        color: 'text-green-500',
-        bg: 'bg-green-50',
-      }));
-
-    return [...sf10Items, ...contribItems]
-      .slice()
-      .sort((a, b) => {
-        const getTime = (x: ActivityItem) => {
-          if (x.type === 'sf10') {
-            const found = sf10Records.find(r => r.id === x.id);
-            return found ? new Date(found.dateCompleted).getTime() : 0;
-          }
-          const found = contributions.find(c => c.id === x.id);
-          return found ? new Date(found.paymentDate).getTime() : 0;
-        };
-        return getTime(b) - getTime(a);
-      })
-      .slice(0, 6);
-  })();
-
+  const totalCollected = contributions.reduce((sum, c) => sum + c.amount, 0);
+  const totalExpected = quotas.length * 500 * 12; // Assuming 500 monthly, 12 months
+  const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
   if (isLoading) {
     return (
@@ -162,166 +245,576 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <TeacherLayout title="Dashboard" subtitle={`Welcome back, ${teacher?.name || 'Teacher'}!`}>
-      {loadError && (
-        <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
-            <div className="font-semibold">Dashboard partially loaded</div>
-            <div className="text-yellow-700">{loadError}</div>
-          </div>
+    <TeacherLayout title="Contributions" subtitle="Manage student monthly contributions.">
+      <style jsx global>{`
+        @keyframes jump {
+          0%, 100% { transform: translateY(-50%); }
+          50% { transform: translateY(-80%); }
+        }
+        .animate-icon-jump {
+          animation: jump 0.4s ease-in-out;
+        }
+        .dropdown-enter {
+          animation: scaleIn 0.2s ease-out forwards;
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        /* Custom scrollbar for the dropdown */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1; 
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d1d5db; 
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #9ca3af; 
+        }
+      `}</style>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-lg ${
+          message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          {message.text}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
-          <div className="relative z-10 flex justify-between items-start">
+      {showAddPayment ? (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-6">
+            {editingPayment ? 'Edit Payment' : 'Record New Payment'}
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">Total Students</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{totalStudents}</h3>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Student
+              </label>
+              <select
+                value={formData.studentId}
+                onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                required
+              >
+                <option value="">Select Student</option>
+                {students.map(student => (
+                  <option key={student.id} value={student.id}>
+                    {student.name} - {student.gradeLevel}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <div className="relative z-10 mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 font-medium">Based on contribution quotas</span>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-orange-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
-          <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">SF10 Forms</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{totalSf10}</h3>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Amount
+              </label>
+              <input
+                type="number"
+                value={formData.amount}
+                onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                min="0"
+                step="0.01"
+                required
+              />
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <FileText className="w-6 h-6 text-orange-500" />
-            </div>
-          </div>
-          <div className="relative z-10 mt-4 flex items-center text-sm">
-            <span className="text-gray-500">Records available in system</span>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-green-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
-          <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">Collection Rate</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{collectionRate}%</h3>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Month
+              </label>
+              <input
+                type="month"
+                value={formData.month}
+                onChange={(e) => setFormData(prev => ({ ...prev, month: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                required
+              />
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <DollarSign className="w-6 h-6 text-green-600" />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Payment Method
+              </label>
+              <select
+                value={formData.paymentMethod}
+                onChange={(e) => {
+                  const value = e.target.value as 'cash' | 'bank' | 'online' | 'other';
+                  setFormData(prev => ({ ...prev, paymentMethod: value }));
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+              >
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="online">Online Payment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Receipt Number (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.receiptNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                placeholder="Enter receipt number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes (Optional)
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                placeholder="Add any notes..."
+              />
             </div>
           </div>
-          <div className="relative z-10 mt-4 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-green-500 h-full rounded-full" style={{ width: `${collectionRate}%` }}></div>
+
+          <div className="flex gap-4 mt-6">
+            <button
+              onClick={handleSubmitPayment}
+              disabled={isSaving}
+              className="bg-[#1B3E2A] text-white px-6 py-2 rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="w-4 h-4" />
+                  {editingPayment ? 'Update' : 'Record'} Payment
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setShowAddPayment(false);
+                setEditingPayment(null);
+              }}
+              className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-            <div className="px-6 py-4 bg-gradient-to-r from-[#1B3E2A] to-[#2d5a3f] text-white">
-              <h3 className="text-lg font-semibold flex items-center gap-2">Quick Actions</h3>
-            </div>
-            <div className="p-4 space-y-3">
-              <button
-                onClick={() => router.push('/teacher/sf10/create')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
-              >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <FilePlus className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Generate SF10</p>
-                  <p className="text-xs text-gray-500">Create a new SF10 form</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
-              </button>
-
-              <button
-                onClick={() => router.push('/teacher/sf10/list')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
-              >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <FileText className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">View SF10</p>
-                  <p className="text-xs text-gray-500">Manage existing records</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
-              </button>
-
-              <button
-                onClick={() => router.push('/teacher/contributions')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
-              >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <PlusCircle className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Record Payment</p>
-                  <p className="text-xs text-gray-500">Log student contributions</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 h-full">
-            <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A] flex justify-between items-center">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Recent Activity
-              </h3>
-            </div>
-
-            <div className="p-6">
-              <div className="space-y-6">
-                {recentActivities.length === 0 ? (
-                  <div className="text-center py-10 text-sm text-gray-500">
-                    No recent activity yet. Start by creating an SF10 or recording a payment.
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Total Collected</p>
+                  <p className="text-3xl font-bold text-[#1B3E2A]">₱{totalCollected.toLocaleString()}</p>
+                  <div className="mt-2 flex items-center text-xs text-green-600">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    <span>12% from last month</span>
                   </div>
-                ) : recentActivities.map((activity, index) => {
-                  const Icon = activity.icon;
-                  return (
-                    <div key={activity.id} className="relative pl-6">
-                      {index !== recentActivities.length - 1 && (
-                        <div className="absolute left-[11px] top-8 bottom-[-24px] w-0.5 bg-gray-100"></div>
-                      )}
+                </div>
+                <div className="bg-[#f0f7f3] p-3 rounded-full">
+                  <DollarSign className="w-8 h-8 text-[#1B3E2A]" />
+                </div>
+              </div>
+            </div>
 
-                      <div className="flex items-start gap-4">
-                        <div className={`absolute left-0 w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-white ${activity.bg}`}>
-                          <Icon className={`w-3 h-3 ${activity.color}`} />
-                        </div>
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Expected This Year</p>
+                  <p className="text-3xl font-bold text-gray-900">₱{totalExpected.toLocaleString()}</p>
+                  <div className="mt-2 flex items-center text-xs text-gray-500">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    <span>Annual target</span>
+                  </div>
+                </div>
+                <div className="bg-[#fef9e7] p-3 rounded-full">
+                  <TrendingUp className="w-8 h-8 text-[#F2C94C]" />
+                </div>
+              </div>
+            </div>
 
-                        <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-gray-200 transition-colors">
-                          <div className="flex justify-between items-start mb-1">
-                            <h4 className="text-sm font-bold text-gray-900">{activity.title}</h4>
-                            <span className="text-xs font-medium text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-100">
-                              {activity.timestampLabel}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600">{activity.description}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Collection Rate</p>
+                  <p className="text-3xl font-bold text-purple-600">{collectionRate.toFixed(1)}%</p>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(collectionRate, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-full">
+                  <Users className="w-8 h-8 text-purple-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">Active Students</p>
+                  <p className="text-3xl font-bold text-orange-600">{quotas.length}</p>
+                  <div className="mt-2 flex items-center text-xs text-orange-600">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    <span>All enrolled</span>
+                  </div>
+                </div>
+                <div className="bg-orange-50 p-3 rounded-full">
+                  <CheckCircle className="w-8 h-8 text-orange-500" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+
+          {/* Action Toolbar: FIXED ALIGNMENT */}
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-48">
+                <button
+                  onClick={handleAddPayment}
+                  onMouseEnter={() => setIsBtnHovered(true)}
+                  onMouseLeave={() => setIsBtnHovered(false)}
+                  className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11" // h-11 Fixed Height
+                  style={{
+                    backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                    backgroundSize: '100% 200%',
+                    backgroundPosition: isBtnHovered ? 'bottom' : 'top',
+                    color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
+                    borderColor: '#1B3E2A',
+                    boxShadow: isBtnHovered ? '0 4px 12px rgba(27, 62, 42, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <Plus 
+                    className={`w-4 h-4 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
+                  />
+                  Record Payment
+                </button>
+              </div>
+              <div className="w-48">
+                <button 
+                  className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-gray-600 border-b-2 shadow-sm transition-all duration-300 h-11" // h-11 Fixed Height
+                  onMouseEnter={() => setIsExportBtnHovered(true)}
+                  onMouseLeave={() => setIsExportBtnHovered(false)}
+                  style={{
+                    backgroundImage: 'linear-gradient(to top, #4B5563 50%, transparent 50%)',
+                    backgroundSize: '100% 200%',
+                    backgroundPosition: isExportBtnHovered ? 'bottom' : 'top',
+                    color: isExportBtnHovered ? '#FFFFFF' : '#4B5563', 
+                    borderColor: '#4B5563',
+                    boxShadow: isExportBtnHovered ? '0 4px 12px rgba(75, 85, 99, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <Download 
+                    className={`w-4 h-4 transition-transform duration-300 ${isExportBtnHovered ? '-translate-y-1' : ''}`} 
+                  />
+                  Export Report
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 z-20">
+              {/* Search Bar: Aligned Height */}
+              <div className="relative group">
+                <div className={`absolute inset-0 bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] rounded-lg opacity-0 transition-opacity duration-300 blur-sm ${isSearchFocused ? 'opacity-100' : 'group-hover:opacity-100'}`}></div>
+                <div className="relative flex items-center h-11"> {/* Container h-11 */}
+                  <Search 
+                    className={`w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${isSearchFocused ? 'text-[#1B3E2A] animate-icon-jump' : 'group-focus-within:text-[#1B3E2A]'}`} 
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                    className="h-full pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent bg-white transition-all duration-300 w-64 group-hover:border-[#1B3E2A]"
+                  />
+                </div>
+              </div>
+
+              {/* Enhanced Custom Dropdown: Aligned Height */}
+              <div className="relative group" ref={dropdownRef}>
+                <div className={`absolute inset-0 bg-gradient-to-r from-[#F2C94C] to-[#1B3E2A] rounded-lg opacity-0 transition-opacity duration-300 blur-sm ${isGradeDropdownOpen ? 'opacity-100' : 'group-hover:opacity-100'}`}></div>
+                <div className="relative h-11"> {/* Container h-11 */}
+                  <button
+                    onClick={() => setIsGradeDropdownOpen(!isGradeDropdownOpen)}
+                    className="h-full flex items-center justify-between w-40 px-4 border border-gray-300 rounded-lg bg-white focus:outline-none transition-all duration-300 group-hover:border-[#F2C94C]"
+                  >
+                    <span className={`text-sm ${selectedGrade ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      {selectedGrade || "All Grades"}
+                    </span>
+                    <ChevronDown 
+                      className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isGradeDropdownOpen ? 'rotate-180 text-[#F2C94C]' : 'group-hover:text-[#F2C94C]'}`} 
+                    />
+                  </button>
+
+                  {isGradeDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 dropdown-enter">
+                      <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
+                        <button
+                          onClick={() => {
+                            setSelectedGrade('');
+                            setIsGradeDropdownOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between hover:bg-[#f0f7f3] transition-colors ${!selectedGrade ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' : 'text-gray-700'}`}
+                        >
+                          All Grades
+                          {!selectedGrade && <Check className="w-4 h-4 text-[#1B3E2A]" />}
+                        </button>
+                        {GRADE_LEVELS.map((grade) => (
+                          <button
+                            key={grade}
+                            onClick={() => {
+                              setSelectedGrade(grade);
+                              setIsGradeDropdownOpen(false);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between hover:bg-[#f0f7f3] transition-colors ${selectedGrade === grade ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' : 'text-gray-700'}`}
+                          >
+                            {grade}
+                            {selectedGrade === grade && <Check className="w-4 h-4 text-[#1B3E2A]" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Student Quotas Table: FIXED LAYOUT */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 z-0">
+            {/* Header with ENHANCED VISIBILITY */}
+            <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A]">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  Student Contribution Status ({filteredQuotas.length})
+                </h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4" />
+                  <span>Last 30 days</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              {/* FIXED: Removed extra whitespace inside table */}
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead className="bg-[#f0f7f3]">
+                  <tr>
+                    {/* Explicit widths totaling 100% */}
+                    <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Grade
+                    </th>
+                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Yearly Quota
+                    </th>
+                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Total Paid
+                    </th>
+                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Remaining
+                    </th>
+                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {filteredQuotas.length > 0 ? (
+                    filteredQuotas.map((quota, index) => (
+                      <tr key={quota.studentId} className={`hover:bg-[#f0f7f3] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-green-500 font-semibold text-sm">
+                              {quota.studentName.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div className="min-w-0"> {/* min-w-0 allows truncation within flex */}
+                              <div className="text-sm font-semibold text-gray-900 truncate" title={quota.studentName}>
+                                {quota.studentName}
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">ID: {quota.studentId}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900 bg-[#fef9e7] px-3 py-1 rounded-full text-center inline-block truncate max-w-full">
+                            {quota.gradeLevel}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-gray-900 truncate">₱{quota.yearlyQuota.toLocaleString()}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-bold text-green-600 truncate">₱{quota.totalPaid.toLocaleString()}</div>
+                            {quota.totalPaid > 0 && (
+                              <CheckCircle className="flex-shrink-0 w-4 h-4 text-green-500" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            ₱{quota.remainingBalance.toLocaleString()}
+                          </div>
+                          {quota.remainingBalance > 0 && (
+                            <div className="text-xs text-orange-600 mt-1 truncate">Pending</div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.paymentStatus)}`}>
+                            {quota.paymentStatus.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                        <div className="flex flex-col items-center justify-center">
+                          <Search className="w-12 h-12 text-gray-300 mb-2" />
+                          <p>No students found matching your search.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Recent Payments Table: FIXED LAYOUT */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A]">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">
+                  Recent Payments ({filteredContributions.length})
+                </h3>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4" />
+                  <span>Last 30 days</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead className="bg-[#fef9e7]">
+                  <tr>
+                    <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Month
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Method
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Recorded By
+                    </th>
+                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {filteredContributions.map((contribution, index) => (
+                    <tr key={contribution.id} className={`hover:bg-[#fef9e7] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-green-500 font-semibold text-sm">
+                            {contribution.studentName.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 truncate">{contribution.studentName}</div>
+                            <div className="text-xs text-gray-500 truncate">ID: {contribution.studentId}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {new Date(contribution.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {new Date(contribution.paymentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-bold text-[#1B3E2A] bg-[#fef9e7] px-3 py-1 rounded-full truncate">
+                            ₱{contribution.amount.toLocaleString()}
+                          </div>
+                          <DollarSign className="flex-shrink-0 w-4 h-4 text-[#F2C94C]" />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-gray-900 capitalize truncate">{contribution.paymentMethod}</div>
+                          <div className={`flex-shrink-0 w-2 h-2 rounded-full ${
+                            contribution.paymentMethod === 'cash' ? 'bg-green-500' :
+                            contribution.paymentMethod === 'bank' ? 'bg-blue-500' :
+                            contribution.paymentMethod === 'online' ? 'bg-purple-500' :
+                            'bg-gray-500'
+                          }`}></div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 truncate">{contribution.recordedByName}</div>
+                        <div className="text-xs text-gray-500 truncate">Teacher</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditPayment(contribution)}
+                            className="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePayment(contribution.id)}
+                            className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </TeacherLayout>
   );
 }
