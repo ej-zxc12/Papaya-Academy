@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GradeInput } from '@/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
 
 // Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
@@ -68,23 +68,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save grades to Firebase
+    // Save grades to Firebase with duplicate check
     const gradesCollection = collection(db, 'grades');
     const savedGrades = [];
+    const updatedGrades = [];
 
     for (const grade of grades) {
+      // Check if grade already exists for this student, subject, and grading period
+      const existingGradeQuery = query(
+        gradesCollection,
+        where('studentId', '==', grade.studentId),
+        where('subjectId', '==', grade.subjectId),
+        where('gradingPeriod', '==', grade.gradingPeriod),
+        where('teacherId', '==', grade.teacherId)
+      );
+      
+      const existingGradeSnapshot = await getDocs(existingGradeQuery);
+      
       const gradeData = {
         ...grade,
         subjectName: subjectMap.get(grade.subjectId) || '',
         dateInput: Timestamp.fromDate(new Date(grade.dateInput))
       };
-      const docRef = await addDoc(gradesCollection, gradeData);
-      savedGrades.push({ id: docRef.id, ...grade });
+
+      if (existingGradeSnapshot.empty) {
+        // No existing grade, create new one
+        const docRef = await addDoc(gradesCollection, gradeData);
+        savedGrades.push({ id: docRef.id, ...grade });
+      } else {
+        // Grade exists, update it
+        const existingDoc = existingGradeSnapshot.docs[0];
+        await setDoc(doc(db, 'grades', existingDoc.id), gradeData, { merge: true });
+        updatedGrades.push({ id: existingDoc.id, ...grade });
+      }
     }
 
     return NextResponse.json({
-      message: 'Grades saved successfully',
-      savedCount: grades.length
+      message: 'Grades processed successfully',
+      savedCount: savedGrades.length,
+      updatedCount: updatedGrades.length,
+      totalProcessed: grades.length
     });
 
   } catch (error) {

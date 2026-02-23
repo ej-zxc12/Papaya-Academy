@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Subject } from '@/types';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
 
 // Mock subject data - replace with actual database
 const mockSubjects: Subject[] = [
@@ -163,6 +163,65 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Error creating subject:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const teacherId = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { subjectId, gradeLevels } = body;
+
+    if (!subjectId || !Array.isArray(gradeLevels) || gradeLevels.length === 0) {
+      return NextResponse.json(
+        { message: 'subjectId and gradeLevels are required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the subject belongs to the teacher
+    const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+    if (!subjectDoc.exists()) {
+      return NextResponse.json(
+        { message: 'Subject not found' },
+        { status: 404 }
+      );
+    }
+
+    const subjectData = subjectDoc.data();
+    if (subjectData.teacherId !== teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Subject does not belong to this teacher' },
+        { status: 403 }
+      );
+    }
+
+    // Update the subject with new grade levels
+    const updatedGradeLevels = Array.from(new Set([...(subjectData.gradeLevels || []), ...gradeLevels]));
+    await updateDoc(doc(db, 'subjects', subjectId), {
+      gradeLevels: updatedGradeLevels,
+      gradeLevel: updatedGradeLevels[0] // Update primary grade level
+    });
+
+    return NextResponse.json({
+      message: 'Grade levels added successfully',
+      gradeLevels: updatedGradeLevels
+    });
+
+  } catch (error) {
+    console.error('Error updating subject:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
