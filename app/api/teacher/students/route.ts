@@ -44,13 +44,16 @@ export async function GET(request: NextRequest) {
       .filter(Boolean)
       .map((g) => g.trim())
       .filter(Boolean);
+    const subjectId = searchParams.get('subjectId');
 
     const studentsCollection = collection(db, 'students');
     let q = query(studentsCollection);
 
     // Add filters if provided
     const constraints = [];
-    if (gradeLevels.length > 0) {
+    if (subjectId) {
+      constraints.push(where('subjectId', '==', subjectId));
+    } else if (gradeLevels.length > 0) {
       if (gradeLevels.length > 10) {
         return NextResponse.json(
           { message: 'gradeLevels must contain at most 10 values' },
@@ -99,37 +102,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, gradeLevel } = await request.json();
+    const body = await request.json();
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const gradeLevel = typeof body?.gradeLevel === 'string' ? body.gradeLevel.trim() : '';
+    const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
 
-    // Validate required fields
-    if (!name || !gradeLevel) {
+    if (!name || !gradeLevel || !teacherId) {
       return NextResponse.json(
-        { message: 'Name and grade level are required' },
+        { message: 'name, gradeLevel, and teacherId are required' },
         { status: 400 }
       );
     }
 
-    // Create new student
     const studentsCollection = collection(db, 'students');
     const studentData = {
-      name: name.trim(),
-      gradeLevel: gradeLevel.trim(),
-      teacherId: teacherId // Add teacherId for authorization
+      name,
+      gradeLevel,
+      teacherId,
+      subjectId,
+      createdAt: Timestamp.now()
     };
 
     const docRef = await addDoc(studentsCollection, studentData);
     const newStudent = {
       id: docRef.id,
-      ...studentData
+      ...studentData,
+      createdAt: studentData.createdAt.toDate().toISOString()
     };
 
-    return NextResponse.json({
-      message: 'Student created successfully',
-      student: newStudent
-    });
+    return NextResponse.json(newStudent);
 
   } catch (error) {
-    console.error('Error creating student:', error);
+    console.error('Error adding student:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

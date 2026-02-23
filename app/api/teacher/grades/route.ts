@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch subjects to get subject names
+    const subjectsCollection = collection(db, 'subjects');
+    const subjectsSnapshot = await getDocs(query(subjectsCollection, where('teacherId', '==', teacherId)));
+    const subjectMap = new Map(subjectsSnapshot.docs.map(doc => [doc.id, doc.data().name]));
+
     // Validate each grade entry
     for (const grade of grades) {
       if (!grade.studentId || !grade.subjectId || !grade.gradingPeriod || !grade.teacherId) {
@@ -70,6 +75,7 @@ export async function POST(request: NextRequest) {
     for (const grade of grades) {
       const gradeData = {
         ...grade,
+        subjectName: subjectMap.get(grade.subjectId) || '',
         dateInput: Timestamp.fromDate(new Date(grade.dateInput))
       };
       const docRef = await addDoc(gradesCollection, gradeData);

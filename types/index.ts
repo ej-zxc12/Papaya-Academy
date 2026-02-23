@@ -27,6 +27,7 @@ export interface Student {
   name: string;
   gradeLevel: string;
   teacherId: string;
+  subjectId?: string;
 }
 
 export interface AttendanceRecord {

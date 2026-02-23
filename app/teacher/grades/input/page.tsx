@@ -29,6 +29,10 @@ export default function GradeInput() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
+  const [selectedGradeLevelFilter, setSelectedGradeLevelFilter] = useState<string>('');
+  const [studentSubjectId, setStudentSubjectId] = useState<string>('');
+  const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
   
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
@@ -39,7 +43,7 @@ export default function GradeInput() {
   const [newSubject, setNewSubject] = useState({
     name: '',
     code: '',
-    gradeLevels: ['Kinder'] as string[],
+    gradeLevels: [] as string[],
     schoolYear: '2024-2025'
   });
 
@@ -102,9 +106,9 @@ export default function GradeInput() {
 
         if (studentsResponse.ok) {
           const studentsData = await studentsResponse.json();
-          setStudents(studentsData);
+          setAllStudents(studentsData);
         } else {
-          setStudents([]);
+          setAllStudents([]);
         }
 
         // Load existing grades for the effective subject and current grading period
@@ -131,6 +135,24 @@ export default function GradeInput() {
   useEffect(() => {
     setIsEditingUnlocked(false);
   }, [selectedSubject, selectedGradingPeriod]);
+
+  useEffect(() => {
+    // Filter students by selected grade level filter and subject filter
+    let filtered = allStudents;
+    if (studentListSubjectFilter) {
+      filtered = filtered.filter(s => s.subjectId === studentListSubjectFilter);
+    } else if (selectedGradeLevelFilter) {
+      filtered = filtered.filter(s => s.gradeLevel === selectedGradeLevelFilter);
+    }
+    setStudents(filtered);
+  }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents]);
+
+  useEffect(() => {
+    // Auto-select first subject for student addition if none selected
+    if (subjects.length > 0 && !studentSubjectId) {
+      setStudentSubjectId(subjects[0].id);
+    }
+  }, [subjects, studentSubjectId]);
 
   const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
     try {
@@ -236,11 +258,12 @@ export default function GradeInput() {
         const created: Subject = result.subject;
         setSubjects(prev => [...prev, created]);
         setSelectedSubject(created.id);
-        setNewSubject(prev => ({
-          ...prev,
+        setNewSubject({
           name: '',
-          code: ''
-        }));
+          code: '',
+          gradeLevels: [],
+          schoolYear: '2024-2025'
+        });
         setShowAddSubject(false);
         setMessage({ type: 'success', text: 'Subject added successfully' });
       } else {
@@ -259,7 +282,7 @@ export default function GradeInput() {
       return;
     }
 
-    const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
+    const selectedSubjectObj = subjects.find(s => s.id === studentSubjectId);
     if (!selectedSubjectObj) {
       setMessage({ type: 'error', text: 'Please select a subject first (this will determine the student category/grade level).' });
       return;
@@ -290,7 +313,8 @@ export default function GradeInput() {
         },
         body: JSON.stringify({
           name: newStudent.name.trim(),
-          gradeLevel: targetGradeLevel
+          gradeLevel: targetGradeLevel,
+          subjectId: studentSubjectId
         })
       });
 
@@ -308,7 +332,7 @@ export default function GradeInput() {
 
         if (refreshedStudentsResponse.ok) {
           const refreshedStudents = await refreshedStudentsResponse.json();
-          setStudents(refreshedStudents);
+          setAllStudents(refreshedStudents);
         }
         setNewStudent({ name: '', gradeLevel: 'Kinder' });
         setShowAddStudent(false);
@@ -340,7 +364,7 @@ export default function GradeInput() {
 
       if (response.ok) {
         // Remove student from local state
-        setStudents(prev => prev.filter(student => student.id !== studentId));
+        setAllStudents(prev => prev.filter(student => student.id !== studentId));
         
         // Remove grades and remarks for this student
         setGrades(prev => {
@@ -454,6 +478,11 @@ export default function GradeInput() {
   const isLockedByDefault = gradingOrder(selectedGradingPeriod) < gradingOrder(activeGradingPeriod);
   const isReadOnly = isLockedByDefault && !isEditingUnlocked;
 
+  const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
+  const availableGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
+    ? selectedSubjectObj.gradeLevels
+    : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
+
   const handleUnlockEditing = () => {
     if (!isLockedByDefault) return;
     const ok = confirm('This grading period is locked (read-only) because it is before the active grading period. Unlock editing to fix errors?');
@@ -469,6 +498,14 @@ export default function GradeInput() {
     setIsEditingUnlocked(false);
   };
 
+  const handleChangeGradeLevelFilter = (value: string) => {
+    setSelectedGradeLevelFilter(value);
+  };
+
+  const handleChangeStudentListSubjectFilter = (value: string) => {
+    setStudentListSubjectFilter(value);
+  };
+
   if (isLoading) {
     return (
       <TeacherLayout>
@@ -480,7 +517,30 @@ export default function GradeInput() {
   }
 
   return (
-    <TeacherLayout title="Input Grades" subtitle="Enter grades for your students.">
+    <TeacherLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Notification Banner */}
+        {message && (
+          <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
+            message.type === 'success' 
+              ? 'bg-green-50 border border-green-200 text-green-800' 
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {message.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            <span>{message.text}</span>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Input Grades</h1>
+          <p className="mt-1 text-sm text-gray-600">Enter grades for your students.</p>
+        </div>
+
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -598,6 +658,22 @@ export default function GradeInput() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subject
+                  </label>
+                  <select
+                    value={studentSubjectId}
+                    onChange={(e) => setStudentSubjectId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  >
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name} ({subject.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Student Name
                   </label>
                   <input
@@ -610,33 +686,16 @@ export default function GradeInput() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject Category
-                  </label>
-                  <input
-                    type="text"
-                    value={(() => {
-                      const subj = subjects.find(s => s.id === selectedSubject);
-                      const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
-                        ? subj.gradeLevels
-                        : (subj?.gradeLevel ? [subj.gradeLevel] : []);
-                      return subj ? `${subj.name} (${subjLevels.join(', ')})` : 'Select a subject first';
-                    })()}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Student Grade Level
                   </label>
                   <select
                     value={newStudent.gradeLevel}
                     onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    disabled={!subjects.find(s => s.id === selectedSubject)}
+                    disabled={!subjects.find(s => s.id === studentSubjectId)}
                   >
                     {(() => {
-                      const subj = subjects.find(s => s.id === selectedSubject);
+                      const subj = subjects.find(s => s.id === studentSubjectId);
                       const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
                         ? subj.gradeLevels
                         : (subj?.gradeLevel ? [subj.gradeLevel] : []);
@@ -665,10 +724,10 @@ export default function GradeInput() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="text-sm text-gray-700">
-                <strong>Active Grading Period:</strong>
-              </div>
               <div className="flex flex-col md:flex-row md:items-center gap-3">
+                <div className="text-sm text-gray-700">
+                  <strong>Active Grading Period:</strong>
+                </div>
                 <select
                   value={activeGradingPeriod}
                   onChange={(e) => handleChangeActiveGrading(e.target.value as any)}
@@ -679,16 +738,29 @@ export default function GradeInput() {
                   <option value="third">Third Grading</option>
                   <option value="fourth">Fourth Grading</option>
                 </select>
-
-                {isLockedByDefault && (
-                  <button
-                    onClick={handleUnlockEditing}
-                    className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition duration-200"
-                  >
-                    Unlock Editing
-                  </button>
-                )}
+                <div className="text-sm text-gray-700">
+                  <strong>Subject:</strong>
+                </div>
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                >
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name} ({subject.code})
+                    </option>
+                  ))}
+                </select>
               </div>
+              {isLockedByDefault && (
+                <button
+                  onClick={handleUnlockEditing}
+                  className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition duration-200"
+                >
+                  Unlock Editing
+                </button>
+              )}
             </div>
 
             <div className="mt-2 text-sm">
@@ -699,92 +771,87 @@ export default function GradeInput() {
               )}
             </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Subject
-              </label>
-              <select
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              >
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name} ({subject.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Grading Period
-              </label>
-              <select
-                value={selectedGradingPeriod}
-                onChange={(e) => setSelectedGradingPeriod(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              >
-                <option value="first">First Grading</option>
-                <option value="second">Second Grading</option>
-                <option value="third">Third Grading</option>
-                <option value="fourth">Fourth Grading</option>
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={handleSave}
-                disabled={isSaving || !selectedSubject || isReadOnly}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save {selectedGradingPeriod === 'first'
-                      ? 'First'
-                      : selectedGradingPeriod === 'second'
-                        ? 'Second'
-                        : selectedGradingPeriod === 'third'
-                          ? 'Third'
-                          : 'Fourth'}{' '}Grading Grades
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
-
-        {/* Message */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
-            message.type === 'success' 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {message.type === 'success' ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            {message.text}
-          </div>
-        )}
 
         {/* Grades Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-gray-600" />
-              Student List ({students.length} students)
-            </h3>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-gray-600" />
+                Student List ({students.length} students)
+              </h3>
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                {subjects.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Filter by Subject:</label>
+                    <select
+                      value={studentListSubjectFilter}
+                      onChange={(e) => handleChangeStudentListSubjectFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                    >
+                      <option value="">All Subjects</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.name} ({subject.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {availableGradeLevels.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Filter by Grade Level:</label>
+                    <select
+                      value={selectedGradeLevelFilter}
+                      onChange={(e) => handleChangeGradeLevelFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                    >
+                      <option value="">All Grade Levels</option>
+                      {availableGradeLevels.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Grading Period:</label>
+                  <select
+                    value={selectedGradingPeriod}
+                    onChange={(e) => setSelectedGradingPeriod(e.target.value as any)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  >
+                    <option value="first">First Grading</option>
+                    <option value="second">Second Grading</option>
+                    <option value="third">Third Grading</option>
+                    <option value="fourth">Fourth Grading</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !selectedSubject || isReadOnly}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save {selectedGradingPeriod === 'first'
+                        ? 'First'
+                        : selectedGradingPeriod === 'second'
+                          ? 'Second'
+                          : selectedGradingPeriod === 'third'
+                            ? 'Third'
+                            : 'Fourth'}{' '}Grading Grades
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -795,10 +862,7 @@ export default function GradeInput() {
                     Student Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Grade Level
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Grade (0-100)
+                    Grade
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Remarks
@@ -867,6 +931,7 @@ export default function GradeInput() {
             </div>
           )}
         </div>
+      </div>
     </TeacherLayout>
   );
 }
