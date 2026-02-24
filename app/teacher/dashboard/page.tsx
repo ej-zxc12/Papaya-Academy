@@ -49,6 +49,7 @@ export default function TeacherDashboard() {
   const [sf10Records, setSf10Records] = useState<SF10Record[]>([]);
   const [contributions, setContributions] = useState<MonthlyContribution[]>([]);
   const [quotas, setQuotas] = useState<ContributionQuota[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
 
   const router = useRouter();
 
@@ -68,25 +69,29 @@ export default function TeacherDashboard() {
         const teacherId = teacherData?.id;
         const year = new Date().getFullYear().toString();
 
-        const [sf10Res, contributionsRes, quotasRes] = await Promise.all([
+        const [sf10Res, contributionsRes, quotasRes, studentsRes] = await Promise.all([
           fetch(`/api/teacher/sf10${teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : ''}`),
           fetch('/api/contributions'),
           fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}`),
+          fetch('/api/teacher/students'),
         ]);
 
         if (!sf10Res.ok) throw new Error('Failed to load SF10 records');
         if (!contributionsRes.ok) throw new Error('Failed to load contributions');
         if (!quotasRes.ok) throw new Error('Failed to load contribution quotas');
+        if (!studentsRes.ok) throw new Error('Failed to load students');
 
-        const [sf10Json, contributionsJson, quotasJson] = await Promise.all([
+        const [sf10Json, contributionsJson, quotasJson, studentsJson] = await Promise.all([
           sf10Res.json(),
           contributionsRes.json(),
           quotasRes.json(),
+          studentsRes.json(),
         ]);
 
         setSf10Records(Array.isArray(sf10Json) ? sf10Json : []);
         setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
         setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setStudents(Array.isArray(studentsJson) ? studentsJson : []);
         setLoadError(null);
       } catch {
         setLoadError('Some dashboard data could not be loaded.');
@@ -99,7 +104,7 @@ export default function TeacherDashboard() {
   }, [router]);
 
   const metrics = useMemo(() => {
-    const totalStudents = quotas.length;
+    const totalStudents = students.length;
     const totalSf10 = sf10Records.length;
 
     const totalExpected = quotas.reduce((sum, q) => sum + (q.yearlyQuota || 0), 0);
@@ -107,7 +112,7 @@ export default function TeacherDashboard() {
     const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
     return { totalStudents, totalSf10, totalExpected, totalCollected, collectionRate };
-  }, [quotas, sf10Records]);
+  }, [students, sf10Records, quotas]);
 
   const recentActivities: ActivityItem[] = useMemo(() => {
     const sf10Items: ActivityItem[] = sf10Records.map((r) => {
