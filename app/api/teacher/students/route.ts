@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Student } from '@/types';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, Timestamp, QueryConstraint } from 'firebase/firestore';
 
 // Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
@@ -26,6 +26,30 @@ function getTeacherSession(request: NextRequest) {
   return null;
 }
 
+function getTeacherIdentifiers(request: NextRequest) {
+  const bearer = getTeacherSession(request);
+
+  const sessionCookie = request.cookies.get('teacherSession')?.value;
+  if (!sessionCookie) {
+    return { uid: bearer ?? null, id: bearer ?? null };
+  }
+
+  try {
+    const sessionData = JSON.parse(sessionCookie);
+    const t = sessionData?.teacher ?? sessionData;
+    const uid = (typeof t?.uid === 'string' && t.uid) ? t.uid : null;
+    const id = (typeof t?.id === 'string' && t.id) ? t.id : null;
+
+    // If bearer exists, it should represent the canonical teacher identifier for this device.
+    return {
+      uid: uid ?? bearer ?? null,
+      id: id ?? bearer ?? null,
+    };
+  } catch {
+    return { uid: bearer ?? null, id: bearer ?? null };
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Check teacher session
@@ -47,13 +71,21 @@ export async function GET(request: NextRequest) {
     const subjectId = searchParams.get('subjectId');
 
     const studentsCollection = collection(db, 'students');
-    let q = query(studentsCollection);
+
+    const { uid, id } = getTeacherIdentifiers(request);
+    const teacherIdsToTry = Array.from(new Set([uid, id, teacherId].filter(Boolean))) as string[];
+
+    if (teacherIdsToTry.length === 0) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
 
     // Add filters if provided
-    const constraints = [];
-    constraints.push(where('teacherId', '==', teacherId));
+    const baseConstraints: QueryConstraint[] = [];
     if (subjectId) {
-      constraints.push(where('subjectId', '==', subjectId));
+      baseConstraints.push(where('subjectId', '==', subjectId));
     } else if (gradeLevels.length > 0) {
       if (gradeLevels.length > 10) {
         return NextResponse.json(
@@ -61,24 +93,34 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         );
       }
-      constraints.push(where('gradeLevel', 'in', gradeLevels));
+      baseConstraints.push(where('gradeLevel', 'in', gradeLevels));
     } else if (gradeLevel) {
-      constraints.push(where('gradeLevel', '==', gradeLevel));
+      baseConstraints.push(where('gradeLevel', '==', gradeLevel));
     }
 
-    if (constraints.length > 0) {
-      q = query(studentsCollection, ...constraints);
+    const results = await Promise.all(
+      teacherIdsToTry.map(async (tid) => {
+        const constraints: QueryConstraint[] = [where('teacherId', '==', tid), ...baseConstraints];
+        const q = query(studentsCollection, ...constraints);
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+      })
+    );
+
+    const merged = new Map<string, any>();
+    for (const group of results) {
+      for (const item of group) {
+        merged.set(item.id, item.data);
+      }
     }
 
-    const querySnapshot = await getDocs(q);
-    const students = querySnapshot.docs.map(doc => {
-      const data = doc.data();
+    const students = Array.from(merged.entries()).map(([id, data]) => {
       return {
-        id: doc.id,
+        id,
         name: data?.name,
         gradeLevel: data?.gradeLevel,
         teacherId: data?.teacherId,
-        subjectId: data?.subjectId
+        subjectId: data?.subjectId,
       };
     });
 

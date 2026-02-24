@@ -89,13 +89,32 @@ function getTeacherId(request: NextRequest) {
   return null;
 }
 
+function getTeacherUid(request: NextRequest) {
+  // Authorization header should carry the teacher uid/id. Prefer uid; fall back to id.
+  const bearer = getTeacherId(request);
+  if (bearer) return bearer;
+
+  const sessionCookie = request.cookies.get('teacherSession')?.value;
+  if (sessionCookie) {
+    try {
+      const sessionData = JSON.parse(sessionCookie);
+      return sessionData?.teacher?.uid ?? sessionData?.teacher?.id ?? sessionData?.user?.uid ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const teacherIdFromQuery = searchParams.get('teacherId');
-    const teacherId = getTeacherId(request) || teacherIdFromQuery;
+    const teacherUidFromQuery = searchParams.get('teacherUid');
+    const teacherUid = getTeacherUid(request) || teacherUidFromQuery || teacherIdFromQuery;
 
-    if (!teacherId) {
+    if (!teacherUid) {
       return NextResponse.json(
         { message: 'Unauthorized - Please login first' },
         { status: 401 }
@@ -103,9 +122,17 @@ export async function GET(request: NextRequest) {
     }
 
     const subjectsCollection = collection(db, 'subjects');
-    const q = query(subjectsCollection, where('teacherId', '==', teacherId));
-    const querySnapshot = await getDocs(q);
-    const subjects = querySnapshot.docs.map((docSnap) => {
+    // Prefer the canonical key teacherUid; fall back to teacherId for older data.
+    const [byUidSnap, byIdSnap] = await Promise.all([
+      getDocs(query(subjectsCollection, where('teacherUid', '==', teacherUid))),
+      getDocs(query(subjectsCollection, where('teacherId', '==', teacherUid))),
+    ]);
+
+    const mergedDocs = new Map<string, (typeof byUidSnap.docs)[number]>();
+    byUidSnap.docs.forEach(d => mergedDocs.set(d.id, d));
+    byIdSnap.docs.forEach(d => mergedDocs.set(d.id, d));
+
+    const subjects = Array.from(mergedDocs.values()).map((docSnap) => {
       const data = docSnap.data() as any;
       const gradeLevels = Array.isArray(data.gradeLevels)
         ? data.gradeLevels
@@ -131,8 +158,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const teacherId = getTeacherId(request);
-    if (!teacherId) {
+    const teacherUid = getTeacherUid(request);
+    if (!teacherUid) {
       return NextResponse.json(
         { message: 'Unauthorized - Please login first' },
         { status: 401 }
@@ -164,7 +191,8 @@ export async function POST(request: NextRequest) {
       code,
       gradeLevels,
       gradeLevel: gradeLevels[0],
-      teacherId,
+      teacherId: teacherUid,
+      teacherUid,
       schoolYear
     };
 

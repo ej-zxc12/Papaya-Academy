@@ -1,19 +1,159 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Student, Subject, type GradeInput } from '@/types';
+
 import { 
   Save, 
   Users, 
   BookOpen, 
   CheckCircle,
   AlertCircle,
-  Filter,
   Plus,
-  Edit,
-  Trash2
+  Trash2,
+  Lock,
+  Unlock,
+  Search,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
+
+const AnimatedButton = ({
+  onClick,
+  disabled,
+  children,
+  className,
+  style,
+  title,
+  type,
+}: {
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  title?: string;
+  type?: 'button' | 'submit' | 'reset';
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      type={type ?? 'button'}
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={
+        className ??
+        'flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 disabled:opacity-50 disabled:cursor-not-allowed'
+      }
+      style={{
+        backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+        backgroundSize: '100% 200%',
+        backgroundPosition: isHovered ? 'bottom' : 'top',
+        color: isHovered ? '#F2C94C' : '#1B3E2A',
+        borderColor: '#1B3E2A',
+        boxShadow: isHovered
+          ? '0 4px 12px rgba(27, 62, 42, 0.3)'
+          : '0 2px 4px rgba(0,0,0,0.1)',
+        ...(style ?? {}),
+      }}
+    >
+      <span
+        className={`inline-flex items-center gap-2 transition-transform duration-300 ${
+          isHovered ? '-translate-y-1' : ''
+        }`}
+      >
+        {children}
+      </span>
+    </button>
+  );
+};
+
+// Helper component for the Custom Dropdown
+const CustomDropdown = ({ 
+  label, 
+  value, 
+
+  options, 
+  onChange, 
+  placeholder = "Select...",
+  disabled = false 
+}: { 
+  label?: string, 
+  value: string, 
+  options: { label: string, value: string }[], 
+  onChange: (val: string) => void,
+  placeholder?: string,
+  disabled?: boolean
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [options, value]);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+
+  return (
+    <div className="relative group min-w-[200px]" ref={dropdownRef}>
+      {label && <label className="block text-xs font-semibold text-gray-500 mb-1 ml-1 uppercase tracking-wider">{label}</label>}
+      <div className={`absolute inset-0 bg-gradient-to-r from-[#F2C94C] to-[#1B3E2A] rounded-lg opacity-0 transition-opacity duration-300 blur-sm ${isOpen ? 'opacity-20' : 'group-hover:opacity-10'}`}></div>
+      <div className="relative h-11">
+        <button
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
+          className={`h-full w-full flex items-center justify-between px-4 border rounded-lg bg-white transition-all duration-300 ${
+            isOpen ? 'border-[#1B3E2A] ring-1 ring-[#1B3E2A]' : 'border-gray-300 hover:border-[#F2C94C]'
+          } ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : ''}`}
+        >
+          <span className={`text-sm truncate ${value ? 'text-[#1B3E2A] font-medium' : 'text-gray-500'}`}>
+            {selectedLabel}
+          </span>
+          <ChevronDown 
+            className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#F2C94C]' : 'group-hover:text-[#1B3E2A]'}`} 
+          />
+        </button>
+
+        {isOpen && (
+          <div className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+            <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
+              {options.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between hover:bg-[#f0f7f3] transition-colors ${
+                    value === option.value ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  <span className="truncate">{option.label}</span>
+                  {value === option.value && <Check className="w-4 h-4 text-[#1B3E2A]" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function GradeInput() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -40,8 +180,8 @@ export default function GradeInput() {
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: 'Pre-School' });
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
+  // Subject management states
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [newSubject, setNewSubject] = useState({
     name: '',
@@ -55,8 +195,8 @@ export default function GradeInput() {
   const [newGradeLevel, setNewGradeLevel] = useState<string>('');
 
   useEffect(() => {
-    // Load data from Firebase
-    const loadData = async () => {
+    // Initialize teacher session + persisted active period (run once)
+    const init = async () => {
       try {
         const session = localStorage.getItem('teacherSession');
         if (!session) {
@@ -75,30 +215,56 @@ export default function GradeInput() {
         if (storedActive === 'first' || storedActive === 'second' || storedActive === 'third' || storedActive === 'fourth') {
           setActiveGradingPeriod(storedActive);
         }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setMessage({ type: 'error', text: 'Failed to load data' });
+        setIsLoading(false);
+      }
+    };
 
-        // Load subjects from Firebase
+    init();
+  }, []);
+
+  useEffect(() => {
+    // Load subjects whenever we have a teacherId
+    const loadSubjects = async () => {
+      if (!teacherId) return;
+      try {
         const subjectsResponse = await fetch('/api/teacher/subjects', {
           headers: {
-            'Authorization': `Bearer ${teacherUid}`
+            'Authorization': `Bearer ${teacherId}`
           }
         });
-        
+
         let subjectsData: Subject[] = [];
         if (subjectsResponse.ok) {
           subjectsData = await subjectsResponse.json();
           setSubjects(subjectsData);
         } else {
-          // If no subjects API yet, set empty array
           setSubjects([]);
         }
 
-        // Only auto-select subject if none is currently selected
-        if (!selectedSubject && subjectsData.length > 0) {
-          setSelectedSubject(subjectsData[0].id);
-        }
+        setSelectedSubject((prev) => {
+          if (prev && subjectsData.some(s => s.id === prev)) return prev;
+          return subjectsData[0]?.id ?? '';
+        });
+      } catch (error) {
+        console.error('Error loading subjects:', error);
+        setSubjects([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-        // Load students based on selected subject grade levels (if available)
-        const selected = subjectsData.find((s: Subject) => s.id === selectedSubject);
+    loadSubjects();
+  }, [teacherId]);
+
+  useEffect(() => {
+    // Load students + existing grades whenever selection changes
+    const loadSelectionData = async () => {
+      if (!teacherId) return;
+      try {
+        const selected = subjects.find((s: Subject) => s.id === selectedSubject);
         const selectedGradeLevels = selected?.gradeLevels && selected.gradeLevels.length > 0
           ? selected.gradeLevels
           : (selected?.gradeLevel ? [selected.gradeLevel] : []);
@@ -109,7 +275,7 @@ export default function GradeInput() {
 
         const studentsResponse = await fetch(studentsUrl, {
           headers: {
-            'Authorization': `Bearer ${teacherUid}`
+            'Authorization': `Bearer ${teacherId}`
           }
         });
 
@@ -120,46 +286,35 @@ export default function GradeInput() {
           setAllStudents([]);
         }
 
-        // Load existing grades for the selected subject and current grading period
         setIsEditingUnlocked(false);
         if (selectedSubject) {
-          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod);
+          await loadExistingGrades(teacherId, selectedSubject, selectedGradingPeriod);
         }
-        
       } catch (error) {
         console.error('Error loading data:', error);
-        setMessage({ type: 'error', text: 'Failed to load data' });
-      } finally {
-        setIsLoading(false);
+        setAllStudents([]);
       }
     };
 
-    loadData();
-  }, [selectedSubject, selectedGradingPeriod]);
+    loadSelectionData();
+  }, [teacherId, subjects, selectedSubject, selectedGradingPeriod]);
 
   useEffect(() => {
     setIsEditingUnlocked(false);
   }, [selectedSubject, selectedGradingPeriod]);
 
   useEffect(() => {
-    // Filter students by selected grade level filter and subject filter
     let filtered = allStudents;
-    
-    // Apply subject filter if selected
     if (studentListSubjectFilter) {
       filtered = filtered.filter(s => s.subjectId === studentListSubjectFilter);
     }
-    
-    // Apply grade level filter if selected
     if (selectedGradeLevelFilter) {
       filtered = filtered.filter(s => s.gradeLevel === selectedGradeLevelFilter);
     }
-    
     setStudents(filtered);
   }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents]);
 
   useEffect(() => {
-    // Auto-select first subject for student addition if none selected
     if (subjects.length > 0 && !studentSubjectId) {
       setStudentSubjectId(subjects[0].id);
     }
@@ -167,7 +322,6 @@ export default function GradeInput() {
 
   const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
     try {
-      // Save current grades before switching subjects
       if (selectedSubject && selectedSubject !== subjectId) {
         setGradesBySubject(prev => ({ ...prev, [selectedSubject]: grades }));
         setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: remarks }));
@@ -192,12 +346,10 @@ export default function GradeInput() {
           }
         });
         
-        // Load saved grades for this subject if they exist
         const savedGrades = gradesBySubject[subjectId] || {};
         const savedRemarks = remarksBySubject[subjectId] || {};
         const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
         
-        // Merge database grades with locally saved grades (local takes precedence)
         const mergedGrades = { ...gradesMap, ...savedGrades };
         const mergedRemarks = { ...remarksMap, ...savedRemarks };
         const mergedManualEdits = { ...savedManualEdits };
@@ -206,7 +358,6 @@ export default function GradeInput() {
         setRemarks(mergedRemarks);
         setIsRemarkManuallyEdited(mergedManualEdits);
       } else {
-        // If request fails, load saved grades if they exist
         const savedGrades = gradesBySubject[subjectId] || {};
         const savedRemarks = remarksBySubject[subjectId] || {};
         const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
@@ -217,7 +368,6 @@ export default function GradeInput() {
       }
     } catch (error) {
       console.error('Error loading existing grades:', error);
-      // Load saved grades if they exist
       const savedGrades = gradesBySubject[subjectId] || {};
       const savedRemarks = remarksBySubject[subjectId] || {};
       const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
@@ -227,7 +377,6 @@ export default function GradeInput() {
       setIsRemarkManuallyEdited(savedManualEdits);
     }
   };
-
 
   const getAutoRemark = (gradeValue: number) => {
     if (Number.isNaN(gradeValue)) return '';
@@ -245,19 +394,16 @@ export default function GradeInput() {
       const newGrades = { ...grades, [studentId]: value };
       setGrades(newGrades);
       
-      // Also save to per-subject storage
       if (selectedSubject) {
         setGradesBySubject(prev => ({ ...prev, [selectedSubject]: newGrades }));
       }
 
-      // Auto-generate remarks unless the teacher manually edited it.
       if (value === '') {
         const newRemarks = { ...remarks, [studentId]: '' };
         const newManualEdits = { ...isRemarkManuallyEdited, [studentId]: false };
         setRemarks(newRemarks);
         setIsRemarkManuallyEdited(newManualEdits);
         
-        // Also save to per-subject storage
         if (selectedSubject) {
           setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
           setIsRemarkManuallyEditedBySubject(prev => ({ ...prev, [selectedSubject]: newManualEdits }));
@@ -267,7 +413,6 @@ export default function GradeInput() {
         const newRemarks = { ...remarks, [studentId]: autoRemark };
         setRemarks(newRemarks);
         
-        // Also save to per-subject storage
         if (selectedSubject) {
           setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
         }
@@ -282,7 +427,6 @@ export default function GradeInput() {
     setRemarks(newRemarks);
     setIsRemarkManuallyEdited(newManualEdits);
     
-    // Also save to per-subject storage
     if (selectedSubject) {
       setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
       setIsRemarkManuallyEditedBySubject(prev => ({ ...prev, [selectedSubject]: newManualEdits }));
@@ -372,7 +516,6 @@ export default function GradeInput() {
         const result = await response.json();
         const subjectName = subjects.find(s => s.id === selectedSubject)?.name;
         
-        // Update the subject in local state
         setSubjects(prev => prev.map(subject => 
           subject.id === selectedSubject 
             ? { ...subject, gradeLevels: result.gradeLevels, gradeLevel: result.gradeLevels[0] }
@@ -391,7 +534,6 @@ export default function GradeInput() {
     }
   };
 
-  // Student management functions
   const handleAddStudent = async () => {
     if (!newStudent.name.trim()) {
       setMessage({ type: 'error', text: 'Student name is required' });
@@ -475,9 +617,6 @@ export default function GradeInput() {
       const t = teacherData?.teacher ?? teacherData;
       const teacherUid = t?.uid || t?.id || '';
 
-      console.log('Attempting to delete student:', studentId);
-      console.log('Teacher ID:', teacherUid);
-
       const response = await fetch(`/api/teacher/students/${studentId}`, {
         method: 'DELETE',
         headers: {
@@ -485,55 +624,40 @@ export default function GradeInput() {
         }
       });
 
-      console.log('Delete response status:', response.status);
-      
       if (response.ok) {
-        const responseData = await response.json();
-        console.log('Delete response data:', responseData);
-        
-        // Remove student from local state
         setAllStudents(prev => prev.filter(student => student.id !== studentId));
-        
-        // Remove grades and remarks for this student
         setGrades(prev => {
           const newGrades = { ...prev };
           delete newGrades[studentId];
           return newGrades;
         });
-        
         setRemarks(prev => {
           const newRemarks = { ...prev };
           delete newRemarks[studentId];
           return newRemarks;
         });
-        
         setMessage({ type: 'success', text: 'Student deleted successfully' });
       } else {
         const errorData = await response.json();
-        console.log('Delete error response:', errorData);
         setMessage({ type: 'error', text: errorData.message || errorData.error || 'Failed to delete student' });
       }
     } catch (error) {
-      console.log('Delete catch error:', error);
       setMessage({ type: 'error', text: 'Failed to delete student' });
     }
   };
 
   const validateGrades = () => {
     const errors: string[] = [];
-    
     students.forEach(student => {
       const grade = grades[student.id];
       if (grade && (parseFloat(grade) < 0 || parseFloat(grade) > 100)) {
         errors.push(`Invalid grade for ${student.name}`);
       }
     });
-
     return errors;
   };
 
   const handleSave = async () => {
-    // Check if there are students in the current filtered list
     if (students.length === 0) {
       setMessage({ 
         type: 'error', 
@@ -583,21 +707,15 @@ export default function GradeInput() {
         let message = `${periodLabel} grading grades processed successfully!`;
         if (result.savedCount > 0 && result.updatedCount > 0) {
           message = `${periodLabel} grading: ${result.savedCount} new grades saved, ${result.updatedCount} grades updated.`;
-        } else if (result.savedCount > 0) {
-          message = `${periodLabel} grading: ${result.savedCount} new grades saved.`;
-        } else if (result.updatedCount > 0) {
-          message = `${periodLabel} grading: ${result.updatedCount} grades updated.`;
         }
         
         setMessage({ type: 'success', text: message });
       } else {
         const errorData = await response.json();
-        const periodLabel = selectedGradingPeriod.charAt(0).toUpperCase() + selectedGradingPeriod.slice(1);
-        setMessage({ type: 'error', text: errorData.message || `Failed to save ${periodLabel} grading grades` });
+        setMessage({ type: 'error', text: errorData.message || `Failed to save grades` });
       }
     } catch (error) {
-      const periodLabel = selectedGradingPeriod.charAt(0).toUpperCase() + selectedGradingPeriod.slice(1);
-      setMessage({ type: 'error', text: `Failed to save ${periodLabel} grading grades` });
+      setMessage({ type: 'error', text: `Failed to save grades` });
     } finally {
       setIsSaving(false);
     }
@@ -606,24 +724,19 @@ export default function GradeInput() {
   const getGradeColor = (grade: string) => {
     if (!grade) return '';
     const numGrade = parseFloat(grade);
-    if (numGrade >= 90) return 'text-green-600 font-semibold';
-    if (numGrade >= 80) return 'text-blue-600';
-    if (numGrade >= 75) return 'text-yellow-600';
-    return 'text-red-600';
+    if (numGrade >= 90) return 'text-green-600 font-bold';
+    if (numGrade >= 80) return 'text-blue-600 font-semibold';
+    if (numGrade >= 75) return 'text-yellow-600 font-medium';
+    return 'text-red-600 font-medium';
   };
 
   const gradingOrder = (period: 'first' | 'second' | 'third' | 'fourth') => {
     switch (period) {
-      case 'first':
-        return 1;
-      case 'second':
-        return 2;
-      case 'third':
-        return 3;
-      case 'fourth':
-        return 4;
-      default:
-        return 0;
+      case 'first': return 1;
+      case 'second': return 2;
+      case 'third': return 3;
+      case 'fourth': return 4;
+      default: return 0;
     }
   };
 
@@ -635,13 +748,11 @@ export default function GradeInput() {
     ? selectedSubjectObj.gradeLevels
     : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
 
-  // All possible grade levels in the system for adding new ones
   const allSystemGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
 
   const handleUnlockEditing = () => {
     if (!isLockedByDefault) return;
-    const ok = confirm('This grading period is locked (read-only) because it is before the active grading period. Unlock editing to fix errors?');
-    if (ok) {
+    if (confirm('Unlock editing to fix errors?')) {
       setIsEditingUnlocked(true);
     }
   };
@@ -671,115 +782,126 @@ export default function GradeInput() {
     );
   }
 
+  // Options prep
+  const gradingOptions = [
+    { label: "First Grading", value: "first" },
+    { label: "Second Grading", value: "second" },
+    { label: "Third Grading", value: "third" },
+    { label: "Fourth Grading", value: "fourth" },
+  ];
+  const subjectOptions = subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }));
+  const gradeLevelOptions = [
+    { label: "All Grade Levels", value: "" }, 
+    ...availableGradeLevels.map(g => ({ label: g, value: g }))
+  ];
+  const subjectFilterOptions = [
+    { label: "All Subjects", value: "" },
+    ...subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))
+  ];
+
   return (
-    <TeacherLayout>
+    <TeacherLayout title="Input Grades" subtitle="Enter and manage student grades per subject and grading period.">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <style jsx global>{`
+          @keyframes jump {
+            0%, 100% { transform: translateY(-50%); }
+            50% { transform: translateY(-80%); }
+          }
+          .animate-icon-jump { animation: jump 0.4s ease-in-out; }
+          .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        `}</style>
+
         {/* Message Popup Modal */}
         {message && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 transform transition-all ${
-              message.type === 'success' 
-                ? 'border-l-4 border-green-500' 
-                : 'border-l-4 border-red-500'
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className={`bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 transform transition-all border-l-8 ${
+              message.type === 'success' ? 'border-green-500' : 'border-red-500'
             }`}>
-              <div className="flex items-center gap-3">
-                <div className={`flex-shrink-0 ${
-                  message.type === 'success' ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {message.type === 'success' ? (
-                    <CheckCircle className="w-6 h-6" />
-                  ) : (
-                    <AlertCircle className="w-6 h-6" />
-                  )}
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-full ${message.type === 'success' ? 'bg-emerald-50 text-[#1B3E2A]' : 'bg-red-50 text-red-500'}`}>
+                  {message.type === 'success' ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
                 </div>
                 <div className="flex-1">
-                  <h3 className={`text-lg font-medium ${
-                    message.type === 'success' ? 'text-green-800' : 'text-red-800'
-                  }`}>
+                  <h3 className={`text-lg font-bold ${message.type === 'success' ? 'text-[#1B3E2A]' : 'text-red-700'}`}>
                     {message.type === 'success' ? 'Success' : 'Error'}
                   </h3>
-                  <p className={`mt-1 text-sm ${
-                    message.type === 'success' ? 'text-green-700' : 'text-red-700'
-                  }`}>
-                    {message.text}
-                  </p>
+                  <p className="mt-1 text-sm text-gray-600">{message.text}</p>
                 </div>
               </div>
-              <div className="mt-4 flex justify-end">
-                <button
+              <div className="mt-6 flex justify-end">
+                <AnimatedButton
                   onClick={() => setMessage(null)}
-                  className={`px-4 py-2 rounded-lg text-white font-medium transition-colors ${
-                    message.type === 'success' 
-                      ? 'bg-green-600 hover:bg-green-700' 
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
+                  className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                  style={{ width: 'auto' }}
                 >
-                  OK
-                </button>
+                  Okay
+                </AnimatedButton>
               </div>
             </div>
           </div>
         )}
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Input Grades</h1>
-          <p className="mt-1 text-sm text-gray-600">Enter grades for your students.</p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-gray-600" />
+        {/* Subject Management Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+            <h3 className="text-lg font-semibold text-[#1B3E2A] flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-[#F2C94C]" />
               Subject Management
             </h3>
-            <button
+            <AnimatedButton
               onClick={() => setShowAddSubject(!showAddSubject)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
+              className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+              style={{ width: 'auto' }}
             >
               <Plus className="w-4 h-4" />
               Add Subject
-            </button>
+            </AnimatedButton>
           </div>
 
           {showAddSubject && (
-            <div className="border-t pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject Name
-                  </label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Subject Name</label>
                   <input
                     type="text"
                     value={newSubject.name}
                     onChange={(e) => setNewSubject(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
                     placeholder="e.g. Mathematics"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Code
-                  </label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Code</label>
                   <input
                     type="text"
                     value={newSubject.code}
                     onChange={(e) => setNewSubject(prev => ({ ...prev, code: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
                     placeholder="e.g. MATH"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Grade Levels
-                  </label>
-                  <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">School Year</label>
+                  <input
+                    type="text"
+                    value={newSubject.schoolYear}
+                    onChange={(e) => setNewSubject(prev => ({ ...prev, schoolYear: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="e.g. 2024-2025"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Levels</label>
+                  <div className="flex flex-wrap gap-2">
                     {['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((level) => (
-                      <label key={level} className="flex items-center gap-2 text-sm text-gray-700">
+                      <label key={level} className={`cursor-pointer px-3 py-1 rounded-full text-xs font-medium transition-colors border ${newSubject.gradeLevels.includes(level) ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1B3E2A]'}`}>
                         <input
                           type="checkbox"
+                          className="hidden"
                           checked={newSubject.gradeLevels.includes(level)}
                           onChange={(e) => {
                             setNewSubject((prev) => {
@@ -789,35 +911,21 @@ export default function GradeInput() {
                               return { ...prev, gradeLevels: next };
                             });
                           }}
-                          className="h-4 w-4"
                         />
                         {level}
                       </label>
                     ))}
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    School Year
-                  </label>
-                  <input
-                    type="text"
-                    value={newSubject.schoolYear}
-                    onChange={(e) => setNewSubject(prev => ({ ...prev, schoolYear: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    placeholder="e.g. 2024-2025"
-                  />
-                </div>
               </div>
-
-              <div className="mt-4">
-                <button
+              <div className="mt-6 flex justify-end">
+                <AnimatedButton
                   onClick={handleAddSubject}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
+                  className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                  style={{ width: 'auto' }}
                 >
-                  Add Subject
-                </button>
+                  Confirm Add Subject
+                </AnimatedButton>
               </div>
             </div>
           )}
@@ -828,384 +936,261 @@ export default function GradeInput() {
             if (!currentSubject) return null;
             
             return (
-              <div className="mt-6 border-t pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-medium text-gray-700">
-                    Current Subject: <span className="font-semibold text-gray-900">{currentSubject.name}</span>
-                  </h4>
-                  <button
-                    onClick={() => setShowAddGradeLevel(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Grade Level
-                  </button>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-600 mb-2">Current Grade Levels:</div>
-                      <div className="flex flex-wrap gap-2">
+              <div className="mt-6 bg-[#f0f7f3] rounded-xl p-4 border border-green-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                   <div className="bg-white p-2 rounded-full shadow-sm">
+                      <BookOpen className="w-5 h-5 text-[#1B3E2A]" />
+                   </div>
+                   <div>
+                      <h4 className="text-sm font-semibold text-[#1B3E2A]">Current Subject: {currentSubject.name}</h4>
+                      <div className="flex flex-wrap gap-1 mt-1">
                         {currentSubject.gradeLevels && currentSubject.gradeLevels.length > 0 ? (
                           currentSubject.gradeLevels.map((grade) => (
-                            <span key={grade} className="px-3 py-2 bg-blue-100 text-blue-800 text-sm rounded-full font-medium">
+                            <span key={grade} className="px-2 py-0.5 bg-white text-[#1B3E2A] text-[10px] uppercase font-bold tracking-wide rounded border border-green-200">
                               {grade}
                             </span>
                           ))
                         ) : (
-                          <span className="text-gray-400 text-sm">No grade levels assigned</span>
+                          <span className="text-gray-400 text-xs italic">No levels assigned</span>
                         )}
                       </div>
-                    </div>
-                  </div>
+                   </div>
                 </div>
+                <AnimatedButton
+                  onClick={() => setShowAddGradeLevel(true)}
+                  className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                  style={{ width: 'auto' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Level
+                </AnimatedButton>
               </div>
             );
           })()}
         </div>
 
-        {/* Add Grade Level Modal */}
-        {showAddGradeLevel && (() => {
-          const currentSubject = subjects.find(s => s.id === selectedSubject);
-          if (!currentSubject) return null;
-          
-          return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4 w-full">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Add Grade Level</h3>
-                    <p className="text-sm text-gray-600">to {currentSubject.name}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Select Grade Level to Add:
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {allSystemGradeLevels.map((grade) => {
-                        const isAlreadyAdded = currentSubject.gradeLevels?.includes(grade);
-                        return (
-                          <button
-                            key={grade}
-                            onClick={() => setNewGradeLevel(grade)}
-                            disabled={isAlreadyAdded}
-                            className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                              isAlreadyAdded
-                                ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                                : newGradeLevel === grade
-                                ? 'bg-blue-600 border-blue-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-700 hover:border-blue-500 hover:bg-blue-50'
-                            }`}
-                          >
-                            {grade}
-                            {isAlreadyAdded && (
-                              <span className="block text-xs mt-1">✓ Already Added</span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    onClick={() => {
-                      setShowAddGradeLevel(false);
-                      setNewGradeLevel('');
-                    }}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddGradeLevelToSubject}
-                    disabled={!newGradeLevel}
-                    className={`px-6 py-2 rounded-lg transition duration-200 ${
-                      newGradeLevel
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Add Grade Level
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Add Student Section */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-gray-600" />
-              Student Management
-            </h3>
-            <button
-              onClick={() => setShowAddStudent(!showAddStudent)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Add Student
-            </button>
-          </div>
-
-          {showAddStudent && (
-            <div className="border-t pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject
-                  </label>
-                  <select
-                    value={studentSubjectId}
-                    onChange={(e) => setStudentSubjectId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  >
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name} ({subject.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Student Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newStudent.name}
-                    onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    placeholder="Enter student name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Student Grade Level
-                  </label>
-                  <select
-                    value={newStudent.gradeLevel}
-                    onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    disabled={!subjects.find(s => s.id === studentSubjectId)}
-                  >
-                    {(() => {
-                      const subj = subjects.find(s => s.id === studentSubjectId);
-                      const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
-                        ? subj.gradeLevels
-                        : (subj?.gradeLevel ? [subj.gradeLevel] : []);
-                      if (subjLevels.length === 0) {
-                        return [<option key="none" value="">Select a subject first</option>];
-                      }
-
-                      return allSystemGradeLevels.map((g) => (
-                        <option key={g} value={g} disabled={!subjLevels.includes(g)}>
-                          {g}
-                        </option>
-                      ));
-                    })()}
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={handleAddStudent}
-                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200"
-                  >
-                    Add Student
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex flex-col md:flex-row md:items-center gap-3">
-                <div className="text-sm text-gray-700">
-                  <strong>Active Grading Period:</strong>
-                </div>
-                <select
-                  value={activeGradingPeriod}
-                  onChange={(e) => handleChangeActiveGrading(e.target.value as any)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                >
-                  <option value="first">First Grading</option>
-                  <option value="second">Second Grading</option>
-                  <option value="third">Third Grading</option>
-                  <option value="fourth">Fourth Grading</option>
-                </select>
-                <div className="text-sm text-gray-700">
-                  <strong>Subject:</strong>
-                </div>
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                >
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name} ({subject.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {isLockedByDefault && (
-                <button
-                  onClick={handleUnlockEditing}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition duration-200"
-                >
-                  Unlock Editing
-                </button>
-              )}
-            </div>
-
-            <div className="mt-2 text-sm">
-              {isReadOnly ? (
-                <span className="text-yellow-800">This grading period is currently <strong>read-only</strong>. You can unlock editing to fix errors.</span>
-              ) : (
-                <span className="text-green-700">Editing is enabled for this grading period.</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Grades Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-gray-600" />
-                Student List ({students.length} students)
+        {/* Add Student Section - MOVED ON TOP OF GRADE LIST */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
+           <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-[#1B3E2A] flex items-center gap-2">
+                 <Users className="w-5 h-5 text-[#F2C94C]" />
+                 Student Management
               </h3>
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                {subjects.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Filter by Subject:</label>
-                    <select
-                      value={studentListSubjectFilter}
-                      onChange={(e) => handleChangeStudentListSubjectFilter(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                    >
-                      <option value="">All Subjects</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.name} ({subject.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {availableGradeLevels.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Filter by Grade Level:</label>
-                    <select
-                      value={selectedGradeLevelFilter}
-                      onChange={(e) => handleChangeGradeLevelFilter(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                    >
-                      <option value="">All Grade Levels</option>
-                      {availableGradeLevels.map((g) => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-gray-700">Grading Period:</label>
-                  <select
-                    value={selectedGradingPeriod}
-                    onChange={(e) => setSelectedGradingPeriod(e.target.value as any)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                  >
-                    <option value="first">First Grading</option>
-                    <option value="second">Second Grading</option>
-                    <option value="third">Third Grading</option>
-                    <option value="fourth">Fourth Grading</option>
-                  </select>
+              <AnimatedButton
+                onClick={() => setShowAddStudent(!showAddStudent)}
+                className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                style={{ width: 'auto' }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Student
+              </AnimatedButton>
+           </div>
+
+           {showAddStudent && (
+             <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Subject Context</label>
+                      <CustomDropdown
+                         value={studentSubjectId}
+                         options={subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))}
+                         onChange={(val) => setStudentSubjectId(val)}
+                      />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
+                      <input
+                        type="text"
+                        value={newStudent.name}
+                        onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                        placeholder="Enter student name"
+                      />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
+                      <div className="relative h-11">
+                        <select
+                          value={newStudent.gradeLevel}
+                          onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
+                          className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                          disabled={!subjects.find(s => s.id === studentSubjectId)}
+                        >
+                          {(() => {
+                            const subj = subjects.find(s => s.id === studentSubjectId);
+                            const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
+                              ? subj.gradeLevels
+                              : (subj?.gradeLevel ? [subj.gradeLevel] : []);
+                            if (subjLevels.length === 0) return <option value="">Select subject first</option>;
+                            return allSystemGradeLevels.map((g) => (
+                              <option key={g} value={g} disabled={!subjLevels.includes(g)}>{g}</option>
+                            ));
+                          })()}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                      </div>
+                   </div>
                 </div>
-                <button
+                <div className="mt-6 flex justify-end">
+                  <AnimatedButton
+                    onClick={handleAddStudent}
+                    className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                    style={{ width: 'auto' }}
+                  >
+                    Confirm Add Student
+                  </AnimatedButton>
+                </div>
+             </div>
+           )}
+        </div>
+
+        {/* Filters Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100 relative overflow-visible">
+          <div className="absolute top-0 left-0 w-1 h-full bg-[#F2C94C]"></div>
+          
+          <div className="flex flex-col gap-6">
+            {/* Top Row Filters */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+               <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+                 <CustomDropdown 
+                    label="Active Period"
+                    value={activeGradingPeriod}
+                    options={gradingOptions}
+                    onChange={(val) => handleChangeActiveGrading(val as any)}
+                 />
+                 <CustomDropdown 
+                    label="Subject Context"
+                    value={selectedSubject}
+                    options={subjectOptions}
+                    onChange={(val) => setSelectedSubject(val)}
+                 />
+               </div>
+
+               {isLockedByDefault && (
+                  <AnimatedButton
+                    onClick={handleUnlockEditing}
+                    className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                    style={{ width: 'auto' }}
+                  >
+                    {isEditingUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    {isEditingUnlocked ? 'Unlocked' : 'Locked (Read-Only)'}
+                  </AnimatedButton>
+               )}
+            </div>
+            
+            <div className="h-px bg-gray-100 w-full"></div>
+            
+            {/* Status Text */}
+            <div className="flex items-center gap-2 text-sm">
+               <div className={`w-2 h-2 rounded-full ${isReadOnly ? 'bg-orange-400' : 'bg-green-500'}`}></div>
+               <span className={`${isReadOnly ? 'text-orange-600 font-medium' : 'text-green-700 font-medium'}`}>
+                  {isReadOnly ? 'Grading period is currently read-only. Unlock to edit.' : 'Editing enabled.'}
+               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Grades Table Section */}
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-100">
+          {/* Enhanced Header */}
+          <div className="px-6 py-5 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A] flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Users className="w-6 h-6 text-[#1B3E2A]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold leading-tight">Student Grades</h3>
+                <p className="text-xs font-medium text-[#1B3E2A]/80">{students.length} students found</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+               {/* Table specific filters using custom dropdown */}
+               {subjects.length > 0 && (
+                 <div className="w-40">
+                   <CustomDropdown 
+                      value={studentListSubjectFilter}
+                      options={subjectFilterOptions}
+                      onChange={handleChangeStudentListSubjectFilter}
+                      placeholder="Filter Subject"
+                   />
+                 </div>
+               )}
+               {availableGradeLevels.length > 0 && (
+                 <div className="w-40">
+                    <CustomDropdown
+                      value={selectedGradeLevelFilter}
+                      options={gradeLevelOptions}
+                      onChange={handleChangeGradeLevelFilter}
+                      placeholder="Filter Grade"
+                    />
+                 </div>
+               )}
+               <div className="w-40">
+                  <CustomDropdown 
+                    value={selectedGradingPeriod}
+                    options={gradingOptions}
+                    onChange={(val) => setSelectedGradingPeriod(val as any)}
+                  />
+               </div>
+
+               <AnimatedButton
                   onClick={handleSave}
                   disabled={isSaving || !selectedSubject || isReadOnly}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 flex items-center justify-center gap-2"
+                  className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ width: 'auto' }}
                 >
                   {isSaving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Saving...
-                    </>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                   ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Save {selectedGradingPeriod === 'first'
-                        ? 'First'
-                        : selectedGradingPeriod === 'second'
-                          ? 'Second'
-                          : selectedGradingPeriod === 'third'
-                            ? 'Third'
-                            : 'Fourth'}{' '}Grading Grades
-                    </>
+                    <Save className="w-4 h-4" />
                   )}
-                </button>
-              </div>
+                  Save Grades
+                </AnimatedButton>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-[#f0f7f3]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Grade
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Remarks
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-[#1B3E2A] uppercase tracking-wider w-[25%]">Student Name</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-[#1B3E2A] uppercase tracking-wider w-[15%]">Grade Level</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-[#1B3E2A] uppercase tracking-wider w-[20%]">Grade</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-[#1B3E2A] uppercase tracking-wider w-[30%]">Remarks</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-[#1B3E2A] uppercase tracking-wider w-[10%]">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
+              <tbody className="bg-white divide-y divide-gray-100">
+                {students.map((student, index) => (
+                  <tr key={student.id} className={`hover:bg-[#f9fafb] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-[#fafdfb]'}`}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {student.name}
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                            {student.name.charAt(0)}
+                         </div>
+                         <div className="text-sm font-semibold text-gray-900">{student.name}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-[#fef9e7] text-[#B48B1E] border border-[#fdeebb]">
                         {student.gradeLevel}
-                      </div>
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={grades[student.id] || ''}
-                        onChange={(e) => handleGradeChange(student.id, e.target.value)}
-                        disabled={isReadOnly}
-                        className={`w-24 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${getGradeColor(grades[student.id] || '')} ${isReadOnly ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        placeholder="0.00"
-                      />
+                      <div className="relative group">
+                         <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={grades[student.id] || ''}
+                          onChange={(e) => handleGradeChange(student.id, e.target.value)}
+                          disabled={isReadOnly}
+                          className={`w-28 px-3 py-2 border rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all ${getGradeColor(grades[student.id] || '')} ${isReadOnly ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-white border-gray-300 group-hover:border-[#1B3E2A]'}`}
+                          placeholder="0.00"
+                        />
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
@@ -1213,17 +1198,17 @@ export default function GradeInput() {
                         value={remarks[student.id] || ''}
                         onChange={(e) => handleRemarkChange(student.id, e.target.value)}
                         disabled={isReadOnly}
-                        className={`w-48 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${isReadOnly ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                        placeholder="Optional remarks"
+                        className={`w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all ${isReadOnly ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-white border-gray-300 hover:border-[#1B3E2A]'}`}
+                        placeholder="Optional remarks..."
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={() => handleDeleteStudent(student.id)}
-                        className="text-red-600 hover:text-red-800 transition duration-200"
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete student"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </td>
                   </tr>
@@ -1233,13 +1218,71 @@ export default function GradeInput() {
           </div>
 
           {students.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No students</h3>
-              <p className="mt-1 text-sm text-gray-500">No students assigned to your classes.</p>
+            <div className="text-center py-16 bg-gray-50">
+              <div className="bg-white p-4 rounded-full inline-block shadow-sm mb-3">
+                 <Search className="h-8 w-8 text-gray-300" />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900">No students found</h3>
+              <p className="text-sm text-gray-500 mt-1">Try adjusting your filters or adding new students.</p>
             </div>
           )}
         </div>
+
+        {/* Add Grade Level Modal */}
+        {showAddGradeLevel && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+               <div className="flex items-center gap-4 mb-6">
+                 <div className="w-12 h-12 rounded-full bg-[#f0f7f3] flex items-center justify-center">
+                    <BookOpen className="w-6 h-6 text-[#1B3E2A]" />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-bold text-[#1B3E2A]">Add Grade Level</h3>
+                    <p className="text-sm text-gray-500">to {selectedSubjectObj?.name}</p>
+                 </div>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-3 mb-8">
+                  {allSystemGradeLevels.map((grade) => {
+                    const isAlreadyAdded = selectedSubjectObj?.gradeLevels?.includes(grade);
+                    return (
+                      <AnimatedButton
+                        key={grade}
+                        onClick={() => setNewGradeLevel(grade)}
+                        disabled={isAlreadyAdded}
+                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                          isAlreadyAdded 
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : newGradeLevel === grade
+                              ? 'bg-[#1B3E2A] text-white border-[#1B3E2A] shadow-md transform scale-105'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-[#1B3E2A] hover:text-[#1B3E2A]'
+                        }`}
+                      >
+                        {grade}
+                        {isAlreadyAdded && <span className="block text-[10px] mt-1">Added</span>}
+                      </AnimatedButton>
+                    );
+                  })}
+               </div>
+               
+               <div className="flex justify-end gap-3">
+                 <AnimatedButton 
+                   onClick={() => setShowAddGradeLevel(false)} 
+                   className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                 >
+                   Cancel
+                 </AnimatedButton>
+                 <AnimatedButton 
+                   onClick={handleAddGradeLevelToSubject} 
+                   disabled={!newGradeLevel}
+                   className="px-5 py-2.5 bg-[#1B3E2A] text-white rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 font-medium shadow-md transition-all"
+                 >
+                   Confirm Add
+                 </AnimatedButton>
+               </div>
+            </div>
+          </div>
+        )}
       </div>
     </TeacherLayout>
   );

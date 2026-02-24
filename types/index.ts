@@ -90,6 +90,7 @@ export interface Subject {
   gradeLevels: string[];
   gradeLevel?: string;
   teacherId: string;
+  teacherUid?: string;
   schoolYear: string;
 }
 

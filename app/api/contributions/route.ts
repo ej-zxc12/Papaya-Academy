@@ -5,8 +5,36 @@ import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, Qu
 
 const COLLECTION = 'contributions_payments';
 
+ function getTeacherIdFromRequest(request: NextRequest) {
+   const authHeader = request.headers.get('authorization');
+   if (authHeader && authHeader.startsWith('Bearer ')) {
+     return authHeader.substring(7);
+   }
+
+   const sessionCookie = request.cookies.get('teacherSession')?.value;
+   if (sessionCookie) {
+     try {
+       const sessionData = JSON.parse(sessionCookie);
+       const t = sessionData?.teacher ?? sessionData;
+       return t?.uid || t?.id || null;
+     } catch {
+       return null;
+     }
+   }
+
+   return null;
+ }
+
 export async function POST(request: NextRequest) {
   try {
+    const requestorId = getTeacherIdFromRequest(request);
+    if (!requestorId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
     const contributionData = await request.json();
 
     // Validate required fields
@@ -26,12 +54,10 @@ export async function POST(request: NextRequest) {
       amount: Number(contributionData.amount),
       month: String(contributionData.month),
       year: String(contributionData.year),
-      paymentDate: contributionData.paymentDate
-        ? new Date(contributionData.paymentDate)
-        : now,
+      paymentDate: now,
       paymentMethod: contributionData.paymentMethod ?? 'cash',
       receiptNumber: contributionData.receiptNumber ?? '',
-      recordedByUid: String(contributionData.recordedBy ?? contributionData.recordedByUid ?? ''),
+      recordedByUid: requestorId,
       recordedByName: String(contributionData.recordedByName ?? ''),
       status: 'paid',
       notes: contributionData.notes ?? '',
@@ -49,10 +75,7 @@ export async function POST(request: NextRequest) {
       amount: payload.amount,
       month: payload.month,
       year: payload.year,
-      paymentDate:
-        payload.paymentDate && typeof payload.paymentDate !== 'object'
-          ? new Date().toISOString()
-          : (contributionData.paymentDate ?? new Date().toISOString()),
+      paymentDate: contributionData.paymentDate ?? new Date().toISOString(),
       paymentMethod: payload.paymentMethod,
       receiptNumber: payload.receiptNumber,
       recordedBy: payload.recordedByUid,
@@ -84,11 +107,13 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month');
     const year = searchParams.get('year');
     const studentId = searchParams.get('studentId');
+    const recordedByUid = searchParams.get('recordedByUid');
 
     let q = query(collection(db, COLLECTION), orderBy('paymentDate', 'desc'));
     if (month) q = query(q, where('month', '==', month));
     if (year) q = query(q, where('year', '==', year));
     if (studentId) q = query(q, where('studentId', '==', studentId));
+    if (recordedByUid) q = query(q, where('recordedByUid', '==', recordedByUid));
 
     const snap = await getDocs(q);
     const contributions: MonthlyContribution[] = snap.docs.map((d) => {

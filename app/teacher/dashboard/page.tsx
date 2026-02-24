@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ContributionQuota, MonthlyContribution, SF10Record, Teacher } from '@/types';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { 
   Users,
   Clock,
@@ -73,30 +75,68 @@ export default function TeacherDashboard() {
         const teacherId = teacherData?.uid || teacherData?.id;
         const year = new Date().getFullYear().toString();
 
-        const [sf10Res, contributionsRes, quotasRes, studentsRes] = await Promise.all([
-          fetch(`/api/teacher/sf10${teacherId ? `?teacherId=${encodeURIComponent(teacherId)}` : ''}`),
-          fetch('/api/contributions'),
-          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}`),
-          fetch('/api/teacher/students'),
+        if (!teacherId) {
+          setLoadError('Missing teacher session. Please login again.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Real-time: Students scoped to teacher
+        const studentsQ = query(collection(db, 'students'), where('teacherId', '==', teacherId));
+        const unsubStudents = onSnapshot(
+          studentsQ,
+          (snap) => {
+            const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+            setStudents(Array.isArray(next) ? next : []);
+          },
+          () => {
+            setLoadError('Some dashboard data could not be loaded.');
+          }
+        );
+
+        // Real-time: SF10 records scoped to teacher
+        // Assumes SF10 records are stored in Firestore with a teacherId field.
+        const sf10Q = query(collection(db, 'sf10'), where('teacherId', '==', teacherId));
+        const unsubSf10 = onSnapshot(
+          sf10Q,
+          (snap) => {
+            const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SF10Record[];
+            setSf10Records(Array.isArray(next) ? next : []);
+          },
+          () => {
+            setLoadError('Some dashboard data could not be loaded.');
+          }
+        );
+
+        // Keep only non-realtime parts via API for now
+        const [contributionsRes, quotasRes] = await Promise.all([
+          fetch(`/api/contributions?recordedByUid=${encodeURIComponent(teacherId)}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
         ]);
 
-        if (!sf10Res.ok) throw new Error('Failed to load SF10 records');
         if (!contributionsRes.ok) throw new Error('Failed to load contributions');
         if (!quotasRes.ok) throw new Error('Failed to load contribution quotas');
-        if (!studentsRes.ok) throw new Error('Failed to load students');
 
-        const [sf10Json, contributionsJson, quotasJson, studentsJson] = await Promise.all([
-          sf10Res.json(),
+        const [contributionsJson, quotasJson] = await Promise.all([
           contributionsRes.json(),
           quotasRes.json(),
-          studentsRes.json(),
         ]);
 
-        setSf10Records(Array.isArray(sf10Json) ? sf10Json : []);
         setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
         setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
-        setStudents(Array.isArray(studentsJson) ? studentsJson : []);
         setLoadError(null);
+
+        // Stop blocking UI: layout renders immediately; data streams in.
+        setIsLoading(false);
+
+        return () => {
+          unsubStudents();
+          unsubSf10();
+        };
       } catch {
         setLoadError('Some dashboard data could not be loaded.');
       } finally {
@@ -104,7 +144,13 @@ export default function TeacherDashboard() {
       }
     };
 
-    run();
+    const cleanupPromise = run();
+    return () => {
+      // If run() returned a cleanup function (after teacherId resolved), call it.
+      if (typeof (cleanupPromise as any) === 'function') {
+        (cleanupPromise as any)();
+      }
+    };
   }, [router]);
 
   const metrics = useMemo(() => {
@@ -154,16 +200,6 @@ export default function TeacherDashboard() {
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 6);
   }, [sf10Records, contributions]);
-
-  if (isLoading) {
-    return (
-      <TeacherLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A]"></div>
-        </div>
-      </TeacherLayout>
-    );
-  }
 
   return (
     <TeacherLayout title="Dashboard" subtitle={`Welcome back, ${teacher?.username || teacher?.name || 'Teacher'}!`}>

@@ -99,7 +99,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         }
       }
 
-      setTimeout(() => setIsLoading(false), 500);
+      setIsLoading(false);
     };
 
     initializeSessionAndFetch();
