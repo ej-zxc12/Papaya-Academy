@@ -4,22 +4,21 @@ import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebas
 export interface NewsArticle {
   id: string // Document ID in Firestore
   title: string
-  slug: string
-  excerpt?: string
   content: string
   author?: string
-  featured_image?: string
-  status?: string
-  published_at?: string
-  created_at?: string
+  imageUrl?: string
+  imagePath?: string
+  date?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export async function getNewsArticles(): Promise<NewsArticle[]> {
   try {
     console.log('Fetching news articles from Firebase...');
     
-    const newsRef = collection(db, 'news_articles');
-    const q = query(newsRef, orderBy('published_at', 'desc'));
+    const newsRef = collection(db, 'news');
+    const q = query(newsRef, orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
     
     const articles: NewsArticle[] = [];
@@ -31,13 +30,9 @@ export async function getNewsArticles(): Promise<NewsArticle[]> {
       } as NewsArticle);
     });
     
-    // Filter for published articles
-    const filteredArticles = articles.filter((article: NewsArticle) => 
-      !article.status || article.status === 'Published'
-    );
-    
-    console.log(`Fetched ${filteredArticles.length} published articles from ${articles.length} total`);
-    return filteredArticles;
+    // All articles are considered published since they come from admin
+    console.log(`Fetched ${articles.length} articles`);
+    return articles;
   } catch (error) {
     console.error('Error fetching news articles:', error);
     throw new Error(`Firebase fetch error: ${error}`);

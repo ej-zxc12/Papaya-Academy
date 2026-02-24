@@ -64,14 +64,14 @@ export default function NewsPage() {
     ? articles 
     : articles.filter(item => {
         if (activeCategory === "Featured") {
-          return item.featured_image !== null; // Consider articles with images as featured
+          return item.imageUrl !== null; // Consider articles with images as featured
         }
         // For other categories, you might want to add a category field to your database
         return true; // For now, show all for non-featured categories
       });
 
-  const featuredStory = filteredArticles.find(item => item.featured_image !== null);
-  const standardStories = filteredArticles.filter(item => !item.featured_image || activeCategory !== "All");
+  const featuredStory = filteredArticles.find(item => item.imageUrl !== null);
+  const standardStories = filteredArticles.filter(item => !item.imageUrl || activeCategory !== "All");
 
   if (loading) {
     return (
@@ -143,9 +143,9 @@ export default function NewsPage() {
               <ScrollReveal animation="fade-up" className="mb-12">
                 <div className="group relative rounded-xl overflow-hidden shadow-xl bg-white">
                   <div className="h-[400px] relative overflow-hidden">
-                    {featuredStory.featured_image && (
+                    {featuredStory.imageUrl && (
                       <Image 
-                        src={featuredStory.featured_image} 
+                        src={featuredStory.imageUrl} 
                         alt={featuredStory.title} 
                         fill 
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -162,7 +162,7 @@ export default function NewsPage() {
                     <div className="flex items-center space-x-4 text-sm mb-3 opacity-90">
                       <span className="flex items-center">
                         <Calendar className="w-4 h-4 mr-1 text-[#F2C94C]" /> 
-                        {formatNewsDate(featuredStory.published_at || featuredStory.created_at)}
+                        {formatNewsDate(featuredStory.date || featuredStory.createdAt)}
                       </span>
                       {featuredStory.author && (
                         <span className="flex items-center">
@@ -172,12 +172,12 @@ export default function NewsPage() {
                       )}
                     </div>
                     <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight group-hover:text-[#F2C94C] transition-colors">
-                      <Link href={`/news/${featuredStory.slug}`}>{featuredStory.title}</Link>
+                      <Link href={`/news/${featuredStory.id}`}>{featuredStory.title}</Link>
                     </h2>
                     <p className="text-gray-200 mb-6 max-w-2xl line-clamp-2 md:line-clamp-none">
                       {featuredStory.content.substring(0, 200)}...
                     </p>
-                    <Link href={`/news/${featuredStory.slug}`}>
+                    <Link href={`/news/${featuredStory.id}`}>
                       <button className="flex items-center font-bold text-[#F2C94C] hover:text-white transition-colors">
                         READ FULL STORY <ArrowRight className="w-4 h-4 ml-2" />
                       </button>

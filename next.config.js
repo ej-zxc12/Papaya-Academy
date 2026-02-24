@@ -8,6 +8,18 @@ const nextConfig = {
         port: '',
         pathname: '/v0/b/papayaacademy-system.appspot.com/o/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/v0/b/papayaacademy-system.firebasestorage.app/o/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'papayaacademy-system.firebasestorage.app',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 }

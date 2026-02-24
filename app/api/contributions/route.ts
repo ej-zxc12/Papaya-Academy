@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MonthlyContribution } from '@/types';
-import { db } from '@/lib/firebase-admin';
-import admin from 'firebase-admin';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
 
 const COLLECTION = 'contributions_payments';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    const now = serverTimestamp();
 
     const payload = {
       studentId: String(contributionData.studentId),
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       month: String(contributionData.month),
       year: String(contributionData.year),
       paymentDate: contributionData.paymentDate
-        ? admin.firestore.Timestamp.fromDate(new Date(contributionData.paymentDate))
+        ? new Date(contributionData.paymentDate)
         : now,
       paymentMethod: contributionData.paymentMethod ?? 'cash',
       receiptNumber: contributionData.receiptNumber ?? '',
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    const docRef = await db.collection(COLLECTION).add(payload);
+    const docRef = await addDoc(collection(db, COLLECTION), payload);
 
     const newContribution: MonthlyContribution = {
       id: docRef.id,
@@ -85,14 +85,12 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const studentId = searchParams.get('studentId');
 
-    let queryRef: FirebaseFirestore.Query = db.collection(COLLECTION);
-    if (month) queryRef = queryRef.where('month', '==', month);
-    if (year) queryRef = queryRef.where('year', '==', year);
-    if (studentId) queryRef = queryRef.where('studentId', '==', studentId);
+    let q = query(collection(db, COLLECTION), orderBy('paymentDate', 'desc'));
+    if (month) q = query(q, where('month', '==', month));
+    if (year) q = query(q, where('year', '==', year));
+    if (studentId) q = query(q, where('studentId', '==', studentId));
 
-    queryRef = queryRef.orderBy('paymentDate', 'desc');
-
-    const snap = await queryRef.get();
+    const snap = await getDocs(q);
     const contributions: MonthlyContribution[] = snap.docs.map((d) => {
       const data = d.data() as any;
       const paymentDate: string = data?.paymentDate?.toDate

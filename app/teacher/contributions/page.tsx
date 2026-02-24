@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { MonthlyContribution, ContributionQuota, Student, Teacher } from '@/types';
+import { realtimeContributionService } from '@/lib/realtime-contributions-client';
 import { 
   Plus, 
   Edit, 
@@ -15,7 +16,9 @@ import {
   Clock,
   Download,
   ChevronDown,
-  Check
+  Check,
+  Save,
+  X
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
 
@@ -62,6 +65,15 @@ export default function ContributionManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [editingPayment, setEditingPayment] = useState<MonthlyContribution | null>(null);
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = useState<Student | null>(null);
+  const [studentPaymentData, setStudentPaymentData] = useState<{
+    studentId: string;
+    studentName: string;
+    totalRequired: number;
+    totalPaid: number;
+    remainingBalance: number;
+    monthlyPayments: { [key: string]: number };
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -81,9 +93,23 @@ export default function ContributionManagement() {
     notes: string;
   }>({
     studentId: '',
-    amount: TARGET_AMOUNT_PER_STUDENT,
+    amount: 0,
     month: new Date().toISOString().slice(0, 7),
     year: new Date().getFullYear().toString(),
+    paymentMethod: 'cash',
+    receiptNumber: '',
+    notes: ''
+  });
+
+  const [paymentFormData, setPaymentFormData] = useState<{
+    month: string;
+    amount: number;
+    paymentMethod: 'cash' | 'bank' | 'online' | 'other';
+    receiptNumber: string;
+    notes: string;
+  }>({
+    month: new Date().toISOString().slice(0, 7),
+    amount: 0,
     paymentMethod: 'cash',
     receiptNumber: '',
     notes: ''
@@ -114,6 +140,34 @@ export default function ContributionManagement() {
 
         const teacherId = teacherData?.uid || teacherData?.id;
         if (!teacherId) throw new Error('Missing teacher id');
+
+        // Initialize real-time listener for contributions
+        realtimeContributionService.initialize();
+
+        // Subscribe to real-time updates
+        const unsubscribe = realtimeContributionService.subscribe(teacherId, (update) => {
+          console.log('Real-time contribution update received:', update);
+          
+          // Handle real-time updates for contributions
+          if (update.type === 'contribution_added' && update.contribution) {
+            setContributions(prev => {
+              // Check if contribution already exists to avoid duplicates
+              const exists = prev.some(c => c.id === update.contribution.id);
+              if (exists) return prev;
+              
+              // Add new contribution to the list
+              return [update.contribution, ...prev];
+            });
+          } else if (update.type === 'contribution_updated' && update.contribution) {
+            setContributions(prev => 
+              prev.map(c => c.id === update.contribution.id ? update.contribution : c)
+            );
+          } else if (update.type === 'contribution_deleted' && update.contribution) {
+            setContributions(prev => 
+              prev.filter(c => c.id !== update.contribution.id)
+            );
+          }
+        });
 
         const year = selectedYear;
         const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
@@ -155,6 +209,11 @@ export default function ContributionManagement() {
           collected: summaryCollected,
           expected: summaryExpected,
         });
+
+        // Cleanup on unmount
+        return () => {
+          unsubscribe();
+        };
       } catch {
         setStudents([]);
         setContributions([]);
@@ -182,18 +241,452 @@ export default function ContributionManagement() {
     });
   };
 
-  const handleEditPayment = (payment: MonthlyContribution) => {
-    setShowAddPayment(true);
-    setEditingPayment(payment);
-    setFormData({
-      studentId: payment.studentId,
-      amount: payment.amount,
-      month: payment.month,
-      year: payment.year,
-      paymentMethod: payment.paymentMethod,
-      receiptNumber: payment.receiptNumber || '',
-      notes: payment.notes || ''
+  const handleStudentSelectForPayment = async (student: Student) => {
+    setSelectedStudentForPayment(student);
+    
+    // Calculate student's payment status
+    const studentContributions = contributions.filter(c => c.studentId === student.id);
+    const monthlyPayments: { [key: string]: number } = {};
+    let totalPaid = 0;
+    
+    studentContributions.forEach(contribution => {
+      const monthKey = `${contribution.year}-${contribution.month}`;
+      monthlyPayments[monthKey] = (monthlyPayments[monthKey] || 0) + contribution.amount;
+      totalPaid += contribution.amount;
     });
+    
+    // Calculate required amount (assuming monthly target)
+    const monthsInYear = 12;
+    const totalRequired = TARGET_AMOUNT_PER_STUDENT * monthsInYear;
+    const remainingBalance = totalRequired - totalPaid;
+    
+    setStudentPaymentData({
+      studentId: student.id,
+      studentName: student.name,
+      totalRequired,
+      totalPaid,
+      remainingBalance,
+      monthlyPayments
+    });
+    
+    // Reset payment form
+    setPaymentFormData({
+      month: new Date().toISOString().slice(0, 7),
+      amount: 0,
+      paymentMethod: 'cash',
+      receiptNumber: '',
+      notes: ''
+    });
+  };
+
+  // State for tracking unsaved payments
+  const [unsavedPayments, setUnsavedPayments] = useState<{[key: string]: number}>({});
+  const [isSavingPayments, setIsSavingPayments] = useState(false);
+  const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<Student | null>(null);
+  const [showStudentDetails, setShowStudentDetails] = useState(false);
+
+  // Handle payment input changes
+  const handlePaymentInputChange = (studentId: string, amount: string) => {
+    const numAmount = parseFloat(amount) || 0;
+    setUnsavedPayments(prev => ({
+      ...prev,
+      [studentId]: numAmount
+    }));
+  };
+
+  // Save all payments (new and updated)
+  const handleSaveAllPayments = async () => {
+    const paymentsToSave = Object.entries(unsavedPayments).filter(([_, amount]) => amount > 0);
+    
+    if (paymentsToSave.length === 0) {
+      setMessage({ type: 'error', text: 'No payments to save' });
+      return;
+    }
+
+    setIsSavingPayments(true);
+    setMessage(null);
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const currentYear = new Date().getFullYear().toString();
+
+      // Process each payment
+      const savePromises = paymentsToSave.map(async ([studentId, amount]) => {
+        const student = students.find(s => s.id === studentId);
+        if (!student) return null;
+
+        // Check if payment already exists for this student and month
+        const existingPayment = contributions.find(c => 
+          c.studentId === studentId && 
+          c.month === currentMonth && 
+          c.year === currentYear
+        );
+
+        const paymentData = {
+          studentId,
+          studentName: student.name,
+          gradeLevel: student.gradeLevel,
+          amount,
+          month: currentMonth,
+          year: currentYear,
+          paymentMethod: 'cash',
+          receiptNumber: '',
+          notes: '',
+          recordedByUid: teacherId,
+          recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
+          paymentDate: new Date().toISOString(),
+          status: 'paid'
+        };
+
+        if (existingPayment) {
+          // Update existing payment
+          const response = await fetch(`/api/contributions/${existingPayment.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paymentData)
+          });
+          return response.ok ? { type: 'updated', studentName: student.name, amount } : null;
+        } else {
+          // Create new payment
+          const response = await fetch('/api/contributions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paymentData)
+          });
+          return response.ok ? { type: 'created', studentName: student.name, amount } : null;
+        }
+      });
+
+      const results = await Promise.all(savePromises);
+      const successful = results.filter(r => r !== null);
+      
+      if (successful.length > 0) {
+        const newCount = successful.filter(r => r.type === 'created').length;
+        const updateCount = successful.filter(r => r.type === 'updated').length;
+        
+        setMessage({ 
+          type: 'success', 
+          text: `Saved ${successful.length} payments: ${newCount} new, ${updateCount} updated` 
+        });
+        
+        // Clear unsaved payments
+        setUnsavedPayments({});
+        
+        // Refresh data
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+        const [contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setDerivedTotals({
+          collected: Number(summaryJson?.totalCollected ?? 0),
+          expected: Number(summaryJson?.totalExpected ?? 0),
+        });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to save payments' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    } finally {
+      setIsSavingPayments(false);
+    }
+  };
+
+  // Handle student row click to show details
+  const handleStudentRowClick = (student: Student) => {
+    setSelectedStudentForDetails(student);
+    setShowStudentDetails(true);
+  };
+
+  // Handle payment for selected student in details modal
+  const handleStudentDetailPayment = async () => {
+    if (!selectedStudentForDetails || !paymentFormData.amount) {
+      setMessage({ type: 'error', text: 'Please enter payment amount' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const paymentData = {
+        studentId: selectedStudentForDetails.id,
+        studentName: selectedStudentForDetails.name,
+        gradeLevel: selectedStudentForDetails.gradeLevel,
+        amount: paymentFormData.amount,
+        month: paymentFormData.month,
+        year: paymentFormData.month.split('-')[0],
+        paymentMethod: paymentFormData.paymentMethod,
+        receiptNumber: paymentFormData.receiptNumber,
+        notes: paymentFormData.notes,
+        recordedByUid: teacherId,
+        recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
+        paymentDate: new Date().toISOString(),
+        status: 'paid'
+      };
+
+      const response = await fetch('/api/contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Payment recorded successfully!` });
+        
+        // Reset payment form
+        setPaymentFormData({
+          month: new Date().toISOString().slice(0, 7),
+          amount: 0,
+          paymentMethod: 'cash',
+          receiptNumber: '',
+          notes: ''
+        });
+        
+        // Refresh data
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+        const [contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setDerivedTotals({
+          collected: Number(summaryJson?.totalCollected ?? 0),
+          expected: Number(summaryJson?.totalExpected ?? 0),
+        });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to record payment' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Get student's payment history
+  const getStudentPaymentHistory = (studentId: string) => {
+    return contributions
+      .filter(c => c.studentId === studentId)
+      .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+  };
+
+  // Quick payment function for inline payment input
+  const handleQuickPayment = async (studentId: string, studentName: string, gradeLevel: string, amount: number) => {
+    if (!amount || amount <= 0) {
+      setMessage({ type: 'error', text: 'Please enter a valid amount' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const paymentData = {
+        studentId,
+        studentName,
+        gradeLevel,
+        amount,
+        month: new Date().toISOString().slice(0, 7),
+        year: new Date().getFullYear().toString(),
+        paymentMethod: 'cash',
+        receiptNumber: '',
+        notes: '',
+        recordedByUid: teacherId,
+        recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
+        paymentDate: new Date().toISOString(),
+        status: 'paid'
+      };
+
+      const response = await fetch('/api/contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Payment of ₱${amount.toLocaleString()} recorded for ${studentName}!` });
+        
+        // Refresh data
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+        const [contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setDerivedTotals({
+          collected: Number(summaryJson?.totalCollected ?? 0),
+          expected: Number(summaryJson?.totalExpected ?? 0),
+        });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to record payment' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // New function to handle payment submission for selected student
+  const handleStudentPaymentSubmit = async () => {
+    if (!selectedStudentForPayment || !paymentFormData.amount) {
+      setMessage({ type: 'error', text: 'Please enter payment amount' });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const paymentData = {
+        studentId: selectedStudentForPayment.id,
+        studentName: selectedStudentForPayment.name,
+        gradeLevel: selectedStudentForPayment.gradeLevel,
+        amount: paymentFormData.amount,
+        month: paymentFormData.month,
+        year: paymentFormData.month.split('-')[0],
+        paymentMethod: paymentFormData.paymentMethod,
+        receiptNumber: paymentFormData.receiptNumber,
+        notes: paymentFormData.notes,
+        recordedByUid: teacherId,
+        recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
+        paymentDate: new Date().toISOString(),
+        status: 'paid'
+      };
+
+      const response = await fetch('/api/contributions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData)
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Payment recorded successfully!` });
+        
+        // Refresh student payment data
+        await handleStudentSelectForPayment(selectedStudentForPayment);
+        
+        // Refresh overall data
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+        const [contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setDerivedTotals({
+          collected: Number(summaryJson?.totalCollected ?? 0),
+          expected: Number(summaryJson?.totalExpected ?? 0),
+        });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to record payment' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Operation failed' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmitPayment = async () => {
@@ -580,29 +1073,8 @@ export default function ContributionManagement() {
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-48">
-                <button
-                  onClick={handleAddPayment}
-                  onMouseEnter={() => setIsBtnHovered(true)}
-                  onMouseLeave={() => setIsBtnHovered(false)}
-                  className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11" // h-11 Fixed Height
-                  style={{
-                    backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
-                    backgroundSize: '100% 200%',
-                    backgroundPosition: isBtnHovered ? 'bottom' : 'top',
-                    color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
-                    borderColor: '#1B3E2A',
-                    boxShadow: isBtnHovered ? '0 4px 12px rgba(27, 62, 42, 0.3)' : '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  <Plus 
-                    className={`w-4 h-4 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
-                  />
-                  Record Payment
-                </button>
-              </div>
-              <div className="w-48">
                 <button 
-                  className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-gray-600 border-b-2 shadow-sm transition-all duration-300 h-11" // h-11 Fixed Height
+                  className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-gray-600 border-b-2 shadow-sm transition-all duration-300 h-11"
                   onMouseEnter={() => setIsExportBtnHovered(true)}
                   onMouseLeave={() => setIsExportBtnHovered(false)}
                   style={{
@@ -689,6 +1161,38 @@ export default function ContributionManagement() {
                   )}
                 </div>
               </div>
+
+              {/* Save Payment Button */}
+              <button
+                onClick={handleSaveAllPayments}
+                disabled={isSavingPayments || Object.keys(unsavedPayments).length === 0}
+                className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                  backgroundSize: '100% 200%',
+                  backgroundPosition: 'bottom',
+                  color: '#F2C94C',
+                  borderColor: '#1B3E2A',
+                  boxShadow: '0 4px 12px rgba(27, 62, 42, 0.3)',
+                }}
+              >
+                {isSavingPayments ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F2C94C]"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Payment
+                    {Object.keys(unsavedPayments).length > 0 && (
+                      <span className="bg-[#F2C94C] text-[#1B3E2A] px-2 py-0.5 rounded-full text-xs font-bold">
+                        {Object.keys(unsavedPayments).length}
+                      </span>
+                    )}
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
@@ -713,74 +1217,95 @@ export default function ContributionManagement() {
                 <thead className="bg-[#f0f7f3]">
                   <tr>
                     {/* Explicit widths totaling 100% */}
-                    <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Grade
                     </th>
-                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
-                      Yearly Quota
-                    </th>
-                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Total Paid
                     </th>
-                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Remaining
                     </th>
-                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Add Payment
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {filteredQuotas.length > 0 ? (
-                    filteredQuotas.map((quota, index) => (
-                      <tr key={quota.studentId} className={`hover:bg-[#f0f7f3] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-green-500 font-semibold text-sm">
-                              {quota.studentName.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <div className="min-w-0"> {/* min-w-0 allows truncation within flex */}
-                              <div className="text-sm font-semibold text-gray-900 truncate" title={quota.studentName}>
-                                {quota.studentName}
+                    filteredQuotas.map((quota, index) => {
+                      const student = students.find(s => s.id === quota.studentId);
+                      return (
+                        <tr 
+                          key={quota.studentId} 
+                          className={`hover:bg-[#f0f7f3] transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} cursor-pointer`}
+                          onClick={() => student && handleStudentRowClick(student)}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                {quota.studentName.split(' ').map(n => n[0]).join('')}
                               </div>
-                              <div className="text-xs text-gray-500 truncate">ID: {quota.studentId}</div>
+                              <div className="min-w-0"> {/* min-w-0 allows truncation within flex */}
+                                <div className="text-sm font-semibold text-gray-900 truncate" title={quota.studentName}>
+                                  {quota.studentName}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">ID: {quota.studentId}</div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-medium text-gray-900 bg-[#fef9e7] px-3 py-1 rounded-full text-center inline-block truncate max-w-full">
-                            {quota.gradeLevel}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-gray-900 truncate">₱{quota.yearlyQuota.toLocaleString()}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-bold text-green-600 truncate">₱{quota.totalPaid.toLocaleString()}</div>
-                            {quota.totalPaid > 0 && (
-                              <CheckCircle className="flex-shrink-0 w-4 h-4 text-green-500" />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900 bg-[#fef9e7] px-3 py-1 rounded-full text-center inline-block truncate max-w-full">
+                              {quota.gradeLevel}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-bold text-green-600 truncate">₱{quota.totalPaid.toLocaleString()}</div>
+                              {quota.totalPaid > 0 && (
+                                <CheckCircle className="flex-shrink-0 w-4 h-4 text-green-500" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              ₱{quota.remainingBalance.toLocaleString()}
+                            </div>
+                            {quota.remainingBalance > 0 && (
+                              <div className="text-xs text-orange-600 mt-1 truncate">Pending</div>
                             )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            ₱{quota.remainingBalance.toLocaleString()}
-                          </div>
-                          {quota.remainingBalance > 0 && (
-                            <div className="text-xs text-orange-600 mt-1 truncate">Pending</div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.paymentStatus)}`}>
-                            {quota.paymentStatus.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-2">
+                              <input
+                                type="number"
+                                placeholder="Amount"
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-[#1B3E2A] focus:border-[#1B3E2A]"
+                                min="0"
+                                step="0.01"
+                                value={unsavedPayments[quota.studentId] || ''}
+                                onChange={(e) => handlePaymentInputChange(quota.studentId, e.target.value)}
+                                onClick={(e) => e.stopPropagation()} // Prevent row click
+                              />
+                              <div className="text-xs text-gray-500 text-center">
+                                {unsavedPayments[quota.studentId] > 0 ? 'Ready to save' : 'Enter amount'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.paymentStatus)}`}>
+                              {quota.paymentStatus.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
@@ -903,6 +1428,207 @@ export default function ContributionManagement() {
               </table>
             </div>
           </div>
+
+          {/* Student Details Modal */}
+          {showStudentDetails && selectedStudentForDetails && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] text-white p-6 flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                        <span className="text-xl font-bold">
+                          {selectedStudentForDetails.name.split(' ').map(n => n[0]).join('')}
+                        </span>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold">{selectedStudentForDetails.name}</h2>
+                        <p className="text-white/80">{selectedStudentForDetails.gradeLevel} • ID: {selectedStudentForDetails.id}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowStudentDetails(false)}
+                      className="text-white/80 hover:text-white transition-colors"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-1">
+                  {/* Payment Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-[#f0f7f3] p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">Total Required</p>
+                      <p className="text-2xl font-bold text-[#1B3E2A]">₱{(TARGET_AMOUNT_PER_STUDENT * 12).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">Total Paid</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        ₱{getStudentPaymentHistory(selectedStudentForDetails.id).reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-1">Remaining Balance</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        ₱{Math.max(0, (TARGET_AMOUNT_PER_STUDENT * 12) - getStudentPaymentHistory(selectedStudentForDetails.id).reduce((sum, p) => sum + p.amount, 0)).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Add Payment Form */}
+                  <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Add New Payment</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Month
+                        </label>
+                        <input
+                          type="month"
+                          value={paymentFormData.month}
+                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, month: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Amount
+                        </label>
+                        <input
+                          type="number"
+                          value={paymentFormData.amount}
+                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                          min="0"
+                          step="0.01"
+                          placeholder="Enter amount"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Payment Method
+                        </label>
+                        <select
+                          value={paymentFormData.paymentMethod}
+                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="bank">Bank Transfer</option>
+                          <option value="online">Online Payment</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Receipt Number (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentFormData.receiptNumber}
+                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                          placeholder="Enter receipt number"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Notes (Optional)
+                      </label>
+                      <textarea
+                        value={paymentFormData.notes}
+                        onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                        placeholder="Add any notes..."
+                      />
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <button
+                        onClick={handleStudentDetailPayment}
+                        disabled={isSaving || !paymentFormData.amount}
+                        className="bg-[#1B3E2A] text-white px-6 py-2 rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className="w-4 h-4" />
+                            Record Payment
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setPaymentFormData({
+                          month: new Date().toISOString().slice(0, 7),
+                          amount: 0,
+                          paymentMethod: 'cash',
+                          receiptNumber: '',
+                          notes: ''
+                        })}
+                        className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Payment History */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Payment History</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getStudentPaymentHistory(selectedStudentForDetails.id).length > 0 ? (
+                            getStudentPaymentHistory(selectedStudentForDetails.id).map((payment) => (
+                              <tr key={payment.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {new Date(payment.paymentDate).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {new Date(payment.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="px-4 py-2 text-sm font-semibold text-green-600">
+                                  ₱{payment.amount.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-900 capitalize">
+                                  {payment.paymentMethod}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-gray-900">
+                                  {payment.recordedByName}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                                No payment records found
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </TeacherLayout>

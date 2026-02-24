@@ -8,11 +8,11 @@ interface NewsArticleCardProps {
 }
 
 export default function NewsArticleCard({ article, showFullContent = false }: NewsArticleCardProps) {
-  const imageUrl = article.featured_image || '/images/placeholder-news.jpg'
+  const imageUrl = article.imageUrl || '/images/placeholder-news.jpg'
   
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-      {article.featured_image && (
+      {article.imageUrl && (
         <div className="relative h-48 w-full">
           <Image
             src={imageUrl}
@@ -31,7 +31,7 @@ export default function NewsArticleCard({ article, showFullContent = false }: Ne
       <div className="p-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-[#1B3E2A] font-medium">
-            {formatNewsDate(article.published_at || article.created_at)}
+            {formatNewsDate(article.date || article.createdAt)}
           </span>
           {article.author && (
             <span className="text-xs text-gray-500">By {article.author}</span>
@@ -58,7 +58,7 @@ export default function NewsArticleCard({ article, showFullContent = false }: Ne
         
         {!showFullContent && (
           <Link 
-            href={`/news/${article.slug}`}
+            href={`/news/${article.id}`}
             className="inline-flex items-center text-[#1B3E2A] hover:text-[#163021] font-medium text-sm transition-colors"
           >
             Read More
