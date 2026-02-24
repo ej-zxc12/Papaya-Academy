@@ -16,7 +16,7 @@ function getTeacherSession(request: NextRequest) {
   if (sessionCookie) {
     try {
       const sessionData = JSON.parse(sessionCookie);
-      return sessionData.teacher?.id;
+      return sessionData?.teacher?.id ?? sessionData?.teacher?.uid ?? sessionData?.user?.uid ?? null;
     } catch {
       return null;
     }
@@ -30,6 +30,14 @@ export async function DELETE(
   context: { params: { studentId: string } }
 ) {
   try {
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
     console.log("DELETE function called");
     console.log("Context:", context);
     console.log("Params:", context.params);
@@ -68,6 +76,17 @@ export async function DELETE(
 
     const studentRef = doc(db, 'students', studentId);
     console.log("Student reference created:", studentRef);
+
+    const studentDoc = await getDoc(studentRef);
+    if (studentDoc.exists()) {
+      const studentData = studentDoc.data();
+      if (studentData?.teacherId && studentData.teacherId !== teacherId) {
+        return NextResponse.json(
+          { message: 'Unauthorized to delete this student' },
+          { status: 403 }
+        );
+      }
+    }
 
     console.log("Attempting to delete document...");
     await deleteDoc(studentRef);

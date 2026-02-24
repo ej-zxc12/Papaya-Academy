@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, User, Lock, GraduationCap, ChevronDown, Check, ArrowLeft } from 'lucide-react';
 import { Montserrat } from 'next/font/google';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -58,9 +61,49 @@ export default function UnifiedPortalLogin() {
     setError('');
 
     try {
-      const endpoint = credentials.role === 'teacher' 
-        ? '/api/teacher/auth/login' 
-        : '/api/principal/auth/login';
+      if (credentials.role === 'teacher') {
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          credentials.email,
+          credentials.password
+        );
+
+        const user = userCredential.user;
+        const docRef = doc(db, 'teachers_user', user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          await signOut(auth);
+          setError('Account is not registered as a teacher. Please contact the administrator.');
+          return;
+        }
+
+        const profile = docSnap.data() as any;
+
+        if (profile?.role !== 'teacher') {
+          await signOut(auth);
+          setError('Account is not authorized as a teacher. Please contact the administrator.');
+          return;
+        }
+
+        if (profile?.isActive === false) {
+          await signOut(auth);
+          setError('Teacher account is inactive. Please contact the administrator.');
+          return;
+        }
+
+        const teacherData = {
+          uid: user.uid,
+          email: user.email,
+          ...profile,
+        };
+
+        localStorage.setItem('teacherSession', JSON.stringify(teacherData));
+        router.push('/teacher/dashboard');
+        return;
+      }
+
+      const endpoint = '/api/principal/auth/login';
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -73,13 +116,8 @@ export default function UnifiedPortalLogin() {
 
       if (response.ok) {
         const data = await response.json();
-        if (credentials.role === 'teacher') {
-          localStorage.setItem('teacherSession', JSON.stringify(data));
-          router.push('/teacher/dashboard');
-        } else {
-          localStorage.setItem('principalSession', JSON.stringify(data));
-          router.push('/principal/dashboard');
-        }
+        localStorage.setItem('principalSession', JSON.stringify(data));
+        router.push('/principal/dashboard');
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Invalid credentials');

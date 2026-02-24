@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TeacherCredentials } from '@/types';
 import { Eye, EyeOff, LogIn, User, Lock, GraduationCap } from 'lucide-react';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
+// Replace '@/lib/firebase' with the exact path to your Firebase config
+import { auth, db } from '@/lib/firebase'; 
 
 export default function TeacherLogin() {
   const [credentials, setCredentials] = useState<TeacherCredentials>({
@@ -30,26 +35,46 @@ export default function TeacherLogin() {
     setError('');
 
     try {
-      // Simulate authentication - replace with actual API call
-      const response = await fetch('/api/teacher/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
+      // 1. Authenticate with Firebase
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        credentials.email, 
+        credentials.password
+      );
+      const user = userCredential.user;
 
-      if (response.ok) {
-        const data = await response.json();
-        // Store teacher session
-        localStorage.setItem('teacherSession', JSON.stringify(data));
-        router.push('/teacher/dashboard');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Invalid credentials');
+      // 2. Fetch the teacher's profile from Firestore
+      const docRef = doc(db, 'teachers_user', user.uid);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        await signOut(auth);
+        setError('Account is not registered as a teacher. Please contact the administrator.');
+        return;
       }
-    } catch (err) {
-      setError('Login failed. Please try again.');
+
+      // 3. Combine Auth data and Firestore data
+      let teacherData = { 
+        uid: user.uid, 
+        email: user.email 
+      };
+
+      teacherData = { ...teacherData, ...docSnap.data() };
+
+      // 4. Store the complete session locally for the Layout to use
+      localStorage.setItem('teacherSession', JSON.stringify(teacherData));
+      
+      // 5. Redirect to Dashboard
+      router.push('/teacher/dashboard');
+      
+    } catch (err: any) {
+      console.error("Login Error:", err);
+      // Catch specific Firebase Auth errors
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else {
+        setError('Login failed. Please check your connection and try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +122,7 @@ export default function TeacherLogin() {
                 <Lock className="h-5 w-5 text-gray-400" />
               </div>
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 id="password"
                 name="password"
                 value={credentials.password}

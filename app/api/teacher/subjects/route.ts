@@ -70,13 +70,30 @@ const mockSubjects: Subject[] = [
   }
 ];
 
+function getTeacherId(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+
+  const sessionCookie = request.cookies.get('teacherSession')?.value;
+  if (sessionCookie) {
+    try {
+      const sessionData = JSON.parse(sessionCookie);
+      return sessionData?.teacher?.id ?? sessionData?.teacher?.uid ?? sessionData?.user?.uid ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const teacherIdFromQuery = searchParams.get('teacherId');
-    const authHeader = request.headers.get('authorization');
-    const teacherIdFromAuth = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const teacherId = teacherIdFromAuth || teacherIdFromQuery;
+    const teacherId = getTeacherId(request) || teacherIdFromQuery;
 
     if (!teacherId) {
       return NextResponse.json(
@@ -114,8 +131,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const teacherId = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const teacherId = getTeacherId(request);
     if (!teacherId) {
       return NextResponse.json(
         { message: 'Unauthorized - Please login first' },
@@ -172,8 +188,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const teacherId = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    const teacherId = getTeacherId(request);
     if (!teacherId) {
       return NextResponse.json(
         { message: 'Unauthorized - Please login first' },

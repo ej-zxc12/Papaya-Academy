@@ -17,7 +17,7 @@ function getTeacherSession(request: NextRequest) {
   if (sessionCookie) {
     try {
       const sessionData = JSON.parse(sessionCookie);
-      return sessionData.teacher?.id;
+      return sessionData?.teacher?.id ?? sessionData?.teacher?.uid ?? sessionData?.user?.uid ?? null;
     } catch {
       return null;
     }
@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Add filters if provided
     const constraints = [];
+    constraints.push(where('teacherId', '==', teacherId));
     if (subjectId) {
       constraints.push(where('subjectId', '==', subjectId));
     } else if (gradeLevels.length > 0) {
@@ -64,8 +65,6 @@ export async function GET(request: NextRequest) {
     } else if (gradeLevel) {
       constraints.push(where('gradeLevel', '==', gradeLevel));
     }
-    // Filter by teacher's ID to ensure teachers only see their own students
-    constraints.push(where('teacherId', '==', teacherId));
 
     if (constraints.length > 0) {
       q = query(studentsCollection, ...constraints);
@@ -76,7 +75,10 @@ export async function GET(request: NextRequest) {
       const data = doc.data();
       return {
         id: doc.id,
-        ...data
+        name: data?.name,
+        gradeLevel: data?.gradeLevel,
+        teacherId: data?.teacherId,
+        subjectId: data?.subjectId
       };
     });
 

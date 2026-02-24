@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MonthlyContribution } from '@/types';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 
-// In-memory storage for demo - replace with actual database
-let contributionsDatabase: MonthlyContribution[] = [];
+const COLLECTION = 'contributions_payments';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,44 +17,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if payment already exists for this student and month
-    const existingPayment = contributionsDatabase.find(
-      c => c.studentId === contributionData.studentId && 
-           c.month === contributionData.month && 
-           c.year === contributionData.year
-    );
+    const now = admin.firestore.FieldValue.serverTimestamp();
 
-    if (existingPayment) {
-      return NextResponse.json(
-        { message: 'Payment already recorded for this student and month' },
-        { status: 400 }
-      );
-    }
-
-    // Create new contribution
-    const newContribution: MonthlyContribution = {
-      id: `contribution-${Date.now()}`,
-      studentId: contributionData.studentId,
-      studentName: contributionData.studentName,
-      gradeLevel: contributionData.gradeLevel,
-      amount: contributionData.amount,
-      month: contributionData.month,
-      year: contributionData.year,
-      paymentDate: contributionData.paymentDate,
-      paymentMethod: contributionData.paymentMethod,
-      receiptNumber: contributionData.receiptNumber,
-      recordedBy: contributionData.recordedBy,
-      recordedByName: contributionData.recordedByName,
+    const payload = {
+      studentId: String(contributionData.studentId),
+      studentName: String(contributionData.studentName ?? ''),
+      gradeLevel: String(contributionData.gradeLevel ?? ''),
+      amount: Number(contributionData.amount),
+      month: String(contributionData.month),
+      year: String(contributionData.year),
+      paymentDate: contributionData.paymentDate
+        ? admin.firestore.Timestamp.fromDate(new Date(contributionData.paymentDate))
+        : now,
+      paymentMethod: contributionData.paymentMethod ?? 'cash',
+      receiptNumber: contributionData.receiptNumber ?? '',
+      recordedByUid: String(contributionData.recordedBy ?? contributionData.recordedByUid ?? ''),
+      recordedByName: String(contributionData.recordedByName ?? ''),
       status: 'paid',
-      notes: contributionData.notes
+      notes: contributionData.notes ?? '',
+      createdAt: now,
+      updatedAt: now,
     };
 
-    contributionsDatabase.push(newContribution);
+    const docRef = await db.collection(COLLECTION).add(payload);
 
-    return NextResponse.json({
-      message: 'Payment recorded successfully',
-      contribution: newContribution
-    });
+    const newContribution: MonthlyContribution = {
+      id: docRef.id,
+      studentId: payload.studentId,
+      studentName: payload.studentName,
+      gradeLevel: payload.gradeLevel,
+      amount: payload.amount,
+      month: payload.month,
+      year: payload.year,
+      paymentDate:
+        payload.paymentDate && typeof payload.paymentDate !== 'object'
+          ? new Date().toISOString()
+          : (contributionData.paymentDate ?? new Date().toISOString()),
+      paymentMethod: payload.paymentMethod,
+      receiptNumber: payload.receiptNumber,
+      recordedBy: payload.recordedByUid,
+      recordedByName: payload.recordedByName,
+      status: 'paid',
+      notes: payload.notes,
+    };
+
+    return NextResponse.json(
+      {
+        message: 'Payment recorded successfully',
+        contribution: newContribution,
+      },
+      { status: 201 }
+    );
 
   } catch (error) {
     console.error('Error recording payment:', error);
@@ -71,24 +85,41 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const studentId = searchParams.get('studentId');
 
-    let filteredContributions = contributionsDatabase;
+    let queryRef: FirebaseFirestore.Query = db.collection(COLLECTION);
+    if (month) queryRef = queryRef.where('month', '==', month);
+    if (year) queryRef = queryRef.where('year', '==', year);
+    if (studentId) queryRef = queryRef.where('studentId', '==', studentId);
 
-    if (month) {
-      filteredContributions = filteredContributions.filter(c => c.month === month);
-    }
+    queryRef = queryRef.orderBy('paymentDate', 'desc');
 
-    if (year) {
-      filteredContributions = filteredContributions.filter(c => c.year === year);
-    }
+    const snap = await queryRef.get();
+    const contributions: MonthlyContribution[] = snap.docs.map((d) => {
+      const data = d.data() as any;
+      const paymentDate: string = data?.paymentDate?.toDate
+        ? data.paymentDate.toDate().toISOString()
+        : typeof data?.paymentDate === 'string'
+          ? data.paymentDate
+          : '';
 
-    if (studentId) {
-      filteredContributions = filteredContributions.filter(c => c.studentId === studentId);
-    }
+      return {
+        id: d.id,
+        studentId: String(data.studentId ?? ''),
+        studentName: String(data.studentName ?? ''),
+        gradeLevel: String(data.gradeLevel ?? ''),
+        amount: Number(data.amount ?? 0),
+        month: String(data.month ?? ''),
+        year: String(data.year ?? ''),
+        paymentDate,
+        paymentMethod: data.paymentMethod ?? 'cash',
+        receiptNumber: data.receiptNumber ?? '',
+        recordedBy: String(data.recordedByUid ?? data.recordedBy ?? ''),
+        recordedByName: String(data.recordedByName ?? ''),
+        status: data.status ?? 'paid',
+        notes: data.notes ?? '',
+      };
+    });
 
-    // Sort by payment date (newest first)
-    filteredContributions.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
-
-    return NextResponse.json(filteredContributions);
+    return NextResponse.json(contributions);
 
   } catch (error) {
     console.error('Error fetching contributions:', error);

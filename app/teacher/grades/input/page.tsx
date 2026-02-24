@@ -39,7 +39,7 @@ export default function GradeInput() {
   
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: 'Kinder' });
+  const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: 'Pre-School' });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   const [showAddSubject, setShowAddSubject] = useState(false);
@@ -66,9 +66,11 @@ export default function GradeInput() {
         }
 
         const teacherData = JSON.parse(session);
-        setTeacherId(teacherData.teacher?.id || '');
+        const t = teacherData?.teacher ?? teacherData;
+        const teacherUid = t?.uid || t?.id || '';
+        setTeacherId(teacherUid);
 
-        const storageKey = `activeGradingPeriod_${teacherData.teacher?.id || ''}`;
+        const storageKey = `activeGradingPeriod_${teacherUid}`;
         const storedActive = localStorage.getItem(storageKey) as any;
         if (storedActive === 'first' || storedActive === 'second' || storedActive === 'third' || storedActive === 'fourth') {
           setActiveGradingPeriod(storedActive);
@@ -77,7 +79,7 @@ export default function GradeInput() {
         // Load subjects from Firebase
         const subjectsResponse = await fetch('/api/teacher/subjects', {
           headers: {
-            'Authorization': `Bearer ${teacherData.teacher.id}`
+            'Authorization': `Bearer ${teacherUid}`
           }
         });
         
@@ -107,7 +109,7 @@ export default function GradeInput() {
 
         const studentsResponse = await fetch(studentsUrl, {
           headers: {
-            'Authorization': `Bearer ${teacherData.teacher.id}`
+            'Authorization': `Bearer ${teacherUid}`
           }
         });
 
@@ -121,7 +123,7 @@ export default function GradeInput() {
         // Load existing grades for the selected subject and current grading period
         setIsEditingUnlocked(false);
         if (selectedSubject) {
-          await loadExistingGrades(teacherData.teacher.id, selectedSubject, selectedGradingPeriod);
+          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod);
         }
         
       } catch (error) {
@@ -302,12 +304,14 @@ export default function GradeInput() {
     try {
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
 
       const response = await fetch('/api/teacher/subjects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${teacherData.teacher.id}`
+          'Authorization': `Bearer ${teacherUid}`
         },
         body: JSON.stringify({
           name: newSubject.name.trim(),
@@ -349,12 +353,14 @@ export default function GradeInput() {
     try {
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
 
       const response = await fetch('/api/teacher/subjects', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${teacherData.teacher.id}`
+          'Authorization': `Bearer ${teacherUid}`
         },
         body: JSON.stringify({
           subjectId: selectedSubject,
@@ -414,12 +420,14 @@ export default function GradeInput() {
     try {
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
 
       const response = await fetch('/api/teacher/students', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${teacherData.teacher.id}`
+          'Authorization': `Bearer ${teacherUid}`
         },
         body: JSON.stringify({
           name: newStudent.name.trim(),
@@ -436,7 +444,7 @@ export default function GradeInput() {
 
         const refreshedStudentsResponse = await fetch(studentsUrl, {
           headers: {
-            'Authorization': `Bearer ${teacherData.teacher.id}`
+            'Authorization': `Bearer ${teacherUid}`
           }
         });
 
@@ -464,14 +472,16 @@ export default function GradeInput() {
     try {
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
 
       console.log('Attempting to delete student:', studentId);
-      console.log('Teacher ID:', teacherData.teacher.id);
+      console.log('Teacher ID:', teacherUid);
 
       const response = await fetch(`/api/teacher/students/${studentId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${teacherData.teacher.id}`
+          'Authorization': `Bearer ${teacherUid}`
         }
       });
 
@@ -544,6 +554,8 @@ export default function GradeInput() {
     try {
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
 
       const gradeData: GradeInput[] = students.map(student => ({
         studentId: student.id,
@@ -551,7 +563,7 @@ export default function GradeInput() {
         gradingPeriod: selectedGradingPeriod,
         grade: parseFloat(grades[student.id] || '0'),
         remarks: remarks[student.id] || '',
-        teacherId: teacherData.teacher.id,
+        teacherId: teacherUid,
         dateInput: new Date().toISOString()
       }));
 
@@ -559,7 +571,7 @@ export default function GradeInput() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${teacherData.teacher.id}`
+          'Authorization': `Bearer ${teacherUid}`
         },
         body: JSON.stringify({ grades: gradeData })
       });
@@ -624,7 +636,7 @@ export default function GradeInput() {
     : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
 
   // All possible grade levels in the system for adding new ones
-  const allSystemGradeLevels = ['Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+  const allSystemGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
 
   const handleUnlockEditing = () => {
     if (!isLockedByDefault) return;
@@ -764,7 +776,7 @@ export default function GradeInput() {
                     Grade Levels
                   </label>
                   <div className="space-y-2">
-                    {['Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((level) => (
+                    {['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((level) => (
                       <label key={level} className="flex items-center gap-2 text-sm text-gray-700">
                         <input
                           type="checkbox"
@@ -992,11 +1004,15 @@ export default function GradeInput() {
                       const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
                         ? subj.gradeLevels
                         : (subj?.gradeLevel ? [subj.gradeLevel] : []);
-                      return subjLevels.length > 0
-                        ? subjLevels.map((g) => (
-                            <option key={g} value={g}>{g}</option>
-                          ))
-                        : [<option key="none" value="">Select a subject first</option>];
+                      if (subjLevels.length === 0) {
+                        return [<option key="none" value="">Select a subject first</option>];
+                      }
+
+                      return allSystemGradeLevels.map((g) => (
+                        <option key={g} value={g} disabled={!subjLevels.includes(g)}>
+                          {g}
+                        </option>
+                      ));
                     })()}
                   </select>
                 </div>

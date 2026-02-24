@@ -1,5 +1,7 @@
 import { auth } from './firebase';
 import { signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
 export interface TeacherCredentials {
   email: string;
@@ -27,48 +29,28 @@ export async function signInTeacher(credentials: TeacherCredentials): Promise<{ 
     
     console.log('Firebase auth successful for user:', user.uid);
 
-    // For demo purposes, we'll use mock teacher data
-    // In production, you would fetch this from Firestore
-    const mockTeachers: Teacher[] = [
-      {
-        id: 'teacher1',
-        name: 'Juan Dela Cruz',
-        email: 'juan.delacruz@papaya.edu',
-        employeeId: 'EMP001',
-        department: 'Mathematics',
-        subjects: ['Algebra', 'Geometry'],
-        gradeLevel: 'Grade 7',
-        isActive: true
-      },
-      {
-        id: 'teacher2',
-        name: 'Maria Santos',
-        email: 'maria.santos@papaya.edu',
-        employeeId: 'EMP002',
-        department: 'Science',
-        subjects: ['Biology', 'Chemistry'],
-        gradeLevel: 'Grade 8',
-        isActive: true
-      },
-      {
-        id: 'test-teacher',
-        name: 'Test Teacher',
-        email: 'test@papaya.edu',
-        employeeId: 'TEST001',
-        department: 'Computer Science',
-        subjects: ['Web Development', 'Database Management'],
-        gradeLevel: 'Grade 10',
-        isActive: true
-      }
-    ];
+    // Load teacher profile from Firestore
+    // Expected document path: teachers_user/{uid}
+    const teacherRef = doc(db, 'teachers_user', user.uid);
+    const teacherSnap = await getDoc(teacherRef);
 
-    const teacher = mockTeachers.find(t => t.email === credentials.email);
-    if (!teacher) {
-      console.log('Teacher not found for email:', credentials.email);
-      throw new Error('Teacher not found');
+    if (!teacherSnap.exists()) {
+      throw new Error('Teacher profile not found');
     }
 
-    console.log('Teacher profile found:', teacher.name);
+    const data = teacherSnap.data() as any;
+    const teacher: Teacher = {
+      id: user.uid,
+      name: data.name ?? data.username ?? user.displayName ?? credentials.email,
+      email: data.email ?? user.email ?? credentials.email,
+      employeeId: data.employeeId ?? '',
+      department: data.department ?? '',
+      subjects: Array.isArray(data.subjects) ? data.subjects : [],
+      gradeLevel: data.gradeLevel ?? '',
+      isActive: data.isActive ?? true,
+    };
+
+    console.log('Teacher profile loaded for:', teacher.email);
     return { user, teacher };
   } catch (error) {
     console.error('Firebase auth error:', error);

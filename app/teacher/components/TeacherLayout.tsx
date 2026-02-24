@@ -15,6 +15,9 @@ import {
   LogOut,
   GraduationCap
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+
+import { db } from '@/lib/firebase'; 
 
 const SkeletonText = ({ className }: { className: string }) => (
   <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
@@ -42,26 +45,83 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
   const [isCollapsed, setIsCollapsed] = useState(false);
-
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  
+
+  const [firebaseUsername, setFirebaseUsername] = useState<string | null>(null);
+
+  const displayName = firebaseUsername || teacher?.name || 'Teacher';
+
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkSession = () => {
+    const initializeSessionAndFetch = async () => {
       const session = localStorage.getItem('teacherSession');
-      if (session) {
-        setTeacher(JSON.parse(session));
-        setTimeout(() => setIsLoading(false), 500); 
-      } else {
+      
+      if (!session) {
         router.push('/teacher/login');
+        return;
+      }
+
+      const parsedSession = JSON.parse(session);
+      const sessionTeacher = parsedSession?.teacher ?? parsedSession;
+
+      setTeacher(sessionTeacher);
+
+      if (sessionTeacher?.username) {
+        setFirebaseUsername(sessionTeacher.username);
+      }
+
+      const targetUid = sessionTeacher?.uid || sessionTeacher?.id || sessionTeacher?.userId;
+
+      if (targetUid) {
+        try {
+          const docRef = doc(db, 'teachers_user', targetUid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.username) {
+              setFirebaseUsername(data.username);
+
+              const updatedTeacher = { ...sessionTeacher, ...data };
+              setTeacher(updatedTeacher);
+
+              const updatedSession = parsedSession?.teacher
+                ? { ...parsedSession, teacher: updatedTeacher }
+                : updatedTeacher;
+              localStorage.setItem('teacherSession', JSON.stringify(updatedSession));
+            }
+          }
+        } catch (error) {
+          console.error("Firestore read error:", error);
+        }
+      }
+
+      setTimeout(() => setIsLoading(false), 500);
+    };
+
+    initializeSessionAndFetch();
+  }, [router]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== 'teacherSession') return;
+      if (!event.newValue) return;
+      try {
+        const parsed = JSON.parse(event.newValue);
+        const sessionTeacher = parsed?.teacher ?? parsed;
+        setTeacher(sessionTeacher);
+        setFirebaseUsername(sessionTeacher?.username ?? null);
+      } catch {
+        // ignore invalid storage value
       }
     };
-    checkSession();
-  }, [router]);
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('sidebarCollapsed');
@@ -94,7 +154,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex">
       
-      {/* Mobile menu button - Hidden when sidebar is open */}
       <div className={`lg:hidden fixed top-6 left-6 z-50 transition-opacity duration-300 ${sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <button
           onClick={() => setSidebarOpen(true)}
@@ -104,7 +163,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         </button>
       </div>
 
-      {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40 bg-white shadow-xl lg:shadow-md transform transition-all duration-300 ease-in-out flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -113,13 +171,10 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
       `}>
         <div className={`flex flex-col h-full transition-all duration-300 ${isCollapsed ? 'p-4 items-center' : 'p-6'}`}>
           
-          {/* Header Section */}
           <div className="flex flex-col w-full mb-8">
             
-            {/* Logo and Portal Title Row */}
             <div className={`flex items-center w-full transition-all duration-300 ${isCollapsed ? 'justify-center mb-0' : 'justify-between mb-6'}`}>
               
-              {/* Title and Icon */}
               <div className={`flex items-center overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
                 <div className="shrink-0 inline-flex items-center justify-center bg-[#F2C94C]/20 rounded-full w-10 h-10">
                   <GraduationCap className="w-5 h-5 text-[#1B3E2A]" />
@@ -134,7 +189,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                 </div>
               </div>
 
-              {/* Desktop Toggle Button */}
               <button
                 onClick={toggleDesktopSidebar}
                 className="hidden lg:flex p-1.5 bg-white rounded-md shadow-sm hover:shadow-md transition-all border border-gray-100 items-center justify-center shrink-0"
@@ -142,7 +196,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                 {isCollapsed ? <Menu className="w-5 h-5 text-[#1B3E2A]" /> : <X className="w-5 h-5 text-[#1B3E2A]" />}
               </button>
 
-              {/* Mobile Close Button */}
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="lg:hidden p-1.5 bg-white rounded-md shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex items-center justify-center shrink-0"
@@ -151,7 +204,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
               </button>
             </div>
 
-            {/* Flat User Greeting Profile */}
             <div className={`transition-all duration-300 overflow-hidden w-full ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
               <div className="px-2 w-full">
                 {isLoading ? (
@@ -163,7 +215,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
                     <span className="text-[15px] font-bold text-[#1B3E2A] truncate mt-0.5 whitespace-nowrap">
-                      {teacher?.name || 'Juan Dela Cruz'}
+                      {displayName}
                     </span>
                   </div>
                 )}
@@ -171,7 +223,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             </div>
           </div>
 
-          {/* Navigation Items */}
           <nav className="flex-1 space-y-3 w-full">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -218,7 +269,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             })}
           </nav>
 
-          {/* Footer Area: Logout */}
           <div className="mt-auto pt-5 border-t border-gray-100 w-full overflow-hidden">
             <button
               onClick={handleLogout}
@@ -246,7 +296,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         </div>
       </aside>
 
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black/50 z-30 transition-opacity duration-300"
@@ -254,9 +303,8 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         />
       )}
       
-      {/* Main Content Area */}
       <main className="flex-1 p-8 transition-all duration-300 overflow-y-auto h-screen">
-        <div className="h-10 lg:hidden"></div> {/* Mobile header spacer */}
+        <div className="h-10 lg:hidden"></div>
         
         {isLoading ? (
           <PageSkeleton />

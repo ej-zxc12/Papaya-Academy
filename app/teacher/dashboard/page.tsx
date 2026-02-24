@@ -42,7 +42,9 @@ function relativeTimeFromTimestamp(timestampMs: number) {
 }
 
 export default function TeacherDashboard() {
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  // Using 'any' temporarily to support the incoming flat Firebase object 
+  // Update your '@/types' Teacher interface to include 'uid' and 'username' later
+  const [teacher, setTeacher] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -63,10 +65,12 @@ export default function TeacherDashboard() {
 
       try {
         const parsed = JSON.parse(session);
-        const teacherData: Teacher | undefined = parsed?.teacher;
-        setTeacher(teacherData ?? null);
+        // Supports both legacy nested structure and new flat Firebase structure
+        const teacherData = parsed?.teacher || parsed;
+        setTeacher(teacherData);
 
-        const teacherId = teacherData?.id;
+        // Uses Firebase uid or legacy id
+        const teacherId = teacherData?.uid || teacherData?.id;
         const year = new Date().getFullYear().toString();
 
         const [sf10Res, contributionsRes, quotasRes, studentsRes] = await Promise.all([
@@ -162,7 +166,7 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <TeacherLayout title="Dashboard" subtitle={`Welcome back, ${teacher?.name || 'Teacher'}!`}>
+    <TeacherLayout title="Dashboard" subtitle={`Welcome back, ${teacher?.username || teacher?.name || 'Teacher'}!`}>
       {loadError && (
         <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl flex items-start gap-3">
           <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />

@@ -7,7 +7,6 @@ import {
   Edit, 
   Trash2, 
   Search, 
-  Filter,
   DollarSign,
   Calendar,
   Users,
@@ -41,11 +40,17 @@ const GRADE_LEVELS = [
   'Grade 6'
 ];
 
+const TARGET_AMOUNT_PER_STUDENT = 2000;
+
 export default function ContributionManagement() {
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [contributions, setContributions] = useState<MonthlyContribution[]>([]);
   const [quotas, setQuotas] = useState<ContributionQuota[]>([]);
+  const [derivedTotals, setDerivedTotals] = useState<{ collected: number; expected: number }>({
+    collected: 0,
+    expected: 0,
+  });
+  const [totalsScope, setTotalsScope] = useState<'teacher' | 'school'>('teacher');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   
@@ -76,7 +81,7 @@ export default function ContributionManagement() {
     notes: string;
   }>({
     studentId: '',
-    amount: 500, // Default monthly contribution
+    amount: TARGET_AMOUNT_PER_STUDENT,
     month: new Date().toISOString().slice(0, 7),
     year: new Date().getFullYear().toString(),
     paymentMethod: 'cash',
@@ -96,19 +101,79 @@ export default function ContributionManagement() {
   }, [dropdownRef]);
 
   useEffect(() => {
-    // Initialize empty data
-    setStudents([]);
-    setContributions([]);
-    setQuotas([]);
-    setIsLoading(false);
-  }, []);
+    const run = async () => {
+      const session = localStorage.getItem('teacherSession');
+      if (!session) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(session);
+        const teacherData = parsed?.teacher ?? parsed;
+
+        const teacherId = teacherData?.uid || teacherData?.id;
+        if (!teacherId) throw new Error('Missing teacher id');
+
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+
+        const studentsScopeParam = totalsScope === 'school' ? 'scope=school' : '';
+        const studentsGradeParam = selectedGrade ? `gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const studentsQuery = [studentsScopeParam, studentsGradeParam].filter(Boolean).join('&');
+        const studentsUrl = `/api/teacher/students${studentsQuery ? `?${studentsQuery}` : ''}`;
+
+        const [studentsRes, contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(studentsUrl, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [studentsJson, contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          studentsRes.ok ? studentsRes.json() : Promise.resolve([]),
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setStudents(Array.isArray(studentsJson) ? studentsJson : []);
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+
+        const summaryCollected = Number(summaryJson?.totalCollected ?? 0);
+        const summaryExpected = Number(summaryJson?.totalExpected ?? 0);
+
+        setDerivedTotals({
+          collected: summaryCollected,
+          expected: summaryExpected,
+        });
+      } catch {
+        setStudents([]);
+        setContributions([]);
+        setQuotas([]);
+        setDerivedTotals({ collected: 0, expected: 0 });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    run();
+  }, [selectedGrade, selectedMonth, selectedYear, totalsScope]);
 
   const handleAddPayment = () => {
     setShowAddPayment(true);
     setEditingPayment(null);
     setFormData({
       studentId: '',
-      amount: 500,
+      amount: TARGET_AMOUNT_PER_STUDENT,
       month: selectedMonth,
       year: selectedYear,
       paymentMethod: 'cash',
@@ -142,21 +207,29 @@ export default function ContributionManagement() {
 
     try {
       const session = localStorage.getItem('teacherSession');
-      const teacherData = JSON.parse(session!);
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const selectedStudent = students.find((s) => s.id === formData.studentId);
 
       const paymentData = {
         ...formData,
-        recordedBy: teacherData.teacher.id,
-        recordedByName: teacherData.teacher.name,
+        studentName: selectedStudent?.name ?? '',
+        gradeLevel: selectedStudent?.gradeLevel ?? '',
+        recordedByUid: teacherId,
+        recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
         paymentDate: new Date().toISOString(),
         status: 'paid'
       };
 
-      const url = editingPayment 
-        ? `/api/contributions/${editingPayment.id}`
-        : '/api/contributions';
-      
-      const method = editingPayment ? 'PUT' : 'POST';
+      const url = '/api/contributions';
+      const method = 'POST';
 
       const response = await fetch(url, {
         method,
@@ -168,7 +241,31 @@ export default function ContributionManagement() {
         setMessage({ type: 'success', text: `Payment ${editingPayment ? 'updated' : 'recorded'} successfully!` });
         setShowAddPayment(false);
         setEditingPayment(null);
-        // In a real app, reload data here
+        const year = selectedYear;
+        const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+        const scopeParam = totalsScope === 'school' ? '&scope=school' : '';
+        const [contributionsRes, quotasRes, summaryRes] = await Promise.all([
+          fetch(`/api/contributions?year=${encodeURIComponent(year)}${selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : ''}`),
+          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+        ]);
+
+        const [contributionsJson, quotasJson, summaryJson] = await Promise.all([
+          contributionsRes.ok ? contributionsRes.json() : Promise.resolve([]),
+          quotasRes.ok ? quotasRes.json() : Promise.resolve([]),
+          summaryRes.ok ? summaryRes.json() : Promise.resolve(null),
+        ]);
+
+        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setDerivedTotals({
+          collected: Number(summaryJson?.totalCollected ?? 0),
+          expected: Number(summaryJson?.totalExpected ?? 0),
+        });
       } else {
         setMessage({ type: 'error', text: `Failed to ${editingPayment ? 'update' : 'record'} payment` });
       }
@@ -180,31 +277,7 @@ export default function ContributionManagement() {
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Are you sure you want to delete this payment record?')) return;
-
-    try {
-      const response = await fetch(`/api/contributions/${paymentId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Payment deleted successfully' });
-        // In a real app, reload data here
-      } else {
-        setMessage({ type: 'error', text: 'Failed to delete payment' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Operation failed' });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    setMessage({ type: 'error', text: 'Delete is not enabled yet.' });
   };
 
   const getPaymentStatusColor = (status: string) => {
@@ -230,8 +303,8 @@ export default function ContributionManagement() {
     !selectedGrade || quota.gradeLevel === selectedGrade
   );
 
-  const totalCollected = contributions.reduce((sum, c) => sum + c.amount, 0);
-  const totalExpected = quotas.length * 500 * 12; // Assuming 500 monthly, 12 months
+  const totalCollected = derivedTotals.collected;
+  const totalExpected = derivedTotals.expected;
   const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
   if (isLoading) {
@@ -417,6 +490,23 @@ export default function ContributionManagement() {
         </div>
       ) : (
         <>
+          <div className="flex items-center justify-end mb-4">
+            <div className="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden">
+              <button
+                onClick={() => setTotalsScope('teacher')}
+                className={`px-4 py-2 text-sm font-semibold ${totalsScope === 'teacher' ? 'bg-[#1B3E2A] text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                My Students
+              </button>
+              <button
+                onClick={() => setTotalsScope('school')}
+                className={`px-4 py-2 text-sm font-semibold ${totalsScope === 'school' ? 'bg-[#1B3E2A] text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                Whole School
+              </button>
+            </div>
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">

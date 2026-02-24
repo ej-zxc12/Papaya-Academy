@@ -3,16 +3,12 @@ import { GradeInput } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    // For now, accept a simple Bearer token for development
-    // In production, this should verify Firebase ID tokens
     return authHeader.substring(7);
   }
   
-  // Check for session in cookies (alternative approach)
   const sessionCookie = request.cookies.get('teacherSession')?.value;
   if (sessionCookie) {
     try {
@@ -28,7 +24,6 @@ function getTeacherSession(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check teacher session
     const teacherId = getTeacherSession(request);
     if (!teacherId) {
       return NextResponse.json(
@@ -46,12 +41,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch subjects to get subject names
     const subjectsCollection = collection(db, 'subjects');
-    const subjectsSnapshot = await getDocs(query(subjectsCollection, where('teacherId', '==', teacherId)));
+    const subjectsSnapshot = await getDocs(query(subjectsCollection));
     const subjectMap = new Map(subjectsSnapshot.docs.map(doc => [doc.id, doc.data().name]));
 
-    // Validate each grade entry
     for (const grade of grades) {
       if (!grade.studentId || !grade.subjectId || !grade.gradingPeriod || !grade.teacherId) {
         return NextResponse.json(
@@ -68,19 +61,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save grades to Firebase with duplicate check
     const gradesCollection = collection(db, 'grades');
     const savedGrades = [];
     const updatedGrades = [];
 
     for (const grade of grades) {
-      // Check if grade already exists for this student, subject, and grading period
       const existingGradeQuery = query(
         gradesCollection,
         where('studentId', '==', grade.studentId),
         where('subjectId', '==', grade.subjectId),
-        where('gradingPeriod', '==', grade.gradingPeriod),
-        where('teacherId', '==', grade.teacherId)
+        where('gradingPeriod', '==', grade.gradingPeriod)
       );
       
       const existingGradeSnapshot = await getDocs(existingGradeQuery);
@@ -92,11 +82,9 @@ export async function POST(request: NextRequest) {
       };
 
       if (existingGradeSnapshot.empty) {
-        // No existing grade, create new one
         const docRef = await addDoc(gradesCollection, gradeData);
         savedGrades.push({ id: docRef.id, ...grade });
       } else {
-        // Grade exists, update it
         const existingDoc = existingGradeSnapshot.docs[0];
         await setDoc(doc(db, 'grades', existingDoc.id), gradeData, { merge: true });
         updatedGrades.push({ id: existingDoc.id, ...grade });
@@ -121,7 +109,6 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Check teacher session
     const teacherId = getTeacherSession(request);
     if (!teacherId) {
       return NextResponse.json(
@@ -137,11 +124,7 @@ export async function GET(request: NextRequest) {
     const gradesCollection = collection(db, 'grades');
     let q = query(gradesCollection);
 
-    // Add filters if provided
     const constraints = [];
-    if (teacherId) {
-      constraints.push(where('teacherId', '==', teacherId));
-    }
     if (subjectId) {
       constraints.push(where('subjectId', '==', subjectId));
     }
