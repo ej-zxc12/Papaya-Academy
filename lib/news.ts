@@ -69,8 +69,11 @@ export async function getNewsArticleById(id: string): Promise<NewsArticle | null
   try {
     console.log('Fetching article by ID:', id);
     
-    const docRef = doc(db, 'news_articles', id);
+    const docRef = doc(db, 'news', id);
+    console.log('Document reference created:', docRef.path);
+    
     const docSnap = await getDoc(docRef);
+    console.log('Document snapshot exists:', docSnap.exists());
     
     if (!docSnap.exists()) {
       console.log('Article not found');
@@ -78,6 +81,7 @@ export async function getNewsArticleById(id: string): Promise<NewsArticle | null
     }
     
     const data = docSnap.data();
+    console.log('Document data:', data);
     return {
       id: docSnap.id,
       ...data

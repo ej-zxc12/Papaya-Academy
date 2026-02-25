@@ -27,7 +27,7 @@ import {
 import Header from '../../../components/layout/Header';
 import ScrollReveal from '../../../components/ui/ScrollReveal';
 import Footer from '../../../components/layout/Footer';
-import { getNewsArticleBySlug, NewsArticle, formatNewsDate } from '@/lib/news';
+import { getNewsArticleById, NewsArticle, formatNewsDate } from '@/lib/news';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -36,7 +36,7 @@ const montserrat = Montserrat({
 
 export default function NewsArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const slug = resolvedParams.id;
+  const id = resolvedParams.id;
   
   const [article, setArticle] = useState<NewsArticle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,9 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
     const fetchArticle = async () => {
       try {
         setLoading(true);
-        const data = await getNewsArticleBySlug(slug);
+        console.log('Fetching article with ID:', id);
+        const data = await getNewsArticleById(id);
+        console.log('Article data received:', data);
         
         if (data) {
           setArticle(data);
@@ -63,7 +65,7 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
     };
 
     fetchArticle();
-  }, [slug]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -110,10 +112,10 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
 
       {/* --- HERO SECTION --- */}
       <div className="relative h-[600px] md:h-[700px] bg-gradient-to-br from-papaya-green via-papaya-green/95 to-[#1B3E2A] overflow-hidden">
-        {article.featured_image && (
+        {article.imageUrl && (
           <div className="absolute inset-0">
             <Image
-              src={article.featured_image}
+              src={article.imageUrl}
               alt={article.title}
               fill
               className="object-cover opacity-20"
@@ -128,7 +130,7 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
               <div className="flex flex-wrap items-center gap-4 text-white/95 mb-8">
                 <div className="flex items-center space-x-2 bg-papaya-yellow/20 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Calendar className="w-4 h-4 text-papaya-yellow" />
-                  <span className="text-sm font-medium">{formatNewsDate(article.published_at || article.created_at)}</span>
+                  <span className="text-sm font-medium">{formatNewsDate(article.date || article.createdAt)}</span>
                 </div>
                 <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
                   <Tag className="w-4 h-4 text-papaya-yellow" />
@@ -180,7 +182,7 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Published</p>
-                      <p className="font-semibold text-gray-800">{formatNewsDate(article.published_at || article.created_at)}</p>
+                      <p className="font-semibold text-gray-800">{formatNewsDate(article.date || article.createdAt)}</p>
                     </div>
                   </div>
                   {article.author && (
@@ -219,11 +221,11 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
           </ScrollReveal>
 
           {/* --- FEATURED IMAGE --- */}
-          {article.featured_image && (
+          {article.imageUrl && (
             <ScrollReveal animation="fade-up" delay={200} className="mb-12">
               <div className="group relative h-[400px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl">
                 <Image
-                  src={article.featured_image}
+                  src={article.imageUrl}
                   alt={article.title}
                   fill
                   className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -237,7 +239,7 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
                       <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                     </div>
                     <p className="text-sm font-semibold text-gray-800">News Article</p>
-                    <p className="text-xs text-gray-600 mt-1">Papaya Academy • {formatNewsDate(article.published_at || article.created_at)}</p>
+                    <p className="text-xs text-gray-600 mt-1">Papaya Academy • {formatNewsDate(article.date || article.createdAt)}</p>
                   </div>
                 </div>
               </div>
