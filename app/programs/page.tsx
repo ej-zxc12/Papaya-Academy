@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BookOpen, Heart, PenTool, Utensils, Check, ArrowRight } from 'lucide-react'; 
+import { BookOpen, Heart, PenTool, Utensils, Check, ArrowRight, Sparkles } from 'lucide-react'; 
 import { Montserrat } from 'next/font/google';
 
 // --- IMPORTS ---
@@ -22,6 +22,7 @@ const programsData = [
   {
     id: 'early-childhood',
     link: '/programs/early-childhood', 
+
     title: "Early Childhood Education",
     subtitle: "Building Strong Foundations",
     description: "Our preschool and kindergarten programs focus on social-emotional development, basic literacy, and numeracy in a nurturing, play-based environment.",
@@ -62,6 +63,17 @@ const programsData = [
     image: "/images/gallery/community1.jpg", 
     features: ["Daily Feeding Program", "Annual Medical Mission", "Health Education"],
     color: "bg-white"
+  },
+  {
+    id: 'foundation-day',
+    link: '/programs/foundation-day',
+    title: "Foundation Day",
+    subtitle: "Kasiyahan at Bayanihan",
+    description: "Celebrate with us through performances, friendly games, and community activities that highlight the spirit of togetherness.",
+    icon: <Sparkles className="w-6 h-6 text-[#F2C94C]" />,
+    image: "/images/foundation/foundation-day.png",
+    features: ["Parade & Field Demonstration", "Fund Raising Activities", "Bus Dedication"],
+    color: "bg-gradient-to-b from-[#1B3E2A]/5 to-white"
   }
 ];
 

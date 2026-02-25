@@ -49,7 +49,7 @@ const ProgramsDropdown = () => {
       </button>
       
       <div 
-        className={`absolute left-0 top-full mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
+        className={`absolute left-0 top-full mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
           isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
         }`}
       >
@@ -66,6 +66,13 @@ const ProgramsDropdown = () => {
           onClick={handleLinkClick}
         >
           Pineapple Project
+        </Link>
+        <Link 
+          href="/programs/foundation-day" 
+          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
+          onClick={handleLinkClick}
+        >
+          Foundation Day
         </Link>
       </div>
     </div>

@@ -3,7 +3,6 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -34,7 +33,15 @@ function AboutPageContent() {
 
   // Image carousel state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const images = ['/images/1.jpg', '/images/3.jpg', '/images/jeep.jpg'];
+  const images = [
+    '/images/storm/_DSC6876.jpg',
+    '/images/storm/_DSC6898.jpg',
+    '/images/storm/_DSC6953.jpg',
+    '/images/storm/_DSC7078.jpg',
+    '/images/storm/_DSC7086.jpg',
+    '/images/storm/_DSC7089.jpg',
+    '/images/storm/_DSC7092.jpg',
+  ];
 
   // Auto-advance carousel
   useEffect(() => {

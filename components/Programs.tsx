@@ -5,7 +5,7 @@ import ScrollReveal from './ui/ScrollReveal'; // Import the reusable animator
 const Programs = () => {
   const programs = [
     {
-      title: 'Elementary Education',
+      title: 'Pre-School to Elementary Education',
       description: 'Comprehensive primary education program focusing on foundational literacy and numeracy skills.',
       icon: '📚',
       link: '/programs/elementary'
