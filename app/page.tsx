@@ -66,22 +66,10 @@ export default function Home() {
             {/* Paragraph Animation */}
             <ScrollReveal animation="fade-up" delay={500}>
               <p className="text-lg md:text-xl mb-8 text-gray-100 font-light leading-relaxed opacity-90 tracking-wide max-w-2xl">
-                Papaya Academy, Inc. devotes itself to children in extreme poverty living in and around the Payatas rubbish dump in Manila.
+                Papaya Academy, Inc. provides free education, meals, and transportation to disadvantaged children from Payatas and Rodriguez, Rizal. We help students achieve their full potential and become positive contributors to their communities.
               </p>
             </ScrollReveal>
             
-            {/* Button Animation */}
-            <ScrollReveal animation="zoom-in" delay={700}>
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <button className="bg-[#F2C94C] text-[#1B3E2A] hover:bg-opacity-90 px-8 py-3 rounded-sm font-medium tracking-widest text-sm transition-all duration-200 shadow-md">
-                  OUR PROGRAMS
-                </button>
-                <button className="border border-[#F2C94C] text-[#F2C94C] hover:bg-[#F2C94C] hover:text-[#1B3E2A] px-8 py-3 rounded-sm font-medium tracking-widest text-sm transition-all duration-200">
-                  LEARN MORE
-                </button>
-              </div>
-            </ScrollReveal>
-
           </div>
         </div>
       </section>

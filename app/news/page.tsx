@@ -125,7 +125,7 @@ export default function NewsPage() {
                 Latest Updates
               </h1>
               <p className="text-xl md:text-2xl font-light text-green-100 max-w-3xl mx-auto">
-                Stay informed about our global donation impact and community milestones.
+                Stay informed about our community milestones.
               </p>
             </div>
           </ScrollReveal>

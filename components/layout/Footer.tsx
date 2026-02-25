@@ -1,8 +1,30 @@
 import Link from 'next/link';
 import { ArrowRight, Youtube, Instagram, Facebook } from 'lucide-react';
 import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable animator
+import { useState, useEffect } from 'react';
+import { getNewsArticles } from '@/lib/news';
+import { NewsArticle } from '@/lib/news';
 
 const Footer = () => {
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [isLoadingNews, setIsLoadingNews] = useState(true);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const articles = await getNewsArticles();
+        // Take only the first 6 articles for the footer
+        setNewsArticles(articles.slice(0, 6));
+      } catch (error) {
+        console.error('Error fetching news for footer:', error);
+      } finally {
+        setIsLoadingNews(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
+
   return (
     <footer className="py-16 bg-papaya-green text-white overflow-hidden">
       <div className="container mx-auto px-4">
@@ -78,23 +100,52 @@ const Footer = () => {
               <h3 className="text-xl font-bold text-papaya-yellow mb-6">News</h3>
             </ScrollReveal>
             <ul className="space-y-3">
-              {['Genius', 'Kalinga Gala Dinner 2026', 'International Week', 'Happy Twins', 'Janric\'s dreams', 'This is Austin'].map((item, index) => (
-                <ScrollReveal 
-                  key={item} 
-                  animation="slide-right" 
-                  delay={(index * 100) + 200} // Slightly delayed start compared to col 1
-                >
+              {isLoadingNews ? (
+                // Loading placeholder
+                [1, 2, 3, 4, 5, 6].map((index) => (
+                  <ScrollReveal 
+                    key={`loading-${index}`} 
+                    animation="slide-right" 
+                    delay={(index * 100) + 200}
+                  >
+                    <li>
+                      <div className="flex items-center text-white opacity-60">
+                        <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0" />
+                        <span className="animate-pulse">Loading news...</span>
+                      </div>
+                    </li>
+                  </ScrollReveal>
+                ))
+              ) : newsArticles.length > 0 ? (
+                // Dynamic news articles
+                newsArticles.map((article, index) => (
+                  <ScrollReveal 
+                    key={article.id} 
+                    animation="slide-right" 
+                    delay={(index * 100) + 200}
+                  >
+                    <li>
+                      <Link 
+                        href={`/news/${article.id}`} 
+                        className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
+                      >
+                        <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
+                        <span className="hover:underline line-clamp-2">{article.title}</span>
+                      </Link>
+                    </li>
+                  </ScrollReveal>
+                ))
+              ) : (
+                // No news available
+                <ScrollReveal animation="slide-right" delay={200}>
                   <li>
-                    <Link 
-                      href={`/news/${item.toLowerCase().replace(/\s+/g, '-')}`} 
-                      className="flex items-center text-white hover:text-papaya-yellow transition-colors group"
-                    >
-                      <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0 transform transition-transform group-hover:translate-x-1" />
-                      <span className="hover:underline">{item}</span>
-                    </Link>
+                    <div className="flex items-center text-white opacity-60">
+                      <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0" />
+                      <span>No news articles available</span>
+                    </div>
                   </li>
                 </ScrollReveal>
-              ))}
+              )}
             </ul>
           </div>
 
@@ -144,18 +195,7 @@ const Footer = () => {
                 </p>
               </ScrollReveal>
 
-              <ScrollReveal animation="zoom-in" delay={900}>
-                <div className="pt-4 mt-4 border-t border-white border-opacity-20">
-                  <p className="text-sm">
-                    <span className="font-medium text-papaya-yellow">IBAN:</span> BE 10 7350 2479 2366
-                  </p>
-                  <p className="text-sm">
-                    <span className="font-medium text-papaya-yellow">BIC:</span> KREDBEBB
-                  </p>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal animation="fade-up" delay={950}>
+              <ScrollReveal animation="fade-up" delay={900}>
                 <div className="pt-4">
                   <p className="text-sm font-medium text-papaya-yellow mb-2">Follow Us</p>
                   <div className="flex space-x-4">
