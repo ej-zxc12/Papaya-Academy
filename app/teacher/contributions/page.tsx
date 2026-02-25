@@ -773,6 +773,20 @@ export default function ContributionManagement() {
     setMessage({ type: 'error', text: 'Delete is not enabled yet.' });
   };
 
+  const handleEditPayment = (contribution: MonthlyContribution) => {
+    setEditingPayment(contribution);
+    setFormData({
+      studentId: contribution.studentId,
+      amount: contribution.amount,
+      month: contribution.month,
+      year: contribution.year,
+      paymentMethod: contribution.paymentMethod,
+      receiptNumber: contribution.receiptNumber || '',
+      notes: contribution.notes || ''
+    });
+    setShowAddPayment(true);
+  };
+
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case 'fully_paid': return 'bg-green-100 text-green-800';

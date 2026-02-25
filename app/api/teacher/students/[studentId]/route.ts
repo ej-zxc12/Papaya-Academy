@@ -27,47 +27,18 @@ function getTeacherSession(request: NextRequest) {
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { studentId: string } }
+  context: { params: Promise<{ studentId: string }> }
 ) {
   try {
+    const resolvedParams = await context.params;
+    const studentId = resolvedParams.studentId;
+
     const teacherId = getTeacherSession(request);
     if (!teacherId) {
       return NextResponse.json(
         { message: 'Unauthorized - Please login first' },
         { status: 401 }
       );
-    }
-
-    console.log("DELETE function called");
-    console.log("Context:", context);
-    console.log("Params:", context.params);
-    
-    // Try multiple ways to get studentId
-    let studentId = context.params?.studentId;
-    
-    // If not found, try alternative parameter access
-    if (!studentId && context.params) {
-      const paramKeys = Object.keys(context.params) as (keyof typeof context.params)[];
-      console.log("Available param keys:", paramKeys);
-      if (paramKeys.length > 0) {
-        studentId = context.params[paramKeys[0]]; // Try first param
-      }
-    }
-    
-    // If still not found, try from URL
-    if (!studentId) {
-      const url = new URL(request.url);
-      const pathParts = url.pathname.split('/');
-      studentId = pathParts[pathParts.length - 1];
-      console.log("Extracted from URL:", studentId);
-    }
-    
-    console.log("Student ID extracted:", studentId);
-    console.log("Student ID type:", typeof studentId);
-
-    if (!studentId) {
-      console.error("No student ID provided");
-      return NextResponse.json({ message: "No student ID provided" }, { status: 400 });
     }
 
     console.log("Database reference:", db);
@@ -110,10 +81,11 @@ export async function DELETE(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  { params }: { params: Promise<{ studentId: string }> }
 ) {
   try {
-    const studentId = params.studentId;
+    const resolvedParams = await params;
+    const studentId = resolvedParams.studentId;
     
     // Check teacher session
     const teacherId = getTeacherSession(request);

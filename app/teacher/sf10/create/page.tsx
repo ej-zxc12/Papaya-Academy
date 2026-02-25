@@ -43,11 +43,11 @@ export default function SF10Create() {
     // Load mock data for demonstration
     const loadMockData = () => {
       const mockStudents: Student[] = [
-        { id: '1', name: 'Ana Santos', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '2', name: 'Ben Reyes', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '3', name: 'Cruz Martinez', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '4', name: 'Diana Lim', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
-        { id: '5', name: 'Eduardo Tan', grade: 'Grade 7', enrolledDate: '2024-01-15', attendance: [], grades: [] },
+        { id: '1', name: 'Ana Santos', gradeLevel: 'Grade 7', teacherId: '' },
+        { id: '2', name: 'Ben Reyes', gradeLevel: 'Grade 7', teacherId: '' },
+        { id: '3', name: 'Cruz Martinez', gradeLevel: 'Grade 7', teacherId: '' },
+        { id: '4', name: 'Diana Lim', gradeLevel: 'Grade 7', teacherId: '' },
+        { id: '5', name: 'Eduardo Tan', gradeLevel: 'Grade 7', teacherId: '' },
       ];
 
       setStudents(mockStudents);
@@ -118,7 +118,7 @@ export default function SF10Create() {
                     className="h-full flex items-center justify-between w-full px-4 border border-gray-300 rounded-lg bg-white focus:outline-none transition-all duration-300 group-hover:border-[#F2C94C]"
                   >
                     <span className={`text-sm ${selectedStudent ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
-                      {selectedStudent ? `${selectedStudent.name} - ${selectedStudent.grade}` : "Choose a student..."}
+                      {selectedStudent ? `${selectedStudent.name} - ${selectedStudent.gradeLevel}` : "Choose a student..."}
                     </span>
                     <ChevronDown 
                       className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isStudentDropdownOpen ? 'rotate-180 text-[#F2C94C]' : 'group-hover:text-[#F2C94C]'}`} 
@@ -137,7 +137,7 @@ export default function SF10Create() {
                             }}
                             className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:bg-[#f0f7f3] transition-colors ${selectedStudent?.id === student.id ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' : 'text-gray-700'}`}
                           >
-                            <span>{student.name} <span className="text-xs text-gray-400 ml-1">({student.grade})</span></span>
+                            <span>{student.name} <span className="text-xs text-gray-400 ml-1">({student.gradeLevel})</span></span>
                             {selectedStudent?.id === student.id && <Check className="w-4 h-4 text-[#1B3E2A]" />}
                           </button>
                         ))}

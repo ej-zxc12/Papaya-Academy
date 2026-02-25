@@ -4,9 +4,10 @@ import { WeeklyReport } from '@/types';
 // In-memory storage for demo - replace with actual database
 let reportsDatabase: WeeklyReport[] = [];
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const reportId = params.id;
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
     const { status } = await request.json();
 
     if (!status || !['pending', 'reviewed', 'approved', 'rejected'].includes(status)) {

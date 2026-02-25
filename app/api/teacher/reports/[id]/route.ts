@@ -4,9 +4,10 @@ import { WeeklyReport } from '@/types';
 // In-memory storage for demo - replace with actual database
 let reportsDatabase: WeeklyReport[] = [];
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const reportId = params.id;
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
     const reportData = await request.json();
 
     // Find and update the report
@@ -41,9 +42,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const reportId = params.id;
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
     
     const report = reportsDatabase.find(r => r.id === reportId);
     

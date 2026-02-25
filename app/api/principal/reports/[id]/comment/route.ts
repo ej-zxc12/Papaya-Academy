@@ -4,9 +4,10 @@ import { WeeklyReport, PrincipalComment } from '@/types';
 // In-memory storage for demo - replace with actual database
 let reportsDatabase: WeeklyReport[] = [];
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const reportId = params.id;
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
     const { comment, type, principalId, principalName } = await request.json();
 
     if (!comment || !type || !principalId || !principalName) {

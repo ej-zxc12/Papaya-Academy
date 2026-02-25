@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, storage } from '../../../../lib/firebase-admin'
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
     const formData = await request.formData()
     const title = formData.get('title') as string
     const content = formData.get('content') as string
@@ -75,9 +75,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
     const formData = await request.formData()
     const imagePath = formData.get('imagePath') as string
 

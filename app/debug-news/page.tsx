@@ -54,9 +54,9 @@ export default function DebugNewsPage() {
           {articles.map((article, index) => (
             <div key={article.id} className="bg-white p-4 rounded shadow border">
               <h3 className="font-bold text-lg">{article.title}</h3>
-              <p className="text-sm text-gray-600">ID: {article.id} | Slug: {article.slug}</p>
+              <p className="text-sm text-gray-600">ID: {article.id}</p>
               <p className="text-sm text-gray-600">Author: {article.author || 'N/A'}</p>
-              <p className="text-sm text-gray-600">Created: {article.created_at}</p>
+              <p className="text-sm text-gray-600">Created: {article.createdAt}</p>
               <p className="text-sm text-gray-500 mt-2">{article.content?.substring(0, 100)}...</p>
             </div>
           ))}
