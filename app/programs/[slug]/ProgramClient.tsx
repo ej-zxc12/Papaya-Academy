@@ -154,7 +154,7 @@ export default function ProgramClient({ content }: { content: ProgramContent }) 
                 <p className="text-gray-600 text-sm mb-6">
                   Your donation ensures we can keep providing these essential services to the children of Payatas.
                 </p>
-                <Link href="/#donate-section">
+                <Link href="/donate">
                   <button className="w-full py-3 bg-[#F2C94C] text-[#1B3E2A] font-bold rounded-md hover:bg-opacity-90 transition-all shadow-md">
                     MAKE A DONATION
                   </button>

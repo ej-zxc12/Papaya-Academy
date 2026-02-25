@@ -2,14 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Header from '../components/layout/Header';
 import WhatWeDo from '../components/sections/WhatWeDo';
 import Projects from '../components/sections/Projects';
-import DonationSection from '../components/sections/DonationSection';
 import Gallery from '../components/sections/Gallery';
-import GetInvolved from '../components/sections/GetInvolved';
-import NewsSection from '../components/sections/NewsSection';
 import Footer from '../components/layout/Footer';
 import AboutDropdown from '../components/AboutDropdown';
 import ScrollReveal from '../components/ui/ScrollReveal';
@@ -92,59 +89,6 @@ export default function Home() {
       {/* What We Do Section with Success Stories */}
       <div id="what-we-do" className="w-full">
         <WhatWeDo />
-        {/*  */}
-      {/* Success Stories Section - Temporarily Commented Out */}
-      {/* 
-        <section className="py-16 bg-white">
-          <div className="container mx-auto px-4">
-            <ScrollReveal animation="fade-down">
-              <h2 className="text-3xl font-bold text-papaya-green mb-12 text-center">Success Stories</h2>
-            </ScrollReveal>
-            
-            <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-              <ScrollReveal animation="fade-up" delay={200}>
-                <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="flex items-start space-x-6">
-                    <div className="flex-shrink-0 w-20 h-20 rounded-full overflow-hidden border-4 border-papaya-green">
-                      <img 
-                        src="/images/student1.jpg" 
-                        alt="Student success story"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-gray-600 italic mb-4">
-                        "Thanks to Papaya Academy, I'm the first in my family to attend college."
-                      </p>
-                      <p className="text-sm font-semibold text-papaya-green">- Maria, Class of 2022</p>
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-
-              <ScrollReveal animation="fade-up" delay={400}>
-                <div className="bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="flex items-start space-x-6">
-                    <div className="flex-shrink-0 w-20 h-20 rounded-full overflow-hidden border-4 border-papaya-green">
-                      <img 
-                        src="/images/student2.jpg" 
-                        alt="Student success story"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-gray-600 italic mb-4">
-                        "The skills I learned helped me start my own small business."
-                      </p>
-                      <p className="text-sm font-semibold text-papaya-green">- Juan, Entrepreneur</p>
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
-          </div>
-        </section>
-      */}
       </div> 
 
       {/* Papaya Academy Provides Section */}
@@ -283,20 +227,8 @@ export default function Home() {
         <Projects />
       </div>
 
-      <div id="donate-section" className="w-full">
-        <DonationSection />
-      </div>
-
       <div id="gallery" className="w-full">
         <Gallery />
-      </div>
-
-      <div id="get-involved" className="w-full">
-        <GetInvolved />
-      </div>
-
-      <div id="news" className="w-full">
-        <NewsSection />
       </div>
 
       <div id="footer" className="w-full">

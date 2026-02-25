@@ -216,7 +216,7 @@ export default function PineappleProjectPage() {
             </ScrollReveal>
 
             <ScrollReveal animation="zoom-in" delay={400}>
-              <Link href="/#donate-section">
+              <Link href="/donate">
                 <button
                   onMouseEnter={() => setIsHovered(true)}
                   onMouseLeave={() => setIsHovered(false)}
