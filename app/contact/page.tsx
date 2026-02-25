@@ -100,45 +100,45 @@ export default function ContactPage() {
       id: 'out_of_scope',
       patterns: ['high school', 'shs', 'senior high', 'college', 'university'],
       responses: [
-        "I want to be honest with you—we currently only specialize in Elementary Education (Kindergarten to Grade 6). We do not have high school levels yet.",
-        "Thank you for asking! At Papaya Academy, we focus specifically on Elementary education (K-6). We don't offer high school programs at this time."
+        "I want to be honest with you—we currently only specialize in Pre-School to Elementary Education (Kindergarten to Grade 6). We do not have high school levels yet.",
+        "Thank you for asking! At Papaya Academy, we focus specifically on Pre-School to Elementary education (K-6). We don't offer high school programs at this time."
       ]
     },
     {
       id: 'grade_7_plus',
       patterns: ['grade 7', 'grade 8', 'grade 9', 'grade 10'],
       responses: [
-        "I want to be honest with you—we currently only specialize in Elementary Education (Kindergarten to Grade 6). We do not have those grade levels yet."
+        "I want to be honest with you—we currently only specialize in Pre-School to Elementary Education (Kindergarten to Grade 6). We do not have those grade levels yet."
       ]
     },
     {
       id: 'stem_abm',
       patterns: ['stem', 'abm'],
       responses: [
-        "I want to be honest with you—we currently only specialize in Elementary Education (Kindergarten to Grade 6). We don't offer STEM or ABM tracks as those are for Senior High."
+        "I want to be honest with you—we currently only specialize in Pre-School to Elementary Education (Kindergarten to Grade 6). We don't offer STEM or ABM tracks as those are for Senior High."
       ]
     },
     {
       id: 'self_awareness_robot',
       patterns: ['are you a robot', 'are you an ai', 'are you a bot'],
       responses: [
-        "I'm Teacher Papaya, your Admin Assistant! I'm here to help you learn about our wonderful Elementary programs. While I'm an AI assistant, I'm dedicated to supporting our school's mission of nurturing young minds.",
-        "That's a great question! I'm Teacher Papaya, an AI assistant designed to help parents with information about our Elementary school. I'm here to support you!"
+        "I'm Teacher Papaya, your Admin Assistant! I'm here to help you learn about our wonderful Pre-School to Elementary programs. While I'm an AI assistant, I'm dedicated to supporting our school's mission of nurturing young minds.",
+        "That's a great question! I'm Teacher Papaya, an AI assistant designed to help parents with information about our Pre-School to Elementary school. I'm here to support you!"
       ]
     },
     {
       id: 'who_are_you',
       patterns: ['who are you', 'what is your name'],
       responses: [
-        "I'm Teacher Papaya, your Admin Assistant at Papaya Academy! I'm here to help you with information about our Elementary programs (K-6).",
-        "Hello! I'm Teacher Papaya, your guide to Papaya Academy. I can help you learn about our K-6 Elementary programs!"
+        "I'm Teacher Papaya, your Admin Assistant at Papaya Academy! I'm here to help you with information about our Pre-School to Elementary programs (K-6).",
+        "Hello! I'm Teacher Papaya, your guide to Papaya Academy. I can help you learn about our K-6 Pre-School to Elementary programs!"
       ]
     },
     {
       id: 'tuition_cost',
       patterns: ['how much is the tuition', 'how much is enrollment', 'tuition fee', 'enrollment fee', 'cost of enrollment'],
       responses: [
-        "Our tuition fees are designed to be affordable for elementary education. Please visit the Admin Office for the exact breakdown based on your child's grade level.",
+        "Our tuition fees are designed to be affordable for Pre-School to Elementary education. Please visit the Admin Office for the exact breakdown based on your child's grade level.",
         "We strive to keep our tuition reasonable for families. For specific fee information based on your child's grade level, please visit our Admin Office."
       ]
     },
@@ -194,7 +194,7 @@ export default function ContactPage() {
       id: 'greetings',
       patterns: ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening'],
       responses: [
-        "Hello! I'm Teacher Papaya, your Admin Assistant. How can I help you with our Elementary programs today?",
+        "Hello! I'm Teacher Papaya, your Admin Assistant. How can I help you with our Pre-School to Elementary programs today?",
         "Hi there! I'm Teacher Papaya. Welcome to Papaya Academy! How may I assist you with our K-6 programs?"
       ]
     },
@@ -202,7 +202,8 @@ export default function ContactPage() {
       id: 'programs',
       patterns: ['what programs do you offer', 'what do you teach', 'what subjects', 'curriculum'],
       responses: [
-        "We offer a holistic Elementary curriculum focused on foundational literacy, mathematics, science, and values education for children.",
+        "We offer a holistic Pre-School to Elementary curriculum focused on foundational literacy, mathematics, science, and values education for children.",
+        "Our Pre-School to Elementary program covers core subjects like reading, math, science, plus values education. We focus on building strong foundations for lifelong learning.",
         "Our Elementary program covers core subjects like reading, math, science, plus values education. We focus on building strong foundations for lifelong learning."
       ]
     },
@@ -541,148 +542,145 @@ export default function ContactPage() {
               </div>
             </ScrollReveal>
 
-          </div>
-        </div>
-      </section>
+</div>
+</div>
+</section>
 
-      {/* --- UPDATED GOOGLE MAPS SECTION START --- */}
-      <section id="map-section" className="py-20 bg-gray-50 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle,rgba(46,139,87,0.05)_0%,transparent_70%)] pointer-events-none" />
+{/* --- UPDATED GOOGLE MAPS SECTION START --- */}
+<section id="map-section" className="py-20 bg-gray-50 relative overflow-hidden">
+<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle,rgba(46,139,87,0.05)_0%,transparent_70%)] pointer-events-none" />
 
-        <div className="container mx-auto px-4 relative z-10">
-          <ScrollReveal animation="fade-up">
-            <div className="text-center mb-12">
-               <h2 className="text-3xl font-bold text-papaya-green">Visit Our Campus</h2>
-               <p className="text-gray-600 mt-2">Plan your trip to Papaya Academy.</p>
-            </div>
+<div className="container mx-auto px-4 relative z-10">
+<ScrollReveal animation="fade-up">
+<div className="text-center mb-12">
+<h2 className="text-3xl font-bold text-papaya-green">Visit Our Campus</h2>
+<p className="text-gray-600 mt-2">Plan your trip to Papaya Academy.</p>
+</div>
 
-            <div className="grid lg:grid-cols-3 gap-8">
-                
-                {/* LEFT: THE MAP BOX (Spans 2 columns) - FIXED HEIGHT */}
-                <div className="lg:col-span-2 bg-white p-2 rounded-[2rem] shadow-xl border border-gray-100 h-full min-h-[600px]">
-                    <div className="relative w-full h-full rounded-[1.8rem] overflow-hidden">
-                        <iframe 
-                            src="https://maps.google.com/maps?q=Kasiglahan%20Village%2C%20San%20Jose%2C%20Rodriguez%2C%20Rizal&t=&z=14&ie=UTF8&iwloc=&output=embed" 
-                            className="w-full h-full"
-                            style={{ border: 0 }} 
-                            allowFullScreen 
-                            loading="lazy" 
-                            referrerPolicy="no-referrer-when-downgrade"
-                        ></iframe>
-                    </div>
-                </div>
+<div className="grid lg:grid-cols-3 gap-8">
+{/* LEFT: THE MAP BOX (Spans 2 columns) */}
+<div className="lg:col-span-2 bg-white p-2 rounded-[2rem] shadow-xl border border-gray-100 h-[360px] sm:h-[420px] md:h-[520px] lg:h-full lg:min-h-[600px]">
+<div className="relative w-full h-full rounded-[1.8rem] overflow-hidden">
+<iframe 
+src="https://maps.google.com/maps?q=Kasiglahan%20Village%2C%20San%20Jose%2C%20Rodriguez%2C%20Rizal&t=&z=14&ie=UTF8&iwloc=&output=embed" 
+className="w-full h-full"
+style={{ border: 0 }} 
+allowFullScreen 
+loading="lazy" 
+referrerPolicy="no-referrer-when-downgrade"
+></iframe>
+</div>
+</div>
 
-                {/* RIGHT: ACTION BUTTONS DASHBOARD (Spans 1 column) */}
-                <div className="space-y-6">
-                    
-                    {/* 1. Main Location Card */}
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
-                        <div className="flex items-start space-x-4">
-                           <div className="bg-papaya-green/10 p-3 rounded-full">
-                              <MapPin className="w-6 h-6 text-papaya-green" />
-                           </div>
-                           <div>
-                              <h3 className="font-bold text-gray-800 text-lg">Papaya Academy</h3>
-                              <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-                                Kasiglahan Village, San Jose<br/>Rodriguez, 1860 Rizal
-                              </p>
-                              <button 
-                                onClick={handleCopyAddress}
-                                className="mt-3 flex items-center space-x-2 text-xs font-semibold text-papaya-green hover:text-green-700 transition-colors bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200"
-                              >
-                                {copied ? (
-                                    <>
-                                        <span>Copied!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Copy className="w-3.5 h-3.5" />
-                                        <span>Copy Address</span>
-                                    </>
-                                )}
-                              </button>
-                           </div>
-                        </div>
-                    </div>
+{/* RIGHT: ACTION BUTTONS DASHBOARD (Spans 1 column) */}
+<div className="space-y-6">
+{/* 1. Main Location Card */}
+<div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+<div className="flex items-start space-x-4">
+<div className="bg-papaya-green/10 p-3 rounded-full">
+<MapPin className="w-6 h-6 text-papaya-green" />
+</div>
+<div>
+<h3 className="font-bold text-gray-800 text-lg">Papaya Academy</h3>
+<p className="text-gray-500 text-sm mt-1 leading-relaxed">
+Kasiglahan Village, San Jose<br />Rodriguez, 1860 Rizal
+</p>
+<button
+onClick={handleCopyAddress}
+className="mt-3 flex items-center space-x-2 text-xs font-semibold text-papaya-green hover:text-green-700 transition-colors bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-full border border-gray-200"
+>
+{copied ? (
+<>
+<span>Copied!</span>
+</>
+) : (
+<>
+<Copy className="w-3.5 h-3.5" />
+<span>Copy Address</span>
+</>
+)}
+</button>
+</div>
+</div>
+</div>
 
-                    {/* 2. Action Buttons (Updated: Design Copied & Directions URL) */}
-                    <div className="w-full">
-                        <a 
-                           href="https://www.google.com/maps/dir/?api=1&destination=Papaya+Academy+Inc.,+Kasiglahan+Village,+San+Jose,+Rodriguez,+Rizal"
-                           target="_blank" 
-                           rel="noopener noreferrer"
-                           onMouseEnter={() => setIsBtnHovered(true)}
-                           onMouseLeave={() => setIsBtnHovered(false)}
-                           className="flex items-center justify-center gap-2 px-8 py-4 w-full rounded-md font-bold text-sm tracking-widest border border-[#1B3E2A] border-b-4 shadow-md transition-all duration-300"
-                           style={{
-                             backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
-                             backgroundSize: '100% 200%',
-                             backgroundPosition: isBtnHovered ? 'bottom' : 'top',
-                             color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
-                             borderColor: '#1B3E2A',
-                             boxShadow: isBtnHovered ? '0 6px 20px rgba(27, 62, 42, 0.4)' : '0 4px 6px rgba(0,0,0,0.1)',
-                           }}
-                        >
-                            {/* Icon on Left with slide animation */}
-                            <Navigation 
-                                className={`w-5 h-5 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
-                            />
-                            GET DIRECTIONS
-                        </a>
-                    </div>
+{/* 2. Action Buttons */}
+<div className="w-full">
+<a 
+href="https://www.google.com/maps/dir/?api=1&destination=Papaya+Academy+Inc.,+Kasiglahan+Village,+San+Jose,+Rodriguez,+Rizal"
+target="_blank" 
+rel="noopener noreferrer"
+onMouseEnter={() => setIsBtnHovered(true)}
+onMouseLeave={() => setIsBtnHovered(false)}
+className="flex items-center justify-center gap-2 px-8 py-4 w-full rounded-md font-bold text-sm tracking-widest border border-[#1B3E2A] border-b-4 shadow-md transition-all duration-300"
+style={{
+backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+backgroundSize: '100% 200%',
+backgroundPosition: isBtnHovered ? 'bottom' : 'top',
+color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
+borderColor: '#1B3E2A',
+boxShadow: isBtnHovered ? '0 6px 20px rgba(27, 62, 42, 0.4)' : '0 4px 6px rgba(0,0,0,0.1)',
+}}
+>
+{/* Icon on Left with slide animation */}
+<Navigation 
+className={`w-5 h-5 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
+/>
+GET DIRECTIONS
+</a>
+</div>
 
-                    {/* 3. Transport Info */}
-                    <div className="bg-[#f8faf9] p-6 rounded-2xl border border-dashed border-gray-300">
-                        <h4 className="font-bold text-gray-800 mb-4 flex items-center">
-                            <Bus className="w-4 h-4 mr-2 text-gray-500" />
-                            How to get here
-                        </h4>
-                        <div className="space-y-4">
-                            <div className="flex items-start space-x-3">
-                                <div className="min-w-[4px] h-full bg-papaya-yellow rounded-full"></div>
-                                <p className="text-sm text-gray-600">
-                                    <span className="font-semibold text-gray-900 block mb-0.5">By Jeepney</span>
-                                    Take the "Montalban/San Jose" route jeepney. Drop off at Education Street intersection.
-                                </p>
-                            </div>
-                            <div className="flex items-start space-x-3">
-                                <div className="min-w-[4px] h-full bg-papaya-green rounded-full"></div>
-                                <p className="text-sm text-gray-600">
-                                    <span className="font-semibold text-gray-900 block mb-0.5">By Car</span>
-                                    Parking is available at the main gate. Visitor passes required upon entry.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+{/* 3. Transport Info */}
+<div className="bg-[#f8faf9] p-6 rounded-2xl border border-dashed border-gray-300">
+<h4 className="font-bold text-gray-800 mb-4 flex items-center">
+<Bus className="w-4 h-4 mr-2 text-gray-500" />
+How to get here
+</h4>
+<div className="space-y-4">
+<div className="flex items-start space-x-3">
+<div className="min-w-[4px] h-full bg-papaya-yellow rounded-full"></div>
+<p className="text-sm text-gray-600">
+<span className="font-semibold text-gray-900 block mb-0.5">By Jeepney</span>
+Take the "Montalban/San Jose" route jeepney. Drop off at Education Street intersection.
+</p>
+</div>
+<div className="flex items-start space-x-3">
+<div className="min-w-[4px] h-full bg-papaya-green rounded-full"></div>
+<p className="text-sm text-gray-600">
+<span className="font-semibold text-gray-900 block mb-0.5">By Car</span>
+Parking is available at the main gate. Visitor passes required upon entry.
+</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</ScrollReveal>
+</div>
+</section>
+{/* --- UPDATED GOOGLE MAPS SECTION END --- */}
 
-                </div>
-            </div>
-          </ScrollReveal>
-        </div>
-      </section>
-      {/* --- UPDATED GOOGLE MAPS SECTION END --- */}
+<Footer />
 
-      <Footer />
-
-      {/* --- AI CHATBOX --- */}
+{/* --- AI CHATBOX --- */}
       
-      {/* Floating Chat Icon (Smoother In/Out) */}
-      <div 
-        className={`fixed bottom-6 right-6 transition-all duration-500 ease-in-out transform ${
-          !isChatOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-75 translate-y-10 pointer-events-none'
-        }`}
-        style={{ zIndex: 2147483647 }}
-      >
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 animate-bounce group"
-        >
-          <MessageCircle className="w-7 h-7" />
-          <span className="absolute -top-1 -right-1 bg-papaya-yellow text-papaya-green text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
-            1
-          </span>
-        </button>
-      </div>
+{/* Floating Chat Icon (Smoother In/Out) */}
+<div 
+className={`fixed bottom-6 right-6 transition-all duration-500 ease-in-out transform ${
+!isChatOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-75 translate-y-10 pointer-events-none'
+}`}
+style={{ zIndex: 2147483647 }}
+>
+<button
+onClick={() => setIsChatOpen(true)}
+className="bg-gradient-to-r from-papaya-green to-green-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all duration-300 animate-bounce group"
+>
+<MessageCircle className="w-7 h-7" />
+<span className="absolute -top-1 -right-1 bg-papaya-yellow text-papaya-green text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+1
+</span>
+</button>
+</div>
 
       {/* Chat Interface - (Smoother In/Out Animation) */}
       {/* Changed logic: removed {isChatOpen && ...} wrapping to allow CSS transition on exit */}
