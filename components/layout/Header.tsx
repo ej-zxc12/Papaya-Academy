@@ -79,7 +79,7 @@ export default function Header() {
             </button>
           </Link>
 
-          {/* Portal Login Icon (Graduation Cap) */}
+          {/* Portal Login Icon (Graduation Cap) - Updated with md:flex breakpoint */}
           <Link 
             href="/portal/login" 
             className="flex items-center justify-center hover:opacity-80 transition-opacity" 
