@@ -40,7 +40,7 @@ export default function Header() {
         </Link>
         
         {/* Navigation */}
-        <nav className="hidden lg:flex space-x-6 items-center flex-1 justify-center max-w-2xl mx-8">
+        <nav className="hidden md:flex space-x-6 items-center flex-1 justify-center max-w-2xl mx-8">
 
           <Link href="/" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             Home
@@ -56,7 +56,7 @@ export default function Header() {
         </nav>
         
         {/* Action Buttons */}
-        <div className="hidden lg:flex items-center space-x-4 flex-shrink-0">
+        <div className="hidden md:flex items-center space-x-4 flex-shrink-0">
           {/* Donate Button */}
           <Link href="/donate">
             <button
