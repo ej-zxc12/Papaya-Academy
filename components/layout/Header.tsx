@@ -36,7 +36,7 @@ export default function Header() {
               priority
             />
           </div>
-          <h1 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold tracking-wide leading-tight hidden xs:block sm:block">Papaya Academy, Inc.</h1>
+          <h1 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold tracking-wide leading-tight">Papaya Academy, Inc.</h1>
         </Link>
         
         {/* Navigation */}
