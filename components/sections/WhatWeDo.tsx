@@ -1,31 +1,30 @@
+"use client";
+
 import React from 'react';
 import Link from 'next/link';
-import ScrollReveal from '../ui/ScrollReveal'; // Import the reusable animator
+import ScrollReveal from '../ui/ScrollReveal'; // Import reusable animator
 
 const WhatWeDo = () => {
+
   return (
     <section className="py-16 bg-papaya-light">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row gap-12 items-center">
+        <div className="flex flex-col lg:flex-row gap-8">
           
-          {/* Left Column - Text Content */}
-          <div className="md:w-1/2">
-            
-            {/* Title: Slides in from the left */}
+          {/* Left Sub-Section - Text Content */}
+          <div className="lg:w-1/2 w-full">
             <ScrollReveal animation="slide-left">
               <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-6">
                 What we do
               </h2>
             </ScrollReveal>
 
-            {/* Paragraph: Fades up after the title */}
             <ScrollReveal animation="fade-up" delay={200}>
               <p className="text-gray-700 mb-8 text-lg leading-relaxed">
                 Papaya Academy is a private charity school in Rodriguez (Montalban), Rizal. It Offers not just quality education but also free lunch, transportation, books, uniforms, school supplies, free tuition and educational tours for the less fortunate children. We provide education to impoverished elementary students around Payatas dump and Rodriguez, Rizal
               </p>
             </ScrollReveal>
 
-            {/* Button: Fades up last */}
             <ScrollReveal animation="fade-up" delay={400}>
               <Link 
                 href="/about" 
@@ -36,20 +35,20 @@ const WhatWeDo = () => {
             </ScrollReveal>
           </div>
           
-          {/* Right Column - Video Placeholder */}
-          <div className="md:w-1/2 w-full">
-            {/* Video Box: Slides in from the right to meet the text */}
-            <ScrollReveal animation="slide-right" delay={200}>
-              <div className="bg-gray-200 rounded-lg overflow-hidden aspect-video shadow-lg relative group">
-                <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white transition-colors duration-500 group-hover:bg-gray-700">
-                  <div className="text-center p-8">
-                    <div className="text-4xl mb-4 opacity-50 group-hover:opacity-100 transition-opacity duration-300">▶</div>
-                    <div className="text-2xl mb-4 font-semibold">Video Coming Soon</div>
-                    <p className="text-gray-300">We're working on our story video</p>
-                  </div>
-                </div>
-              </div>
-            </ScrollReveal>
+          {/* Right Sub-Section - Video */}
+          <div className="lg:w-1/2 w-full">
+            <div 
+              className="w-full bg-gray-200 rounded-lg shadow-xl overflow-hidden"
+              style={{ height: '300px' }}
+            >
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/NjeY6iQxPAY?autoplay=1&mute=1&loop=1&playlist=NjeY6iQxPAY"
+                allow="autoplay"
+                allowFullScreen
+                title="Papaya Academy Video"
+              />
+            </div>
           </div>
 
         </div>

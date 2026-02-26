@@ -27,7 +27,9 @@ export function middleware(request: NextRequest) {
     // Validate session (you might want to decode JWT or check against database)
     try {
       const sessionData = JSON.parse(session.value);
-      if (!sessionData.teacher || !sessionData.teacher.id) {
+      const teacherFromSession = sessionData?.teacher ?? sessionData;
+      const teacherId = teacherFromSession?.id ?? teacherFromSession?.uid ?? teacherFromSession?.userId;
+      if (!teacherId) {
         return NextResponse.redirect(new URL('/portal/login', request.url));
       }
     } catch (error) {
