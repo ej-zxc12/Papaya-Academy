@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { Smartphone, Globe, Heart, CheckCircle2, Mail } from 'lucide-react';
+import { Smartphone, Globe, Heart, CheckCircle2, Mail, Lock } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import { loadStripe } from '@stripe/stripe-js';
@@ -69,32 +69,7 @@ export default function DonatePage() {
   };
 
   const handleDonate = async () => {
-    if (!amount || amount <= 0) return alert('Please enter a valid amount');
-    if (!email || !email.includes('@')) return alert('Please enter a valid email address');
-    
-    setLoading(true);
-
-    try {
-      const endpoint = activeTab === 'local' ? '/api/donate/local' : '/api/donate/international';
-      
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, email }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Payment failed');
-
-      if (data.url || data.checkoutUrl) {
-        window.location.href = data.url || data.checkoutUrl;
-      }
-    } catch (error) {
-      console.error('Donation failed:', error);
-      alert('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    return;
   };
 
   return (
@@ -319,23 +294,21 @@ export default function DonatePage() {
               <div className="w-full">
                 <button
                   onClick={handleDonate}
-                  disabled={loading}
+                  disabled={true}
                   onMouseEnter={() => setIsBtnHovered(true)}
                   onMouseLeave={() => setIsBtnHovered(false)}
-                  className="flex items-center justify-center gap-2 px-8 py-4 w-full rounded-md font-bold text-sm tracking-widest border border-[#1B3E2A] border-b-4 shadow-md transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-8 py-4 w-full rounded-md font-bold text-sm tracking-widest border border-gray-300 border-b-4 shadow-md transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
                   style={{
-                    backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                    backgroundImage: 'linear-gradient(to top, #E5E7EB 50%, transparent 50%)',
                     backgroundSize: '100% 200%',
                     backgroundPosition: isBtnHovered ? 'bottom' : 'top',
-                    color: isBtnHovered ? '#F2C94C' : '#1B3E2A', 
-                    borderColor: '#1B3E2A',
-                    boxShadow: isBtnHovered ? '0 6px 20px rgba(27, 62, 42, 0.4)' : '0 4px 6px rgba(0,0,0,0.1)',
+                    color: '#6B7280',
+                    borderColor: '#D1D5DB',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.08)',
                   }}
                 >
-                  <CheckCircle2 
-                    className={`w-5 h-5 transition-transform duration-300 ${isBtnHovered ? '-translate-y-1' : ''}`} 
-                  />
-                  {loading ? 'PROCESSING...' : `DONATE ${activeTab === 'local' ? '₱' : '$'}${amount.toLocaleString()}`}
+                  <Lock className="w-5 h-5" />
+                  COMING SOON
                 </button>
               </div>
 

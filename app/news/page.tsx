@@ -11,6 +11,7 @@ import {
   Search, 
   Tag, 
   ChevronRight,
+  Lock,
   Facebook,
   Twitter,
   Instagram,
@@ -269,37 +270,16 @@ export default function NewsPage() {
             {/* Upcoming Events Widget */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-papaya-green mb-4">Upcoming Events</h3>
-              <div className="space-y-4">
-                {[
-                  { title: "Family Day", date: "April 05", time: "8:00 AM" },
-                  { title: "Quarterly Exams", date: "Mar 25", time: "All Day" },
-                  { title: "Graduation", date: "Apr 15", time: "1:00 PM" }
-                ].map((event, i) => (
-                  <div key={i} className="flex items-start group cursor-pointer">
-                    <div className="bg-gray-100 text-gray-600 rounded-md p-2 text-center min-w-[60px] group-hover:bg-[#F2C94C] group-hover:text-[#1B3E2A] transition-colors">
-                      <div className="text-xs font-bold uppercase">{event.date.split(' ')[0]}</div>
-                      <div className="text-lg font-bold">{event.date.split(' ')[1]}</div>
-                    </div>
-                    <div className="ml-4">
-                      <h4 className="font-bold text-gray-800 group-hover:text-papaya-green transition-colors">{event.title}</h4>
-                      <p className="text-xs text-gray-500 flex items-center mt-1">
-                        <Clock className="w-3 h-3 mr-1" /> {event.time}
-                      </p>
-                    </div>
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center">
+                    <Lock className="w-5 h-5 text-gray-500" />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Social Follow */}
-            <div className="bg-[#1B3E2A] p-6 rounded-lg shadow-md text-white">
-              <h3 className="text-lg font-bold text-[#F2C94C] mb-4">Follow Us</h3>
-              <p className="text-sm text-gray-300 mb-6">Stay updated with our daily activities on social media.</p>
-              <div className="flex gap-4">
-                <a href="#" className="p-2 bg-white/10 rounded-full hover:bg-[#F2C94C] hover:text-[#1B3E2A] transition-colors"><Facebook className="w-5 h-5" /></a>
-                <a href="#" className="p-2 bg-white/10 rounded-full hover:bg-[#F2C94C] hover:text-[#1B3E2A] transition-colors"><Twitter className="w-5 h-5" /></a>
-                <a href="#" className="p-2 bg-white/10 rounded-full hover:bg-[#F2C94C] hover:text-[#1B3E2A] transition-colors"><Instagram className="w-5 h-5" /></a>
-                <a href="#" className="p-2 bg-white/10 rounded-full hover:bg-[#F2C94C] hover:text-[#1B3E2A] transition-colors"><Youtube className="w-5 h-5" /></a>
+                  <div>
+                    <div className="text-sm font-bold text-gray-800">Coming Soon</div>
+                    <div className="text-xs text-gray-500">Upcoming events will be posted here.</div>
+                  </div>
+                </div>
               </div>
             </div>
 

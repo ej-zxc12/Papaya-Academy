@@ -4,9 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, LogIn, User, Lock, GraduationCap, ChevronDown, Check, ArrowLeft } from 'lucide-react';
 import { Montserrat } from 'next/font/google';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -62,43 +59,30 @@ export default function UnifiedPortalLogin() {
 
     try {
       if (credentials.role === 'teacher') {
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          credentials.email,
-          credentials.password
-        );
+        const response = await fetch('/api/portal/auth/teacher/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: credentials.email,
+            password: credentials.password,
+          }),
+        });
 
-        const user = userCredential.user;
-        const docRef = doc(db, 'teachers_user', user.uid);
-        const docSnap = await getDoc(docRef);
+        const data = await response.json().catch(() => null);
 
-        if (!docSnap.exists()) {
-          await signOut(auth);
-          setError('Account is not registered as a teacher. Please contact the administrator.');
+        if (!response.ok) {
+          setError(data?.message || 'Invalid email or password');
           return;
         }
 
-        const profile = docSnap.data() as any;
-
-        if (profile?.role !== 'teacher') {
-          await signOut(auth);
-          setError('Account is not authorized as a teacher. Please contact the administrator.');
-          return;
+        // The API sets an httpOnly cookie (teacherSession) used by middleware.
+        // We also keep a localStorage copy for client-side pages/components.
+        if (data?.session) {
+          localStorage.setItem('teacherSession', JSON.stringify(data.session));
+        } else if (data?.teacher) {
+          localStorage.setItem('teacherSession', JSON.stringify({ teacher: data.teacher }));
         }
 
-        if (profile?.isActive === false) {
-          await signOut(auth);
-          setError('Teacher account is inactive. Please contact the administrator.');
-          return;
-        }
-
-        const teacherData = {
-          uid: user.uid,
-          email: user.email,
-          ...profile,
-        };
-
-        localStorage.setItem('teacherSession', JSON.stringify(teacherData));
         router.push('/teacher/dashboard');
         return;
       }
