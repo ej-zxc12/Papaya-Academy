@@ -23,9 +23,9 @@ export default function Header() {
 
   return (
     <header className={`bg-papaya-green text-white ${montserrat.className} relative z-50`}>
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center gap-4">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo with Link to Home */}
-        <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
+        <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity flex-shrink-0">
           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
             <Image 
               src="/images/papaya.jpg" 
@@ -40,23 +40,23 @@ export default function Header() {
         </Link>
         
         {/* Navigation */}
-        <nav className="hidden md:flex space-x-8 items-center">
+        <nav className="hidden lg:flex space-x-6 items-center flex-1 justify-center max-w-2xl mx-8">
 
-          <Link href="/" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             Home
           </Link>
           <AboutDropdown />
           <ProgramsDropdown />
-          <Link href="/news" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/news" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             News
           </Link>
-          <Link href="/contact" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/contact" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             Contact
           </Link>
         </nav>
         
         {/* Action Buttons */}
-        <div className="hidden md:flex items-center space-x-6">
+        <div className="hidden lg:flex items-center space-x-4 flex-shrink-0">
           {/* Donate Button */}
           <Link href="/donate">
             <button

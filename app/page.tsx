@@ -167,9 +167,11 @@ export default function Home() {
                   <div className="md:w-2/5 bg-papaya-green/5 flex items-center justify-center p-6">
                     <div className="w-full h-56 bg-gray-100 rounded-lg overflow-hidden relative group">
                       <div className="absolute inset-0 bg-papaya-green/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      <img 
+                      <Image 
                         src="/images/pineapple.jpg" 
                         alt="Livelihood Program"
+                        width={400}
+                        height={224}
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
