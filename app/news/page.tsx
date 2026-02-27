@@ -31,7 +31,7 @@ const montserrat = Montserrat({
   weight: ['300', '400', '500', '600', '700'],
 });
 
-const CATEGORIES = ["All", "Featured", "Cultural", "Academic", "Sports"];
+const CATEGORIES = ["All", "Features", "Cultural", "Academic", "Support"];
 
 export default function NewsPage() {
   const [isHovered, setIsHovered] = useState(false);
@@ -39,6 +39,8 @@ export default function NewsPage() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const activeCategoryKey = activeCategory.trim().toLowerCase();
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -60,19 +62,33 @@ export default function NewsPage() {
     fetchArticles();
   }, []);
 
-  // Filter logic
-  const filteredArticles = activeCategory === "All" 
-    ? articles 
-    : articles.filter(item => {
-        if (activeCategory === "Featured") {
-          return item.imageUrl !== null; // Consider articles with images as featured
-        }
-        // For other categories, you might want to add a category field to your database
-        return true; // For now, show all for non-featured categories
-      });
+  const filteredArticles = (() => {
+    if (activeCategoryKey === 'all') return articles;
 
-  const featuredStory = filteredArticles.find(item => item.imageUrl !== null);
-  const standardStories = filteredArticles.filter(item => !item.imageUrl || activeCategory !== "All");
+    if (activeCategoryKey === 'features') {
+      return articles.filter((item) => Boolean(item.imageUrl));
+    }
+
+    const categoryMappings: Record<string, string[]> = {
+      'features': ['featured', 'features'],
+      'cultural': ['cultural'],
+      'academic': ['academic'],
+      'support': ['support']
+    };
+    const validCategories = categoryMappings[activeCategoryKey] || [activeCategoryKey];
+
+    return articles.filter((item) => {
+      const rawCategory = (item as any).category ?? (item as any).categoryType ?? (item as any).type;
+      const normalizedItemCategory = typeof rawCategory === 'string' ? rawCategory.toLowerCase() : '';
+
+      if (!normalizedItemCategory) return true;
+
+      return validCategories.includes(normalizedItemCategory);
+    });
+  })();
+
+  // All and Features both show filtered results directly
+  const standardStories = filteredArticles;
 
   if (loading) {
     return (
@@ -116,7 +132,7 @@ export default function NewsPage() {
       {/* --- HEADER --- */}
       <Header />
 
-{/* --- NEWS PAGE HEADER --- */}
+      {/* --- NEWS PAGE HEADER --- */}
       <section className="relative bg-gradient-to-br from-papaya-green to-green-800 text-white py-20 z-0">
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div className="container mx-auto px-4 relative z-10">
@@ -138,55 +154,6 @@ export default function NewsPage() {
           
           {/* --- MAIN CONTENT AREA --- */}
           <div className="lg:w-2/3">
-            
-            {/* FEATURED STORY (Hero Card) - Only shows if 'All' is selected */}
-            {activeCategory === "All" && featuredStory && (
-              <ScrollReveal animation="fade-up" className="mb-12">
-                <div className="group relative rounded-xl overflow-hidden shadow-xl bg-white">
-                  <div className="h-[400px] relative overflow-hidden">
-                    {featuredStory.imageUrl && (
-                      <Image 
-                        src={featuredStory.imageUrl} 
-                        alt={featuredStory.title} 
-                        fill 
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute top-4 left-4">
-                      <span className="bg-[#F2C94C] text-[#1B3E2A] px-3 py-1 text-xs font-bold tracking-widest uppercase rounded-sm">
-                        Featured
-                      </span>
-                    </div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white">
-                    <div className="flex items-center space-x-4 text-sm mb-3 opacity-90">
-                      <span className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1 text-[#F2C94C]" /> 
-                        {formatNewsDate(featuredStory.date || featuredStory.createdAt)}
-                      </span>
-                      {featuredStory.author && (
-                        <span className="flex items-center">
-                          <Tag className="w-4 h-4 mr-1 text-[#F2C94C]" /> 
-                          {featuredStory.author}
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight group-hover:text-[#F2C94C] transition-colors">
-                      <Link href={`/news/${featuredStory.id}`}>{featuredStory.title}</Link>
-                    </h2>
-                    <p className="text-gray-200 mb-6 max-w-2xl line-clamp-2 md:line-clamp-none">
-                      {featuredStory.content.substring(0, 200)}...
-                    </p>
-                    <Link href={`/news/${featuredStory.id}`}>
-                      <button className="flex items-center font-bold text-[#F2C94C] hover:text-white transition-colors">
-                        READ FULL STORY <ArrowRight className="w-4 h-4 ml-2" />
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              </ScrollReveal>
-            )}
 
             {/* CATEGORY FILTER (Mobile Only - usually) */}
             <div className="flex overflow-x-auto pb-4 mb-8 gap-2 lg:hidden no-scrollbar">
@@ -195,8 +162,8 @@ export default function NewsPage() {
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={`inline-flex items-center justify-center text-center px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors min-h-[40px] leading-none ${
-                    activeCategory === cat 
-                      ? 'bg-papaya-green text-white border border-papaya-green' 
+                    activeCategory === cat
+                      ? 'bg-papaya-green text-white border border-papaya-green'
                       : 'bg-white text-papaya-green border border-papaya-green/40'
                   }`}
                 >
