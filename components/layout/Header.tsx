@@ -23,10 +23,10 @@ export default function Header() {
 
   return (
     <header className={`bg-papaya-green text-white ${montserrat.className} relative z-50`}>
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center gap-4">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo with Link to Home */}
-        <Link href="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
-          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+        <Link href="/" className="flex items-center space-x-2 hover:opacity-90 transition-opacity flex-shrink-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0">
             <Image 
               src="/images/papaya.jpg" 
               alt="Papaya Academy Logo" 
@@ -36,33 +36,33 @@ export default function Header() {
               priority
             />
           </div>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-wide leading-tight">Papaya Academy, Inc.</h1>
+          <h1 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold tracking-wide leading-tight">Papaya Academy, Inc.</h1>
         </Link>
         
         {/* Navigation */}
-        <nav className="hidden md:flex space-x-8 items-center">
+        <nav className="hidden md:flex space-x-3 lg:space-x-4 xl:space-x-6 items-center flex-1 justify-center">
 
-          <Link href="/" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/" className="nav-link text-xs sm:text-sm md:text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             Home
           </Link>
           <AboutDropdown />
           <ProgramsDropdown />
-          <Link href="/news" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/news" className="nav-link text-xs sm:text-sm md:text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             News
           </Link>
-          <Link href="/contact" className="nav-link text-base font-medium hover:text-[#F2C94C] transition-colors">
+          <Link href="/contact" className="nav-link text-xs sm:text-sm md:text-base font-medium hover:text-[#F2C94C] transition-colors whitespace-nowrap">
             Contact
           </Link>
         </nav>
         
         {/* Action Buttons */}
-        <div className="hidden md:flex items-center space-x-6">
+        <div className="hidden md:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
           {/* Donate Button */}
           <Link href="/donate">
             <button
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              className="px-8 py-2.5 rounded-md font-bold text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
+              className="px-4 sm:px-6 lg:px-8 py-2 lg:py-2.5 rounded-md font-bold text-xs sm:text-sm tracking-widest border border-[#F2C94C] shadow-md transition-all duration-300"
               style={isClient ? {
                 backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
                 backgroundSize: '100% 200%',
@@ -79,7 +79,7 @@ export default function Header() {
             </button>
           </Link>
 
-          {/* Portal Login Icon (Graduation Cap) */}
+          {/* Portal Login Icon (Graduation Cap) - Updated with md:flex breakpoint */}
           <Link 
             href="/portal/login" 
             className="flex items-center justify-center hover:opacity-80 transition-opacity" 

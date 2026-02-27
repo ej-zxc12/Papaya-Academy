@@ -35,21 +35,21 @@ const AboutDropdown = () => {
       onMouseLeave={() => setIsOpen(false)}
     >
       <button 
-        className="flex items-center nav-link text-base font-medium hover:text-[#F2C94C] transition-colors focus:outline-none"
+        className="flex items-center nav-link text-xs sm:text-sm md:text-base font-medium hover:text-[#F2C94C] transition-colors focus:outline-none"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="true"
       >
         About Us
         {isOpen ? (
-          <ChevronUp className="ml-1 w-4 h-4" />
+          <ChevronUp className="ml-1 w-3 h-3 sm:w-4 sm:h-4" />
         ) : (
-          <ChevronDown className="ml-1 w-4 h-4" />
+          <ChevronDown className="ml-1 w-3 h-3 sm:w-4 sm:h-4" />
         )}
       </button>
       
       <div 
-        className={`absolute left-0 top-full mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
+        className={`absolute left-0 top-full mt-2 w-48 sm:w-56 bg-white rounded-md shadow-lg py-1 z-50 transition-all duration-200 ease-in-out ${
           isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
         }`}
       >
