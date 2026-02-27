@@ -46,21 +46,41 @@ export default function Home() {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  const [isReducedMotion, setIsReducedMotion] = useState(false);
+
   const images = ['/images/1.jpg', '/images/3.jpg', '/images/jeep.jpg'];
 
 
 
   useEffect(() => {
 
+    // Check for reduced motion preference
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    setIsReducedMotion(mediaQuery.matches);
+    
+    const handleChange = (e: MediaQueryListEvent) => setIsReducedMotion(e.matches);
+
+    mediaQuery.addEventListener('change', handleChange);
+    
+    return () => mediaQuery.removeEventListener('change', handleChange);
+
+  }, []);
+
+  useEffect(() => {
+
+    if (isReducedMotion) return; // Don't auto-change images if reduced motion
+    
     const interval = setInterval(() => {
 
       setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
 
-    }, 5000);
+    }, 6000); // Slower interval for better performance
 
     return () => clearInterval(interval);
 
-  }, [images.length]);
+  }, [images.length, isReducedMotion]);
 
 
 
@@ -84,7 +104,7 @@ export default function Home() {
 
               key={index}
 
-              className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 bg-cover bg-center ${isReducedMotion ? 'opacity-100' : 'transition-opacity duration-1000 ease-in-out'} ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
 
               style={{ 
 
@@ -108,17 +128,15 @@ export default function Home() {
 
             {/* Gold Line Animation */}
 
-            <ScrollReveal animation="slide-left" delay={100}>
+            <ScrollReveal animation={isReducedMotion ? "fade-up" : "slide-left"} delay={isReducedMotion ? 0 : 100}>
 
               <div className="w-24 h-1.5 bg-[#F2C94C] mb-8 relative z-20 shadow-sm"></div>
 
             </ScrollReveal>
 
-
-
             {/* Header Animation */}
 
-            <ScrollReveal animation="fade-up" delay={300}>
+            <ScrollReveal animation={isReducedMotion ? "fade-up" : "fade-up"} delay={isReducedMotion ? 0 : 300}>
 
               <h1 className="text-5xl md:text-6xl font-light tracking-wide mb-6 leading-tight drop-shadow-lg text-white">
 
@@ -132,7 +150,7 @@ export default function Home() {
 
             {/* Paragraph Animation */}
 
-            <ScrollReveal animation="fade-up" delay={500}>
+            <ScrollReveal animation={isReducedMotion ? "fade-up" : "fade-up"} delay={isReducedMotion ? 0 : 500}>
 
               <p className="text-lg md:text-xl mb-8 text-gray-100 font-light leading-relaxed opacity-90 tracking-wide max-w-2xl">
 

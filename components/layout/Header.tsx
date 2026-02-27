@@ -214,126 +214,116 @@ export default function Header() {
           aria-expanded={mobileMenuOpen}
           onClick={() => setMobileMenuOpen((v) => !v)}
         >
-
           <svg
-
             xmlns="http://www.w3.org/2000/svg"
-
             viewBox="0 0 24 24"
-
             fill="none"
-
             stroke="currentColor"
-
             strokeWidth="2"
-
             strokeLinecap="round"
-
             strokeLinejoin="round"
-
             className="w-6 h-6"
-
           >
-
             {mobileMenuOpen ? (
-
               <>
-
                 <path d="M18 6 6 18" />
-
                 <path d="m6 6 12 12" />
-
               </>
-
             ) : (
-
               <>
-
                 <path d="M4 6h16" />
-
                 <path d="M4 12h16" />
-
                 <path d="M4 18h16" />
-
               </>
-
             )}
-
           </svg>
-
         </button>
-
       </div>
 
-
-
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-white/15 bg-papaya-green">
-
-          <div className="container mx-auto px-4 py-4 space-y-3">
-
+      {/* Mobile Navigation Menu - Smooth Fade In/Out Animation */}
+      <div 
+        className={`fixed inset-x-0 top-0 bg-papaya-green border-t border-white/15 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.68,-0.55,0.27,1.55)] origin-top transform lg:hidden ${
+          mobileMenuOpen ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+        }`}
+        style={{ 
+          position: 'fixed',
+          top: '64px', // Position directly below header
+          left: '0',
+          right: '0',
+          zIndex: 40
+        }}
+      >
+          <div className="container mx-auto px-4 py-4 space-y-2">
             <Link
-
               href="/"
-
-              className="block py-2 font-semibold tracking-wide"
-
+              className="block py-3 px-4 font-semibold tracking-wide text-base hover:bg-white/10 rounded-md transition-colors duration-200"
               onClick={() => setMobileMenuOpen(false)}
-
             >
-
               Home
-
             </Link>
 
-
-
             <div className="py-1">
-
-              <AboutDropdown />
-
+              <div className="mobile-dropdown">
+                <button 
+                  className="w-full py-3 px-4 font-semibold tracking-wide text-base hover:bg-white/10 rounded-md transition-colors duration-200 flex items-center justify-between"
+                  onClick={() => {
+                    const aboutDropdown = document.getElementById('mobile-about-dropdown');
+                    aboutDropdown?.classList.toggle('hidden');
+                  }}
+                >
+                  About Us
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div id="mobile-about-dropdown" className="hidden pl-4 space-y-1 mt-1">
+                  <Link href="/about#our-story" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Our Story</Link>
+                  <Link href="/about#mission" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Our Mission & Vision</Link>
+                  <Link href="/about#team" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Organizational Chart</Link>
+                  <Link href="/about#partners" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Partners & Sponsors</Link>
+                </div>
+              </div>
             </div>
 
             <div className="py-1">
-
-              <ProgramsDropdown />
-
+              <div className="mobile-dropdown">
+                <button 
+                  className="w-full py-3 px-4 font-semibold tracking-wide text-base hover:bg-white/10 rounded-md transition-colors duration-200 flex items-center justify-between"
+                  onClick={() => {
+                    const programsDropdown = document.getElementById('mobile-programs-dropdown');
+                    programsDropdown?.classList.toggle('hidden');
+                  }}
+                >
+                  Programs
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div id="mobile-programs-dropdown" className="hidden pl-4 space-y-1 mt-1">
+                  <Link href="/projects/apple-scholarships" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Apple Scholarships</Link>
+                  <Link href="/projects/pineapple-project" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Pineapple Project</Link>
+                  <Link href="/programs/foundation-day" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Foundation Day</Link>
+                </div>
+              </div>
             </div>
-
-
 
             <Link
-
               href="/news"
-
-              className="block py-2 font-semibold tracking-wide"
-
+              className="block py-3 px-4 font-semibold tracking-wide text-base hover:bg-white/10 rounded-md transition-colors duration-200"
               onClick={() => setMobileMenuOpen(false)}
-
             >
-
               News
-
             </Link>
 
             <Link
-
               href="/contact"
-
-              className="block py-2 font-semibold tracking-wide"
-
+              className="block py-3 px-4 font-semibold tracking-wide text-base hover:bg-white/10 rounded-md transition-colors duration-200"
               onClick={() => setMobileMenuOpen(false)}
-
             >
-
               Contact
-
             </Link>
-
-
 
             <div className="pt-3 border-t border-white/15 flex items-center gap-3">
-
               <Link href="/donate" className="flex-1" onClick={() => setMobileMenuOpen(false)}>
 
                 <button
@@ -405,19 +395,10 @@ export default function Header() {
                   <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
 
                 </svg>
-
               </Link>
-
             </div>
-
           </div>
-
         </div>
-
-      )}
-
     </header>
-
   );
-
 }
