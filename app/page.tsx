@@ -240,7 +240,7 @@ export default function Home() {
 
                     <p className="text-gray-600 mb-4 leading-relaxed">
 
-                      Schooling program to impoverished children in elementary level (Kinder to Grade 6), providing free education to less privileged children from Payatas and Rodriguez, Rizal.
+                      Schooling program to underserved children in elementary level (Kinder to Grade 6), providing free education to less privileged children from Payatas and Rodriguez, Rizal.
 
                     </p>
 

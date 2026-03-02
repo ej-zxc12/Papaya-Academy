@@ -406,8 +406,8 @@ function AboutPageContent() {
                 title: 'Papaya Academy Inc.',
                 members: [
                   { name: 'Ailyn C. Gardose', role: 'President', image: '/images/ailyn.jpg' },
+                  { name: 'Hadassah A. Castro', role: 'Corporate Secretary', image: '/images/hadassah.jpg' },
                   { name: 'Michelle Ann Salmorin', role: 'Treasurer', image: '/images/michelle.jpg' },
-                  { name: 'Hadassah A. Castro', role: 'Administrator', image: '/images/hadassah.jpg' },
                   { name: 'Maria Julie Collado', role: 'Member', image: '/images/maria.jpg' },
                   { name: 'Tristan Ian C. Santos', role: 'Member', image: '/images/tristan.jpg' },
                 ],
