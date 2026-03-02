@@ -366,7 +366,7 @@ export default function Home() {
 
                       <img 
 
-                        src="/images/pineapple.jpg" 
+                        src="/images/Pineapple.jpg" 
 
                         alt="Livelihood Program"
 
