@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Montserrat } from 'next/font/google';
@@ -19,6 +19,41 @@ const montserrat = Montserrat({
 
 export default function PineappleProjectPage() {
   const [isHovered, setIsHovered] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Pineapple project images for slideshow
+  const images = [
+    '/images/Pineapple.jpg',
+    '/images/pineapple1.jpg',
+    '/images/pineapple2.jpg',
+    '/images/pineapple3.jpg',
+  ];
+
+  // Auto-advance slideshow
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % images.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  // Intersection observer for animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.2 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className={`min-h-screen flex flex-col ${montserrat.className}`}>
@@ -47,13 +82,13 @@ export default function PineappleProjectPage() {
             
             <ScrollReveal animation="fade-up" delay={200}>
               <h1 className="text-5xl md:text-7xl font-light tracking-wide mb-8 leading-tight">
-                Pineapple Project
+                Pineapple Livelihood
               </h1>
             </ScrollReveal>
             
             <ScrollReveal animation="fade-up" delay={400}>
               <p className="text-xl md:text-2xl text-gray-200 font-light max-w-2xl mx-auto leading-relaxed opacity-90">
-                Cultivating sustainable livelihoods through agricultural innovation and community empowerment.
+                Building sustainable livelihoods through creativity, environmental responsibility, and community empowerment.
               </p>
             </ScrollReveal>
             
@@ -64,6 +99,86 @@ export default function PineappleProjectPage() {
       {/* --- MAIN CONTENT --- */}
       <main className="flex-grow">
         
+        {/* --- PINEAPPLE INITIATIVE ANNOUNCEMENT --- */}
+        <section ref={sectionRef} className="py-16 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              <div className={`text-center mb-12 transition-all duration-700 ease-out transform ${
+                isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'
+              }`}>
+                <h2 className="text-3xl md:text-4xl font-bold text-papaya-green mb-4">
+                  Our New Pineapple Initiative Has Launched
+                </h2>
+                <div className="w-20 h-1 bg-papaya-green mx-auto"></div>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                <div className="w-full">
+                  <div className="relative rounded-2xl overflow-hidden shadow-lg bg-gray-100">
+                    <div className="relative w-full h-80 md:h-[460px]">
+                      {/* Image carousel with fade transitions */}
+                      {images.map((src, index) => (
+                        <img
+                          key={src}
+                          src={src}
+                          alt="Pineapple Farming Initiative"
+                          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                            index === activeIndex ? 'opacity-100' : 'opacity-0'
+                          }`}
+                        />
+                      ))}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+                    </div>
+
+                    {/* Dots indicator */}
+                    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-white">
+                      {images.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          aria-label={`Go to image ${i + 1}`}
+                          onClick={() => setActiveIndex(i)}
+                          className={`h-2 rounded-full transition-all ${
+                            i === activeIndex ? 'w-8 bg-papaya-green' : 'w-2 bg-gray-300 hover:bg-gray-400'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="w-full">
+                  <h3 className={`text-2xl md:text-3xl font-bold text-papaya-green mb-5 transition-all duration-700 ease-out delay-200 transform ${
+                    isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'
+                  }`}>
+                    Launch of the Pineapple Livelihood Initiative
+                  </h3>
+
+                  <div className="space-y-4 text-gray-700 leading-relaxed text-lg">
+                    <p className={`transition-all duration-700 ease-out delay-300 transform ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                    }`}>
+                      The launch of the Pineapple Livelihood Initiative marks a meaningful milestone in our commitment to empowering families within our community. Formed by proud parents of Papaya Academy scholars, this initiative creates sustainable income opportunities through handcrafted products made from recycled paper, magazines, beads, and crochet materials.
+                    </p>
+
+                    <p className={`transition-all duration-700 ease-out delay-400 transform ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                    }`}>
+                      Made possible through the generous support of our partners and donors, this program transforms creativity into livelihood while promoting environmental responsibility. Each product reflects resilience, gratitude, and the shared vision of building brighter futures for our children.
+                    </p>
+
+                    <p className={`transition-all duration-700 ease-out delay-500 transform ${
+                      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                    }`}>
+                     Pineapple Livelihood is more than a project — it is a symbol of opportunity, unity, and our unwavering commitment to empowering parents and supporting scholars through purposeful enterprise.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* --- ABOUT SECTION --- */}
         <section className="py-20 bg-white">
           <div className="container mx-auto px-4">
@@ -76,10 +191,8 @@ export default function PineappleProjectPage() {
               
               <ScrollReveal animation="fade-up" delay={200}>
                 <p className="text-lg text-gray-600 leading-relaxed mb-8 text-center">
-                  The Pineapple Project is a comprehensive community development initiative that focuses on 
-                  sustainable agriculture as a pathway to economic empowerment. By training families in modern 
-                  pineapple farming techniques, we create lasting income opportunities while promoting 
-                  environmental sustainability.
+                  Empowering Parents. Supporting Education. Promoting Sustainability.
+Pineapple Livelihood turns creativity into income through handcrafted, recycled products made by the proud families of Papaya Academy scholars.
                 </p>
               </ScrollReveal>
 
