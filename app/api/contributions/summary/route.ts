@@ -129,10 +129,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(summary);
 
-  } catch (error) {
-    console.error('Error generating summary:', error);
+  } catch (error: any) {
+    console.error('[summary] Error generating summary:', error?.message || error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', error: error?.message },
       { status: 500 }
     );
   }

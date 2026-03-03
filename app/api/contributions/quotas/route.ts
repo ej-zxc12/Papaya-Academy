@@ -8,8 +8,11 @@ const TARGET_AMOUNT_PER_STUDENT = 2000;
 
 function getTeacherIdFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
+  console.log('[quotas] Auth header:', authHeader);
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
+    const id = authHeader.substring(7);
+    console.log('[quotas] Extracted teacherId from Bearer:', id);
+    return decodeURIComponent(id);
   }
 
   const sessionCookie = request.cookies.get('teacherSession')?.value;
@@ -17,7 +20,9 @@ function getTeacherIdFromRequest(request: NextRequest) {
     try {
       const sessionData = JSON.parse(sessionCookie);
       const t = sessionData?.teacher ?? sessionData;
-      return t?.uid || t?.id || null;
+      const uid = t?.uid || t?.id || null;
+      console.log('[quotas] Extracted teacherId from cookie:', uid);
+      return uid;
     } catch {
       return null;
     }
@@ -49,6 +54,17 @@ export async function GET(request: NextRequest) {
 
     const studentsSnap = await studentsQuery.get();
     const students = studentsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+
+    console.log(`[quotas] Found ${students.length} students for teacher ${requestorId}, scope=${scope}, gradeLevel=${gradeLevel || 'all'}`);
+    if (students.length === 0) {
+      console.log('[quotas] No students found. Checking all students in collection...');
+      const allStudentsSnap = await db.collection(STUDENTS_COLLECTION).get();
+      console.log(`[quotas] Total students in collection: ${allStudentsSnap.docs.length}`);
+      allStudentsSnap.docs.slice(0, 5).forEach((d) => {
+        const data = d.data();
+        console.log(`[quotas] Sample student: id=${d.id}, name=${data.name}, teacherId=${data.teacherId}`);
+      });
+    }
 
     const paymentsSnap = await db
       .collection(PAYMENTS_COLLECTION)
@@ -109,10 +125,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(quotas);
 
-  } catch (error) {
-    console.error('Error calculating quotas:', error);
+  } catch (error: any) {
+    console.error('[quotas] Error calculating quotas:', error?.message || error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        message: 'Internal server error', 
+        error: error?.message, 
+        details: 'Failed to calculate quotas. Please check the server logs for more information.' 
+      },
       { status: 500 }
     );
   }

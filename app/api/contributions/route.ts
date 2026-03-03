@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MonthlyContribution } from '@/types';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
 
 const COLLECTION = 'contributions_payments';
 
  function getTeacherIdFromRequest(request: NextRequest) {
    const authHeader = request.headers.get('authorization');
    if (authHeader && authHeader.startsWith('Bearer ')) {
-     return authHeader.substring(7);
+     return decodeURIComponent(authHeader.substring(7));
    }
 
    const sessionCookie = request.cookies.get('teacherSession')?.value;
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const now = serverTimestamp();
+    const now = new Date();
 
     const payload = {
       studentId: String(contributionData.studentId),
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    const docRef = await addDoc(collection(db, COLLECTION), payload);
+    const docRef = await db.collection(COLLECTION).add(payload);
 
     const newContribution: MonthlyContribution = {
       id: docRef.id,
@@ -92,10 +91,10 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
-  } catch (error) {
-    console.error('Error recording payment:', error);
+  } catch (error: any) {
+    console.error('[contributions] Error recording payment:', error?.message || error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', error: error?.message },
       { status: 500 }
     );
   }
@@ -109,45 +108,47 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
     const recordedByUid = searchParams.get('recordedByUid');
 
-    let q = query(collection(db, COLLECTION), orderBy('paymentDate', 'desc'));
-    if (month) q = query(q, where('month', '==', month));
-    if (year) q = query(q, where('year', '==', year));
-    if (studentId) q = query(q, where('studentId', '==', studentId));
-    if (recordedByUid) q = query(q, where('recordedByUid', '==', recordedByUid));
+    let q: FirebaseFirestore.Query = db.collection(COLLECTION);
+    if (month) q = q.where('month', '==', month);
+    if (year) q = q.where('year', '==', year);
+    if (studentId) q = q.where('studentId', '==', studentId);
+    if (recordedByUid) q = q.where('recordedByUid', '==', recordedByUid);
 
-    const snap = await getDocs(q);
-    const contributions: MonthlyContribution[] = snap.docs.map((d) => {
-      const data = d.data() as any;
-      const paymentDate: string = data?.paymentDate?.toDate
-        ? data.paymentDate.toDate().toISOString()
-        : typeof data?.paymentDate === 'string'
-          ? data.paymentDate
-          : '';
+    const snap = await q.get();
+    const contributions: MonthlyContribution[] = snap.docs
+      .map((d) => {
+        const data = d.data() as any;
+        const paymentDate: string = data?.paymentDate?.toDate
+          ? data.paymentDate.toDate().toISOString()
+          : typeof data?.paymentDate === 'string'
+            ? data.paymentDate
+            : '';
 
-      return {
-        id: d.id,
-        studentId: String(data.studentId ?? ''),
-        studentName: String(data.studentName ?? ''),
-        gradeLevel: String(data.gradeLevel ?? ''),
-        amount: Number(data.amount ?? 0),
-        month: String(data.month ?? ''),
-        year: String(data.year ?? ''),
-        paymentDate,
-        paymentMethod: data.paymentMethod ?? 'cash',
-        receiptNumber: data.receiptNumber ?? '',
-        recordedBy: String(data.recordedByUid ?? data.recordedBy ?? ''),
-        recordedByName: String(data.recordedByName ?? ''),
-        status: data.status ?? 'paid',
-        notes: data.notes ?? '',
-      };
-    });
+        return {
+          id: d.id,
+          studentId: String(data.studentId ?? ''),
+          studentName: String(data.studentName ?? ''),
+          gradeLevel: String(data.gradeLevel ?? ''),
+          amount: Number(data.amount ?? 0),
+          month: String(data.month ?? ''),
+          year: String(data.year ?? ''),
+          paymentDate,
+          paymentMethod: data.paymentMethod ?? 'cash',
+          receiptNumber: data.receiptNumber ?? '',
+          recordedBy: String(data.recordedByUid ?? data.recordedBy ?? ''),
+          recordedByName: String(data.recordedByName ?? ''),
+          status: data.status ?? 'paid',
+          notes: data.notes ?? '',
+        };
+      })
+      .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
 
     return NextResponse.json(contributions);
 
-  } catch (error) {
-    console.error('Error fetching contributions:', error);
+  } catch (error: any) {
+    console.error('[contributions] Error fetching contributions:', error?.message || error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', error: error?.message },
       { status: 500 }
     );
   }
