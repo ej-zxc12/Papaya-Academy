@@ -222,3 +222,94 @@ export interface ContributionSummary {
     collectionRate: number;
   }[];
 }
+
+// Hybrid Student Structure - New Implementation
+export interface StudentDocument {
+  id: string;
+  lrn: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  nameExtn?: string; // Jr, Sr, II, III
+  birthdate: string;
+  sex: 'M' | 'F';
+  
+  // Current enrollment info
+  currentGradeLevel: string;
+  currentSection: string;
+  schoolYear: string;
+  status: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
+  
+  // Academic records by school year
+  academicRecords: {
+    [schoolYear: string]: AcademicYearRecord;
+  };
+  
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AcademicYearRecord {
+  gradeLevel: string;
+  section: string;
+  adviser: string;
+  schoolYear: string;
+  
+  // Grades by grading period
+  grades: {
+    [gradingPeriod: string]: {
+      [subjectCode: string]: GradeEntry;
+    };
+  };
+  
+  // Auto-generated SF10 for this year
+  sf10: SF10Record;
+  
+  // Additional academic data
+  attendance: {
+    daysPresent: number;
+    daysAbsent: number;
+    daysTardy: number;
+  };
+  
+  behavior: {
+    conductRating: string;
+    teacherRemarks: string;
+  };
+  
+  achievements: Achievement[];
+}
+
+export interface GradeEntry {
+  grade: number;
+  teacherId: string;
+  teacherName: string;
+  dateInput: string;
+  lastModified?: string;
+  remarks?: string;
+}
+
+export interface Achievement {
+  id: string;
+  type: 'academic' | 'sports' | 'arts' | 'leadership' | 'other';
+  title: string;
+  description: string;
+  date: string;
+  award: string;
+  level: 'school' | 'district' | 'division' | 'regional' | 'national';
+}
+
+// Legacy interfaces for backward compatibility during migration
+export interface LegacyGradeRecord {
+  id: string;
+  studentId: string;
+  subjectId: string;
+  subjectName: string;
+  gradingPeriod: string;
+  grade: number;
+  teacherId: string;
+  teacherName: string;
+  dateInput: string;
+  remarks?: string;
+}

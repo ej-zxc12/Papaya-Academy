@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GradeInput } from '@/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import SF10Generator from '@/lib/sf10-generator';
 
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { grades } = await request.json();
+    const { grades, schoolYear = '2024-2025' } = await request.json();
 
     if (!Array.isArray(grades)) {
       return NextResponse.json(
@@ -41,115 +41,105 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const subjectsCollection = collection(db, 'subjects');
-    const subjectsSnapshot = await getDocs(query(subjectsCollection));
-    const subjectMap = new Map(subjectsSnapshot.docs.map(doc => [doc.id, doc.data().name]));
+    const results: {
+      processed: number;
+      saved: number;
+      updated: number;
+      errors: string[];
+    } = {
+      processed: 0,
+      saved: 0,
+      updated: 0,
+      errors: []
+    };
 
     for (const grade of grades) {
-      if (!grade.studentId || !grade.subjectId || !grade.gradingPeriod || !grade.teacherId) {
-        return NextResponse.json(
-          { message: 'Missing required fields in grade entry' },
-          { status: 400 }
-        );
-      }
+      try {
+        results.processed++;
+        
+        // Get student document
+        const studentRef = doc(db, 'students', grade.studentId);
+        const studentSnap = await getDoc(studentRef);
+        
+        if (!studentSnap.exists()) {
+          results.errors.push(`Student ${grade.studentId} not found`);
+          continue;
+        }
 
-      if (typeof grade.grade !== 'number' || grade.grade < 0 || grade.grade > 100) {
-        return NextResponse.json(
-          { message: 'Grade must be a number between 0 and 100' },
-          { status: 400 }
-        );
-      }
-    }
+        const studentData = studentSnap.data();
+        
+        // Initialize academic records if needed
+        const academicRecords = studentData.academicRecords || {};
+        const yearRecord = academicRecords[schoolYear] || {
+          gradeLevel: grade.gradeLevel || 'Grade 7',
+          section: grade.section || 'Rose',
+          adviser: grade.adviser || 'Juan Dela Cruz',
+          schoolYear,
+          grades: {},
+          sf10: null,
+          attendance: { daysPresent: 0, daysAbsent: 0, daysTardy: 0 },
+          behavior: { conductRating: 'Good', teacherRemarks: '' },
+          achievements: []
+        };
 
-    const gradesCollection = collection(db, 'grades');
-    const savedGrades = [];
-    const updatedGrades = [];
+        // Add grade to student document
+        const gradingPeriod = grade.gradingPeriod.charAt(0).toUpperCase() + grade.gradingPeriod.slice(1);
+        const subjectCode = grade.subjectId || grade.subjectName || 'UNKNOWN';
+        
+        if (!yearRecord.grades[gradingPeriod]) {
+          yearRecord.grades[gradingPeriod] = {};
+        }
 
-    for (const grade of grades) {
-      const existingGradeQuery = query(
-        gradesCollection,
-        where('studentId', '==', grade.studentId),
-        where('subjectId', '==', grade.subjectId),
-        where('gradingPeriod', '==', grade.gradingPeriod)
-      );
-      
-      const existingGradeSnapshot = await getDocs(existingGradeQuery);
-      
-      const gradeData = {
-        ...grade,
-        subjectName: subjectMap.get(grade.subjectId) || '',
-        dateInput: Timestamp.fromDate(new Date(grade.dateInput))
-      };
+        const existingGrade = yearRecord.grades[gradingPeriod][subjectCode];
+        if (existingGrade) {
+          results.updated++;
+        } else {
+          results.saved++;
+        }
 
-      if (existingGradeSnapshot.empty) {
-        const docRef = await addDoc(gradesCollection, gradeData);
-        savedGrades.push({ id: docRef.id, ...grade });
-      } else {
-        const existingDoc = existingGradeSnapshot.docs[0];
-        await setDoc(doc(db, 'grades', existingDoc.id), gradeData, { merge: true });
-        updatedGrades.push({ id: existingDoc.id, ...grade });
+        yearRecord.grades[gradingPeriod][subjectCode] = {
+          grade: grade.grade,
+          teacherId: grade.teacherId || teacherId,
+          teacherName: grade.teacherName || 'Teacher',
+          dateInput: grade.dateInput || new Date().toISOString(),
+          remarks: grade.remarks || ''
+        };
+
+        // Update student document
+        await updateDoc(studentRef, {
+          [`academicRecords.${schoolYear}`]: yearRecord,
+          updatedAt: serverTimestamp()
+        });
+
+        // Generate SF10
+        try {
+          const sf10 = await SF10Generator.generateOrUpdateSF10(grade.studentId, schoolYear);
+          
+          if (sf10) {
+            await updateDoc(studentRef, {
+              [`academicRecords.${schoolYear}.sf10`]: sf10,
+              updatedAt: serverTimestamp()
+            });
+            console.log(`✅ SF10 generated for student ${grade.studentId}`);
+          }
+        } catch (sf10Error) {
+          console.error(`⚠️ SF10 generation failed for student ${grade.studentId}:`, sf10Error);
+          // Don't fail the entire grade save if SF10 generation fails
+          // Grades are still saved successfully
+        }
+
+      } catch (error) {
+        results.errors.push(`Error processing student ${grade.studentId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 
     return NextResponse.json({
       message: 'Grades processed successfully',
-      savedCount: savedGrades.length,
-      updatedCount: updatedGrades.length,
-      totalProcessed: grades.length
+      results
     });
 
   } catch (error) {
-    console.error('Error saving grades:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const teacherId = getTeacherSession(request);
-    if (!teacherId) {
-      return NextResponse.json(
-        { message: 'Unauthorized - Please login first' },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const subjectId = searchParams.get('subjectId');
-    const gradingPeriod = searchParams.get('gradingPeriod');
-
-    const gradesCollection = collection(db, 'grades');
-    let q = query(gradesCollection);
-
-    const constraints = [];
-    if (subjectId) {
-      constraints.push(where('subjectId', '==', subjectId));
-    }
-    if (gradingPeriod) {
-      constraints.push(where('gradingPeriod', '==', gradingPeriod));
-    }
-
-    if (constraints.length > 0) {
-      q = query(gradesCollection, ...constraints);
-    }
-
-    const querySnapshot = await getDocs(q);
-    const grades = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        dateInput: data.dateInput?.toDate?.()?.toISOString() || data.dateInput
-      };
-    });
-
-    return NextResponse.json(grades);
-
-  } catch (error) {
-    console.error('Error fetching grades:', error);
+    console.error('Grade processing error:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
