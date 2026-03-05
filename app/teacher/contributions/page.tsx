@@ -8,7 +8,6 @@ import {
   Edit, 
   Trash2, 
   Search, 
-  DollarSign,
   Calendar,
   Users,
   TrendingUp,
@@ -18,7 +17,9 @@ import {
   ChevronDown,
   Check,
   Save,
-  X
+  X,
+  Banknote,
+  CreditCard
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
 
@@ -60,7 +61,9 @@ export default function ContributionManagement() {
   // State for Custom Dropdown
   const [selectedGrade, setSelectedGrade] = useState('');
   const [isGradeDropdownOpen, setIsGradeDropdownOpen] = useState(false);
+  const [isPaymentMethodDropdownOpen, setIsPaymentMethodDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const paymentMethodDropdownRef = useRef<HTMLDivElement>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -121,10 +124,13 @@ export default function ContributionManagement() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsGradeDropdownOpen(false);
       }
+      if (paymentMethodDropdownRef.current && !paymentMethodDropdownRef.current.contains(event.target as Node)) {
+        setIsPaymentMethodDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownRef]);
+  }, [dropdownRef, paymentMethodDropdownRef]);
 
   useEffect(() => {
     const run = async () => {
@@ -241,6 +247,24 @@ export default function ContributionManagement() {
     });
   };
 
+  const handleEditPayment = (contribution: MonthlyContribution) => {
+    setEditingPayment(contribution);
+    setFormData({
+      studentId: contribution.studentId,
+      amount: contribution.amount,
+      month: contribution.month,
+      year: contribution.year,
+      paymentMethod: contribution.paymentMethod,
+      receiptNumber: contribution.receiptNumber || '',
+      notes: contribution.notes || ''
+    });
+    setShowAddPayment(true);
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    setMessage({ type: 'error', text: 'Delete is not enabled yet.' });
+  };
+
   const handleStudentSelectForPayment = async (student: Student) => {
     setSelectedStudentForPayment(student);
     
@@ -284,10 +308,28 @@ export default function ContributionManagement() {
   const [isSavingPayments, setIsSavingPayments] = useState(false);
   const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<Student | null>(null);
   const [showStudentDetails, setShowStudentDetails] = useState(false);
+  
+  // State for modal animations
+  const [isModalAnimating, setIsModalAnimating] = useState(false);
+  const [modalAnimationClass, setModalAnimationClass] = useState<'enter' | 'exit' | ''>('');
 
-  // Handle payment input changes
+  // Handle payment input changes with validation
   const handlePaymentInputChange = (studentId: string, amount: string) => {
     const numAmount = parseFloat(amount) || 0;
+    
+    // Find the student's remaining balance
+    const quota = quotas.find(q => q.studentId === studentId);
+    const remainingBalance = quota?.remainingBalance || 0;
+    
+    // Validate: amount cannot exceed remaining balance
+    if (numAmount > remainingBalance) {
+      setMessage({ 
+        type: 'error', 
+        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+      });
+      return;
+    }
+    
     setUnsavedPayments(prev => ({
       ...prev,
       [studentId]: numAmount
@@ -421,7 +463,30 @@ export default function ContributionManagement() {
   // Handle student row click to show details
   const handleStudentRowClick = (student: Student) => {
     setSelectedStudentForDetails(student);
+    setModalAnimationClass('enter');
+    setIsModalAnimating(true);
     setShowStudentDetails(true);
+    
+    // Reset animation state after animation completes
+    setTimeout(() => {
+      setIsModalAnimating(false);
+    }, 300);
+  };
+
+  // Handle closing student details modal with animation
+  const handleCloseStudentDetails = () => {
+    if (isModalAnimating) return; // Prevent multiple clicks during animation
+    
+    setModalAnimationClass('exit');
+    setIsModalAnimating(true);
+    
+    // Hide modal after animation completes
+    setTimeout(() => {
+      setShowStudentDetails(false);
+      setSelectedStudentForDetails(null);
+      setModalAnimationClass('');
+      setIsModalAnimating(false);
+    }, 200);
   };
 
   // Handle payment for selected student in details modal
@@ -769,30 +834,177 @@ export default function ContributionManagement() {
     }
   };
 
-  const handleDeletePayment = async (paymentId: string) => {
-    setMessage({ type: 'error', text: 'Delete is not enabled yet.' });
-  };
-
-  const handleEditPayment = (contribution: MonthlyContribution) => {
-    setEditingPayment(contribution);
-    setFormData({
-      studentId: contribution.studentId,
-      amount: contribution.amount,
-      month: contribution.month,
-      year: contribution.year,
-      paymentMethod: contribution.paymentMethod,
-      receiptNumber: contribution.receiptNumber || '',
-      notes: contribution.notes || ''
-    });
-    setShowAddPayment(true);
-  };
-
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case 'fully_paid': return 'bg-green-100 text-green-800';
       case 'partially_paid': return 'bg-yellow-100 text-yellow-800';
       case 'not_paid': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Export to Excel function
+  const exportToExcel = async () => {
+    try {
+      // Import xlsx library dynamically
+      const XLSX = await import('xlsx');
+      
+      // Prepare data for export
+      const exportData = filteredQuotas.map(quota => {
+        const studentContributions = contributions.filter(c => c.studentId === quota.studentId);
+        const lastPaymentDate = studentContributions.length > 0
+          ? new Date(
+              Math.max(
+                ...studentContributions.map(c => new Date(c.paymentDate).getTime())
+              )
+            ).toLocaleDateString()
+          : 'No payments';
+
+        return {
+          'Student Name': quota.studentName,
+          'Grade Level': quota.gradeLevel,
+          'Total Paid': quota.totalPaid,
+          'Remaining Balance': quota.remainingBalance,
+          'Payment Status': quota.paymentStatus.replace('_', ' ').toUpperCase(),
+          'Payment Count': studentContributions.length,
+          'Last Payment Date': lastPaymentDate,
+        };
+      });
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Create main data worksheet
+      const ws1 = XLSX.utils.json_to_sheet(exportData);
+      
+      // Set column widths for main sheet
+      const colWidths = [
+        { wch: 32 }, // Student Name
+        { wch: 18 }, // Grade Level
+        { wch: 18 }, // Total Paid
+        { wch: 20 }, // Remaining Balance
+        { wch: 18 }, // Payment Status
+        { wch: 16 }, // Payment Count
+        { wch: 18 }, // Last Payment Date
+      ];
+      ws1['!cols'] = colWidths;
+
+      // Freeze header row
+      (ws1 as any)['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+      // Create summary worksheet
+      const expectedPerStudentPerYear = TARGET_AMOUNT_PER_STUDENT * 12;
+      const totalExpectedCollection = filteredQuotas.length * expectedPerStudentPerYear;
+
+      const summaryData = [
+        { 'Metric': 'Total Students', 'Value': filteredQuotas.length },
+        { 'Metric': 'Total Expected Collection', 'Value': `₱${totalExpectedCollection.toLocaleString()}` },
+        { 'Metric': 'Total Collected', 'Value': `₱${filteredQuotas.reduce((sum, q) => sum + q.totalPaid, 0).toLocaleString()}` },
+        { 'Metric': 'Total Remaining', 'Value': `₱${filteredQuotas.reduce((sum, q) => sum + q.remainingBalance, 0).toLocaleString()}` },
+        { 'Metric': 'Collection Rate', 'Value': `${collectionRate.toFixed(1)}%` },
+        { 'Metric': 'Fully Paid Students', 'Value': filteredQuotas.filter(q => q.paymentStatus === 'fully_paid').length },
+        { 'Metric': 'Partially Paid Students', 'Value': filteredQuotas.filter(q => q.paymentStatus === 'partially_paid').length },
+        { 'Metric': 'Unpaid Students', 'Value': filteredQuotas.filter(q => q.paymentStatus === 'not_paid').length },
+        { 'Metric': 'Export Date', 'Value': new Date().toLocaleString() },
+        { 'Metric': 'Exported By', 'Value': 'Teacher' }
+      ];
+      
+      const ws2 = XLSX.utils.json_to_sheet(summaryData);
+      ws2['!cols'] = [{ wch: 25 }, { wch: 20 }];
+
+      // Freeze header row for summary
+      (ws2 as any)['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+      // Create detailed payments worksheet
+      const detailedPayments = filteredContributions.map(contribution => ({
+        'Payment ID': contribution.id,
+        'Student Name': contribution.studentName,
+        'Amount': contribution.amount,
+        'Month': new Date(contribution.month + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        'Payment Date': new Date(contribution.paymentDate).toLocaleDateString(),
+        'Payment Method': contribution.paymentMethod.toUpperCase(),
+        'Receipt Number': contribution.receiptNumber || 'N/A',
+        'Notes': contribution.notes || 'N/A',
+        'Recorded By': contribution.recordedByName
+      }));
+
+      const ws3 = XLSX.utils.json_to_sheet(detailedPayments);
+      ws3['!cols'] = [
+        { wch: 22 }, // Payment ID
+        { wch: 32 }, // Student Name
+        { wch: 14 }, // Amount
+        { wch: 22 }, // Month
+        { wch: 16 }, // Payment Date
+        { wch: 16 }, // Payment Method
+        { wch: 18 }, // Receipt Number
+        { wch: 40 }, // Notes
+        { wch: 22 }  // Recorded By
+      ];
+
+      // Freeze header row for details
+      (ws3 as any)['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+      // Add worksheets to workbook
+      XLSX.utils.book_append_sheet(wb, ws1, 'Student Contributions');
+      XLSX.utils.book_append_sheet(wb, ws2, 'Summary Report');
+      XLSX.utils.book_append_sheet(wb, ws3, 'Payment Details');
+
+      const applyCleanTableStyle = (ws: any) => {
+        const ref = ws['!ref'];
+        if (!ref) return;
+        const range = XLSX.utils.decode_range(ref);
+
+        const headerFill = { fgColor: { rgb: '1B3E2A' } };
+        const headerFont = { bold: true, color: { rgb: 'FFFFFF' } };
+        const border = {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        };
+
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cellAddr = XLSX.utils.encode_cell({ r: 0, c });
+          if (!ws[cellAddr]) continue;
+          ws[cellAddr].s = {
+            ...(ws[cellAddr].s || {}),
+            font: headerFont,
+            fill: headerFill,
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border,
+          };
+        }
+
+        for (let r = 1; r <= range.e.r; r++) {
+          const fill = r % 2 === 0 ? { fgColor: { rgb: 'F9FAFB' } } : undefined;
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cellAddr = XLSX.utils.encode_cell({ r, c });
+            if (!ws[cellAddr]) continue;
+            ws[cellAddr].s = {
+              ...(ws[cellAddr].s || {}),
+              alignment: { vertical: 'center', wrapText: true },
+              ...(fill ? { fill } : {}),
+              border,
+            };
+          }
+        }
+      };
+
+      applyCleanTableStyle(ws1);
+      applyCleanTableStyle(ws2);
+      applyCleanTableStyle(ws3);
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      const filename = `Student_Contributions_Report_${timestamp}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(wb, filename);
+      
+      setMessage({ type: 'success', text: `Excel report "${filename}" exported successfully!` });
+    } catch (error) {
+      console.error('Export error:', error);
+      setMessage({ type: 'error', text: 'Failed to export Excel report. Please try again.' });
     }
   };
 
@@ -841,6 +1053,56 @@ export default function ContributionManagement() {
           from { opacity: 0; transform: scale(0.95) translateY(-10px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
+        
+        /* Modal Animations */
+        @keyframes modalFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes modalFadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        
+        @keyframes modalSlideIn {
+          from { 
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9) translateY(20px);
+          }
+          to { 
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+        }
+        
+        @keyframes modalSlideOut {
+          from { 
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+          to { 
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9) translateY(20px);
+          }
+        }
+        
+        .modal-backdrop-enter {
+          animation: modalFadeIn 0.3s ease-out forwards;
+        }
+        
+        .modal-backdrop-exit {
+          animation: modalFadeOut 0.2s ease-in forwards;
+        }
+        
+        .modal-content-enter {
+          animation: modalSlideIn 0.3s ease-out forwards;
+        }
+        
+        .modal-content-exit {
+          animation: modalSlideOut 0.2s ease-in forwards;
+        }
+        
         /* Custom scrollbar for the dropdown */
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
@@ -867,7 +1129,7 @@ export default function ContributionManagement() {
       )}
 
       {showAddPayment ? (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h2 className="text-lg font-semibold mb-6">
             {editingPayment ? 'Edit Payment' : 'Record New Payment'}
           </h2>
@@ -899,12 +1161,34 @@ export default function ContributionManagement() {
               <input
                 type="number"
                 value={formData.amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) => {
+                  const amount = parseFloat(e.target.value) || 0;
+                  
+                  // Find selected student's remaining balance
+                  const selectedQuota = quotas.find(q => q.studentId === formData.studentId);
+                  const remainingBalance = selectedQuota?.remainingBalance || 0;
+                  
+                  // Validate: amount cannot exceed remaining balance
+                  if (amount > remainingBalance && remainingBalance > 0) {
+                    setMessage({ 
+                      type: 'error', 
+                      text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+                    });
+                    return;
+                  }
+                  
+                  setFormData(prev => ({ ...prev, amount }));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
                 min="0"
                 step="0.01"
                 required
               />
+              {formData.studentId && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Remaining Balance: ₱{(quotas.find(q => q.studentId === formData.studentId)?.remainingBalance || 0).toLocaleString()}
+                </p>
+              )}
             </div>
 
             <div>
@@ -920,23 +1204,68 @@ export default function ContributionManagement() {
               />
             </div>
 
-            <div>
+            <div className="relative" ref={paymentMethodDropdownRef}>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Payment Method
               </label>
-              <select
-                value={formData.paymentMethod}
-                onChange={(e) => {
-                  const value = e.target.value as 'cash' | 'bank' | 'online' | 'other';
-                  setFormData(prev => ({ ...prev, paymentMethod: value }));
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-              >
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="online">Online Payment</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="relative">
+                <button
+                  onClick={() => setIsPaymentMethodDropdownOpen(!isPaymentMethodDropdownOpen)}
+                  className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all hover:border-[#1B3E2A] active:scale-[0.98]"
+                >
+                  <span className="flex items-center gap-2">
+                    {formData.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-[#1B3E2A]" />}
+                    {formData.paymentMethod === 'online' && <CreditCard className="w-4 h-4 text-[#1B3E2A]" />}
+                    <span className="text-sm text-gray-900 capitalize">
+                      {formData.paymentMethod === 'cash' ? 'Cash' : 'Online Payment'}
+                    </span>
+                  </span>
+                  <ChevronDown 
+                    className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isPaymentMethodDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                
+                {isPaymentMethodDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 dropdown-enter">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, paymentMethod: 'cash' }));
+                          setIsPaymentMethodDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                          formData.paymentMethod === 'cash' 
+                            ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Banknote className="w-4 h-4 text-[#1B3E2A]" />
+                        <span className="text-sm">Cash</span>
+                        {formData.paymentMethod === 'cash' && (
+                          <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, paymentMethod: 'online' }));
+                          setIsPaymentMethodDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                          formData.paymentMethod === 'online' 
+                            ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <CreditCard className="w-4 h-4 text-[#1B3E2A]" />
+                        <span className="text-sm">Online Payment</span>
+                        {formData.paymentMethod === 'online' && (
+                          <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -970,7 +1299,11 @@ export default function ContributionManagement() {
             <button
               onClick={handleSubmitPayment}
               disabled={isSaving}
-              className="bg-[#1B3E2A] text-white px-6 py-2 rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 flex items-center gap-2"
+              className={`flex items-center gap-2 px-6 py-2 rounded-lg disabled:opacity-50 ${
+                editingPayment 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-[#1B3E2A] text-white hover:bg-[#2d5a3f]'
+              }`}
             >
               {isSaving ? (
                 <>
@@ -979,7 +1312,7 @@ export default function ContributionManagement() {
                 </>
               ) : (
                 <>
-                  <DollarSign className="w-4 h-4" />
+                  <span className={`text-2xl font-bold ${editingPayment ? 'text-white' : 'text-[#1B3E2A]'}`}>₱</span>
                   {editingPayment ? 'Update' : 'Record'} Payment
                 </>
               )}
@@ -997,23 +1330,6 @@ export default function ContributionManagement() {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-end mb-4">
-            <div className="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden">
-              <button
-                onClick={() => setTotalsScope('teacher')}
-                className={`px-4 py-2 text-sm font-semibold ${totalsScope === 'teacher' ? 'bg-[#1B3E2A] text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-              >
-                My Students
-              </button>
-              <button
-                onClick={() => setTotalsScope('school')}
-                className={`px-4 py-2 text-sm font-semibold ${totalsScope === 'school' ? 'bg-[#1B3E2A] text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-              >
-                Whole School
-              </button>
-            </div>
-          </div>
-
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-600 hover:shadow-xl transition-shadow">
@@ -1027,7 +1343,7 @@ export default function ContributionManagement() {
                   </div>
                 </div>
                 <div className="bg-[#f0f7f3] p-3 rounded-full">
-                  <DollarSign className="w-8 h-8 text-[#1B3E2A]" />
+                  <span className="text-2xl font-bold text-[#1B3E2A]">₱</span>
                 </div>
               </div>
             </div>
@@ -1053,11 +1369,9 @@ export default function ContributionManagement() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-1">Collection Rate</p>
                   <p className="text-3xl font-bold text-purple-600">{collectionRate.toFixed(1)}%</p>
-                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(collectionRate, 100)}%` }}
-                    ></div>
+                  <div className="mt-2 flex items-center text-xs text-purple-600">
+                    <Users className="w-3 h-3 mr-1" />
+                    <span>Overall progress</span>
                   </div>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-full">
@@ -1088,6 +1402,7 @@ export default function ContributionManagement() {
             <div className="flex items-center gap-3">
               <div className="w-48">
                 <button 
+                  onClick={exportToExcel}
                   className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-gray-600 border-b-2 shadow-sm transition-all duration-300 h-11"
                   onMouseEnter={() => setIsExportBtnHovered(true)}
                   onMouseLeave={() => setIsExportBtnHovered(false)}
@@ -1146,7 +1461,7 @@ export default function ContributionManagement() {
 
                   {isGradeDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 dropdown-enter">
-                      <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
+                      <div className="py-1">
                         <button
                           onClick={() => {
                             setSelectedGrade('');
@@ -1216,7 +1531,7 @@ export default function ContributionManagement() {
             <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A]">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">
-                  Student Contribution Status ({filteredQuotas.length})
+                  Student Contribution Status: {filteredQuotas.length}
                 </h3>
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="w-4 h-4" />
@@ -1263,7 +1578,7 @@ export default function ContributionManagement() {
                         >
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-[#1B3E2A] to-[#F2C94C] rounded-full flex items-center justify-center text-green-500 font-semibold text-sm">
                                 {quota.studentName.split(' ').map(n => n[0]).join('')}
                               </div>
                               <div className="min-w-0"> {/* min-w-0 allows truncation within flex */}
@@ -1340,7 +1655,7 @@ export default function ContributionManagement() {
             <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A]">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">
-                  Recent Payments ({filteredContributions.length})
+                  Recent Payments: {filteredContributions.length}
                 </h3>
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="w-4 h-4" />
@@ -1350,7 +1665,7 @@ export default function ContributionManagement() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-[#fef9e7]">
                   <tr>
                     <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
@@ -1400,7 +1715,6 @@ export default function ContributionManagement() {
                           <div className="text-sm font-bold text-[#1B3E2A] bg-[#fef9e7] px-3 py-1 rounded-full truncate">
                             ₱{contribution.amount.toLocaleString()}
                           </div>
-                          <DollarSign className="flex-shrink-0 w-4 h-4 text-[#F2C94C]" />
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1445,203 +1759,325 @@ export default function ContributionManagement() {
 
           {/* Student Details Modal */}
           {showStudentDetails && selectedStudentForDetails && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] text-white p-6 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                        <span className="text-xl font-bold">
-                          {selectedStudentForDetails.name.split(' ').map(n => n[0]).join('')}
-                        </span>
+            <>
+              {/* Backdrop - covers only main content area, not sidebar */}
+              <div
+                className={`fixed inset-y-0 right-0 bg-black/70 z-40 ${
+                  modalAnimationClass ? `modal-backdrop-${modalAnimationClass}` : ''
+                }`}
+                style={{ left: '16rem' }}
+                onClick={handleCloseStudentDetails}
+              />
+              {/* Modal - fixed container with internal scroll */}
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div 
+                  className={`fixed bg-white rounded-xl shadow-2xl w-[800px] max-h-[85vh] flex flex-col overflow-hidden ${
+                    modalAnimationClass ? `modal-content-${modalAnimationClass}` : ''
+                  }`}
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] p-4 flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                          <span className="text-lg font-bold text-gray-900">
+                            {selectedStudentForDetails.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-bold text-gray-900">{selectedStudentForDetails.name}</h2>
+                          <p className="text-sm font-medium text-gray-800">{selectedStudentForDetails.gradeLevel} • ID: {selectedStudentForDetails.id}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-xl font-bold">{selectedStudentForDetails.name}</h2>
-                        <p className="text-white/80">{selectedStudentForDetails.gradeLevel} • ID: {selectedStudentForDetails.id}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowStudentDetails(false)}
-                      className="text-white/80 hover:text-white transition-colors"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-6 overflow-y-auto flex-1">
-                  {/* Payment Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-[#f0f7f3] p-4 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Total Required</p>
-                      <p className="text-2xl font-bold text-[#1B3E2A]">₱{(TARGET_AMOUNT_PER_STUDENT * 12).toLocaleString()}</p>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Total Paid</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        ₱{getStudentPaymentHistory(selectedStudentForDetails.id).reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="bg-orange-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Remaining Balance</p>
-                      <p className="text-2xl font-bold text-orange-600">
-                        ₱{Math.max(0, (TARGET_AMOUNT_PER_STUDENT * 12) - getStudentPaymentHistory(selectedStudentForDetails.id).reduce((sum, p) => sum + p.amount, 0)).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Add Payment Form */}
-                  <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                    <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Add New Payment</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Month
-                        </label>
-                        <input
-                          type="month"
-                          value={paymentFormData.month}
-                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, month: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Amount
-                        </label>
-                        <input
-                          type="number"
-                          value={paymentFormData.amount}
-                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                          min="0"
-                          step="0.01"
-                          placeholder="Enter amount"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Payment Method
-                        </label>
-                        <select
-                          value={paymentFormData.paymentMethod}
-                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                        >
-                          <option value="cash">Cash</option>
-                          <option value="bank">Bank Transfer</option>
-                          <option value="online">Online Payment</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Receipt Number (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={paymentFormData.receiptNumber}
-                          onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                          placeholder="Enter receipt number"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Notes (Optional)
-                      </label>
-                      <textarea
-                        value={paymentFormData.notes}
-                        onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                        placeholder="Add any notes..."
-                      />
-                    </div>
-                    <div className="flex gap-3 mt-4">
                       <button
-                        onClick={handleStudentDetailPayment}
-                        disabled={isSaving || !paymentFormData.amount}
-                        className="bg-[#1B3E2A] text-white px-6 py-2 rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 flex items-center gap-2"
+                        onClick={handleCloseStudentDetails}
+                        className="text-gray-800 hover:text-gray-900 transition-colors"
                       >
-                        {isSaving ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <DollarSign className="w-4 h-4" />
-                            Record Payment
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setPaymentFormData({
-                          month: new Date().toISOString().slice(0, 7),
-                          amount: 0,
-                          paymentMethod: 'cash',
-                          receiptNumber: '',
-                          notes: ''
-                        })}
-                        className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
-                      >
-                        Clear
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Payment History */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Payment History</h3>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {getStudentPaymentHistory(selectedStudentForDetails.id).length > 0 ? (
-                            getStudentPaymentHistory(selectedStudentForDetails.id).map((payment) => (
-                              <tr key={payment.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 text-sm text-gray-900">
-                                  {new Date(payment.paymentDate).toLocaleDateString()}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-900">
-                                  {new Date(payment.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                                </td>
-                                <td className="px-4 py-2 text-sm font-semibold text-green-600">
-                                  ₱{payment.amount.toLocaleString()}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-900 capitalize">
-                                  {payment.paymentMethod}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-gray-900">
-                                  {payment.recordedByName}
-                                </td>
+                  {/* Scrollable Content Container */}
+                  <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+                    <div className="p-4">
+                      {/* Payment Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div className="bg-green-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600 mb-1">Total Paid</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₱{getStudentPaymentHistory(selectedStudentForDetails.id).reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="bg-orange-50 p-4 rounded-lg">
+                          <p className="text-sm text-gray-600 mb-1">Pending Amount</p>
+                          <p className="text-2xl font-bold text-orange-600">
+                            ₱{quotas.find(q => q.studentId === selectedStudentForDetails.id)?.remainingBalance.toLocaleString() || 0}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Add Payment Form */}
+                      <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                        <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Add New Payment</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Month
+                            </label>
+                            <input
+                              type="month"
+                              value={paymentFormData.month}
+                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, month: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Amount
+                            </label>
+                            <input
+                              type="number"
+                              value={paymentFormData.amount || ''}
+                              onChange={(e) => {
+                                const amount = parseFloat(e.target.value) || 0;
+                                
+                                // Get remaining balance for selected student
+                                const quota = quotas.find(q => q.studentId === selectedStudentForDetails?.id);
+                                const remainingBalance = quota?.remainingBalance || 0;
+                                
+                                // Validate: amount cannot exceed remaining balance
+                                if (amount > remainingBalance && remainingBalance > 0) {
+                                  setMessage({ 
+                                    type: 'error', 
+                                    text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+                                  });
+                                  return;
+                                }
+                                
+                                setPaymentFormData(prev => ({ ...prev, amount }));
+                              }}
+                              onFocus={(e) => { if(e.target.value === '0') e.target.value = ''; }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] transition-all"
+                              min="0"
+                              step="0.01"
+                              placeholder="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Remaining Balance: ₱{quotas.find(q => q.studentId === selectedStudentForDetails?.id)?.remainingBalance.toLocaleString() || 0}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Receipt Number (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={paymentFormData.receiptNumber}
+                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                              placeholder="Enter receipt number"
+                            />
+                          </div>
+
+                          <div className="relative" ref={paymentMethodDropdownRef}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Payment Method
+                            </label>
+                            <div className="relative">
+                              <button
+                                onClick={() => setIsPaymentMethodDropdownOpen(!isPaymentMethodDropdownOpen)}
+                                className="w-full h-10 flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all hover:border-[#1B3E2A] active:scale-[0.98]"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {paymentFormData.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-[#1B3E2A]" />}
+                                  {paymentFormData.paymentMethod === 'online' && <CreditCard className="w-4 h-4 text-[#1B3E2A]" />}
+                                  <span className="text-sm text-gray-900 capitalize">
+                                    {paymentFormData.paymentMethod === 'cash' ? 'Cash' : 'Online Payment'}
+                                  </span>
+                                </span>
+                                <ChevronDown 
+                                  className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isPaymentMethodDropdownOpen ? 'rotate-180' : ''}`}
+                                />
+                              </button>
+                              
+                              {isPaymentMethodDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 dropdown-enter">
+                                  <div className="py-1">
+                                    <button
+                                      onClick={() => {
+                                        setPaymentFormData(prev => ({ ...prev, paymentMethod: 'cash' }));
+                                        setIsPaymentMethodDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                                        paymentFormData.paymentMethod === 'cash' 
+                                          ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                                          : 'text-gray-700 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <Banknote className="w-4 h-4 text-[#1B3E2A]" />
+                                      <span className="text-sm">Cash</span>
+                                      {paymentFormData.paymentMethod === 'cash' && (
+                                        <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setPaymentFormData(prev => ({ ...prev, paymentMethod: 'online' }));
+                                        setIsPaymentMethodDropdownOpen(false);
+                                      }}
+                                      className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                                        paymentFormData.paymentMethod === 'online' 
+                                          ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                                          : 'text-gray-700 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <CreditCard className="w-4 h-4 text-[#1B3E2A]" />
+                                      <span className="text-sm">Online Payment</span>
+                                      {paymentFormData.paymentMethod === 'online' && (
+                                        <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Receipt Number (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={paymentFormData.receiptNumber}
+                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                              placeholder="Enter receipt number"
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Notes (Optional)
+                          </label>
+                          <textarea
+                            value={paymentFormData.notes}
+                            onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                            placeholder="Add any notes..."
+                          />
+                        </div>
+                        <div className="flex gap-3 mt-4">
+                          <button
+                            onClick={handleStudentDetailPayment}
+                            disabled={isSaving || !paymentFormData.amount}
+                            className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                              backgroundSize: '100% 200%',
+                              backgroundPosition: 'bottom',
+                              color: '#F2C94C',
+                              borderColor: '#1B3E2A',
+                              boxShadow: '0 4px 12px rgba(27, 62, 42, 0.3)',
+                            }}
+                          >
+                            {isSaving ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F2C94C]"></div>
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-2xl font-bold text-[#1B3E2A]">₱</span>
+                                Record Payment
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setPaymentFormData({
+                              month: new Date().toISOString().slice(0, 7),
+                              amount: 0,
+                              paymentMethod: 'cash',
+                              receiptNumber: '',
+                              notes: ''
+                            })}
+                            className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-gray-400 border-b-2 shadow-sm transition-all duration-300"
+                            style={{
+                              backgroundImage: 'linear-gradient(to top, #9CA3AF 50%, transparent 50%)',
+                              backgroundSize: '100% 200%',
+                              backgroundPosition: 'bottom',
+                              color: '#374151',
+                              borderColor: '#9CA3AF',
+                              boxShadow: '0 4px 12px rgba(156, 163, 175, 0.3)',
+                            }}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Payment History */}
+                      <div>
+                        <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Payment History</h3>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recorded By</th>
                               </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                                No payment records found
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {getStudentPaymentHistory(selectedStudentForDetails.id).length > 0 ? (
+                                getStudentPaymentHistory(selectedStudentForDetails.id).map((payment) => (
+                                  <tr key={payment.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-sm text-gray-900">
+                                      {new Date(payment.paymentDate).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-900">
+                                      {new Date(payment.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm font-semibold text-green-600">
+                                      ₱{payment.amount.toLocaleString()}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-900 capitalize">
+                                      {payment.paymentMethod}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-900">
+                                      {payment.recordedByName}
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                                    No payment records found
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </>
       )}
