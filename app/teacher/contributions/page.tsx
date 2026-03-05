@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MonthlyContribution, ContributionQuota, Student, Teacher } from '@/types';
 import { realtimeContributionService } from '@/lib/realtime-contributions-client';
+import * as XLSX from 'xlsx';
 import { 
   Plus, 
   Edit, 
@@ -846,9 +847,6 @@ export default function ContributionManagement() {
   // Export to Excel function
   const exportToExcel = async () => {
     try {
-      // Import xlsx library dynamically
-      const XLSX = await import('xlsx');
-      
       // Prepare data for export
       const exportData = filteredQuotas.map(quota => {
         const studentContributions = contributions.filter(c => c.studentId === quota.studentId);
