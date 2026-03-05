@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@stripe/stripe-js": "^8.7.0",
+    "@types/xlsx": "^0.0.35",
     "clsx": "^2.1.1",
     "firebase": "^12.9.0",
     "firebase-admin": "^13.6.1",
@@ -20,7 +21,8 @@
     "react-dom": "^19.2.4",
     "react-image-gallery": "^1.4.0",
     "tailwind-merge": "^3.4.0",
-    "xendit-node": "^7.0.0"
+    "xendit-node": "^7.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss7-compat": "^2.2.17",
