@@ -149,7 +149,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const gradeLevel = typeof body?.gradeLevel === 'string' ? body.gradeLevel.trim() : '';
-    const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
+    const subjectIds = Array.isArray(body?.subjectIds) 
+      ? body.subjectIds.filter((id: any) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
+      : (typeof body?.subjectId === 'string' ? [body.subjectId.trim()] : []);
 
     if (!name || !gradeLevel || !teacherId) {
       return NextResponse.json(
@@ -158,23 +160,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (subjectIds.length === 0) {
+      return NextResponse.json(
+        { message: 'At least one subject ID is required' },
+        { status: 400 }
+      );
+    }
+
     const studentsCollection = collection(db, 'students');
-    const studentData = {
-      name,
-      gradeLevel,
-      teacherId,
-      subjectId,
-      createdAt: Timestamp.now()
-    };
+    const createdStudents = [];
 
-    const docRef = await addDoc(studentsCollection, studentData);
-    const newStudent = {
-      id: docRef.id,
-      ...studentData,
-      createdAt: studentData.createdAt.toDate().toISOString()
-    };
+    // Create a separate student record for each subject
+    for (const subjectId of subjectIds) {
+      const studentData = {
+        name,
+        gradeLevel,
+        teacherId,
+        subjectId, // Each student record gets its own subject ID
+        createdAt: Timestamp.now()
+      };
 
-    return NextResponse.json(newStudent);
+      const docRef = await addDoc(studentsCollection, studentData);
+      const newStudent = {
+        id: docRef.id,
+        ...studentData,
+        createdAt: studentData.createdAt.toDate().toISOString()
+      };
+
+      createdStudents.push(newStudent);
+    }
+
+    return NextResponse.json({
+      message: `Student created for ${subjectIds.length} subject(s)`,
+      students: createdStudents
+    });
 
   } catch (error) {
     console.error('Error adding student:', error);

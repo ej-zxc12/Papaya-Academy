@@ -22,6 +22,77 @@ function getTeacherSession(request: NextRequest) {
   return null;
 }
 
+export async function GET(request: NextRequest) {
+  try {
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const subjectId = searchParams.get('subjectId');
+    const gradingPeriod = searchParams.get('gradingPeriod');
+    const schoolYear = searchParams.get('schoolYear') || '2024-2025';
+
+    if (!subjectId || !gradingPeriod) {
+      return NextResponse.json(
+        { message: 'subjectId and gradingPeriod are required' },
+        { status: 400 }
+      );
+    }
+
+    // Get all students for this teacher and subject
+    const studentsCollection = collection(db, 'students');
+    const studentsQuery = query(
+      studentsCollection,
+      where('teacherId', '==', teacherId),
+      where('subjectId', '==', subjectId)
+    );
+    const studentsSnapshot = await getDocs(studentsQuery);
+
+    const grades = [];
+
+    for (const studentDoc of studentsSnapshot.docs) {
+      const studentData = studentDoc.data();
+      const academicRecords = studentData.academicRecords || {};
+      const yearRecord = academicRecords[schoolYear];
+
+      if (yearRecord && yearRecord.grades) {
+        const gradingPeriodKey = gradingPeriod.charAt(0).toUpperCase() + gradingPeriod.slice(1);
+        const periodGrades = yearRecord.grades[gradingPeriodKey] || {};
+
+        // Find the grade for this subject
+        const subjectGrade = periodGrades[subjectId];
+        if (subjectGrade) {
+          grades.push({
+            studentId: studentDoc.id,
+            studentName: studentData.name,
+            subjectId: subjectId,
+            gradingPeriod: gradingPeriod,
+            grade: subjectGrade.grade,
+            remarks: subjectGrade.remarks || '',
+            teacherId: subjectGrade.teacherId,
+            teacherName: subjectGrade.teacherName || 'Teacher',
+            dateInput: subjectGrade.dateInput
+          });
+        }
+      }
+    }
+
+    return NextResponse.json(grades);
+
+  } catch (error) {
+    console.error('Error fetching grades:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const teacherId = getTeacherSession(request);

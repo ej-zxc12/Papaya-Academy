@@ -27,6 +27,9 @@ const AnimatedButton = ({
   style,
   title,
   type,
+  onMouseEnter,
+  onMouseLeave,
+  isActive = false,
 }: {
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   disabled?: boolean;
@@ -35,8 +38,13 @@ const AnimatedButton = ({
   style?: React.CSSProperties;
   title?: string;
   type?: 'button' | 'submit' | 'reset';
+  onMouseEnter?: React.MouseEventHandler<HTMLButtonElement>;
+  onMouseLeave?: React.MouseEventHandler<HTMLButtonElement>;
+  isActive?: boolean;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  const isVisuallyActive = isActive || isHovered;
 
   return (
     <button
@@ -44,8 +52,14 @@ const AnimatedButton = ({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={(e) => {
+        onMouseEnter?.(e);
+        setIsHovered(true);
+      }}
+      onMouseLeave={(e) => {
+        onMouseLeave?.(e);
+        setIsHovered(false);
+      }}
       className={
         className ??
         'flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -53,10 +67,10 @@ const AnimatedButton = ({
       style={{
         backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
         backgroundSize: '100% 200%',
-        backgroundPosition: isHovered ? 'bottom' : 'top',
-        color: isHovered ? '#F2C94C' : '#1B3E2A',
+        backgroundPosition: isVisuallyActive ? 'bottom' : 'top',
+        color: isActive ? '#FFFFFF' : (isVisuallyActive ? '#F2C94C' : '#1B3E2A'),
         borderColor: '#1B3E2A',
-        boxShadow: isHovered
+        boxShadow: isVisuallyActive
           ? '0 4px 12px rgba(27, 62, 42, 0.3)'
           : '0 2px 4px rgba(0,0,0,0.1)',
         ...(style ?? {}),
@@ -64,7 +78,7 @@ const AnimatedButton = ({
     >
       <span
         className={`inline-flex items-center gap-2 transition-transform duration-300 ${
-          isHovered ? '-translate-y-1' : ''
+          isVisuallyActive ? '-translate-y-1' : ''
         }`}
       >
         {children}
@@ -174,12 +188,13 @@ export default function GradeInput() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [selectedGradeLevelFilter, setSelectedGradeLevelFilter] = useState<string>('');
-  const [studentSubjectId, setStudentSubjectId] = useState<string>('');
+  const [studentSubjectId, setStudentSubjectId] = useState<string[]>([]);
+  const [availableGradeLevelsForStudent, setAvailableGradeLevelsForStudent] = useState<string[]>([]);
   const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
   
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: 'Pre-School' });
+  const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: '' });
 
   // Subject management states
   const [showAddSubject, setShowAddSubject] = useState(false);
@@ -262,18 +277,10 @@ export default function GradeInput() {
   useEffect(() => {
     // Load students + existing grades whenever selection changes
     const loadSelectionData = async () => {
-      if (!teacherId) return;
+      if (!teacherId || !subjects || subjects.length === 0) return;
       try {
-        const selected = subjects.find((s: Subject) => s.id === selectedSubject);
-        const selectedGradeLevels = selected?.gradeLevels && selected.gradeLevels.length > 0
-          ? selected.gradeLevels
-          : (selected?.gradeLevel ? [selected.gradeLevel] : []);
-
-        const studentsUrl = selectedGradeLevels.length > 0
-          ? `/api/teacher/students?${selectedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
-          : '/api/teacher/students';
-
-        const studentsResponse = await fetch(studentsUrl, {
+        // For student management, load all students (not filtered by selected subject)
+        const studentsResponse = await fetch('/api/teacher/students', {
           headers: {
             'Authorization': `Bearer ${teacherId}`
           }
@@ -286,6 +293,7 @@ export default function GradeInput() {
           setAllStudents([]);
         }
 
+        // Only load grades for the selected subject
         setIsEditingUnlocked(false);
         if (selectedSubject) {
           await loadExistingGrades(teacherId, selectedSubject, selectedGradingPeriod);
@@ -305,20 +313,57 @@ export default function GradeInput() {
 
   useEffect(() => {
     let filtered = allStudents;
+    
+    // Apply subject filter first
     if (studentListSubjectFilter) {
+      // Filter students who are associated with this specific subject
       filtered = filtered.filter(s => s.subjectId === studentListSubjectFilter);
     }
+    
+    // Then apply grade level filter to the already filtered results
     if (selectedGradeLevelFilter) {
       filtered = filtered.filter(s => s.gradeLevel === selectedGradeLevelFilter);
     }
+    
     setStudents(filtered);
   }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents]);
 
   useEffect(() => {
-    if (subjects.length > 0 && !studentSubjectId) {
-      setStudentSubjectId(subjects[0].id);
+    if (subjects?.length > 0 && studentSubjectId.length === 0) {
+      setStudentSubjectId([subjects[0].id]);
     }
   }, [subjects, studentSubjectId]);
+
+  useEffect(() => {
+    // Update available grade levels for student dropdown when subjects change
+    const allGradeLevels: string[] = [];
+    studentSubjectId.forEach(subjectId => {
+      const subj = subjects?.find(s => s.id === subjectId);
+      if (subj) {
+        const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
+          ? subj.gradeLevels
+          : (subj?.gradeLevel ? [subj.gradeLevel] : []);
+        allGradeLevels.push(...subjLevels);
+        console.log('DEBUG: Subject:', subj.name, 'Grade levels:', subjLevels);
+      }
+    });
+    
+    const uniqueGradeLevels = Array.from(new Set(allGradeLevels));
+    console.log('DEBUG: Available grade levels for student:', uniqueGradeLevels);
+    setAvailableGradeLevelsForStudent(uniqueGradeLevels);
+    
+    // Auto-select first grade level if none is selected and grade levels are available
+    if (uniqueGradeLevels.length > 0 && !newStudent.gradeLevel) {
+      setNewStudent(prev => ({ ...prev, gradeLevel: uniqueGradeLevels[0] }));
+      console.log('DEBUG: Auto-selected grade level:', uniqueGradeLevels[0]);
+    }
+  }, [studentSubjectId, subjects]);
+
+  useEffect(() => {
+    if (subjects?.length > 0 && !selectedSubject) {
+      setSelectedSubject(subjects[0].id);
+    }
+  }, [subjects]);
 
   const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
     try {
@@ -339,10 +384,14 @@ export default function GradeInput() {
         const gradesMap: { [key: string]: string } = {};
         const remarksMap: { [key: string]: string } = {};
         
-        existingGrades.forEach((grade: GradeInput) => {
-          gradesMap[grade.studentId] = grade.grade.toString();
-          if (grade.remarks) {
-            remarksMap[grade.studentId] = grade.remarks;
+        existingGrades.forEach((grade: any) => {
+          // Find the current student ID for this student name in this subject
+          const currentStudentId = students.find(s => s.name === grade.studentName)?.id;
+          if (currentStudentId) {
+            gradesMap[currentStudentId] = grade.grade.toString();
+            if (grade.remarks) {
+              remarksMap[currentStudentId] = grade.remarks;
+            }
           }
         });
         
@@ -514,7 +563,7 @@ export default function GradeInput() {
 
       if (response.ok) {
         const result = await response.json();
-        const subjectName = subjects.find(s => s.id === selectedSubject)?.name;
+        const subjectName = subjects?.find(s => s.id === selectedSubject)?.name;
         
         setSubjects(prev => prev.map(subject => 
           subject.id === selectedSubject 
@@ -540,7 +589,12 @@ export default function GradeInput() {
       return;
     }
 
-    const selectedSubjectObj = subjects.find(s => s.id === studentSubjectId);
+    if (studentSubjectId.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one subject first (this will determine the student category/grade level).' });
+      return;
+    }
+
+    const selectedSubjectObj = subjects?.find(s => s.id === studentSubjectId[0]);
     if (!selectedSubjectObj) {
       setMessage({ type: 'error', text: 'Please select a subject first (this will determine the student category/grade level).' });
       return;
@@ -573,8 +627,8 @@ export default function GradeInput() {
         },
         body: JSON.stringify({
           name: newStudent.name.trim(),
-          gradeLevel: targetGradeLevel,
-          subjectId: studentSubjectId
+          gradeLevel: newStudent.gradeLevel,
+          subjectIds: studentSubjectId // Send all selected subject IDs
         })
       });
 
@@ -594,9 +648,13 @@ export default function GradeInput() {
           const refreshedStudents = await refreshedStudentsResponse.json();
           setAllStudents(refreshedStudents);
         }
-        setNewStudent({ name: '', gradeLevel: 'Kinder' });
+        setNewStudent({ name: '', gradeLevel: '' });
         setShowAddStudent(false);
-        setMessage({ type: 'success', text: `Student added successfully to ${selectedSubjectObj.name} (${targetGradeLevel})` });
+        const subjectNames = studentSubjectId.map(id => 
+          subjects?.find(s => s.id === id)?.name || 'Unknown Subject'
+        ).join(', ');
+        
+        setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${newStudent.gradeLevel})` });
       } else {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.message || 'Failed to add student' });
@@ -743,7 +801,7 @@ export default function GradeInput() {
   const isLockedByDefault = gradingOrder(selectedGradingPeriod) < gradingOrder(activeGradingPeriod);
   const isReadOnly = isLockedByDefault && !isEditingUnlocked;
 
-  const selectedSubjectObj = subjects.find(s => s.id === selectedSubject);
+  const selectedSubjectObj = subjects?.find(s => s.id === selectedSubject);
   const availableGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
     ? selectedSubjectObj.gradeLevels
     : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
@@ -789,14 +847,14 @@ export default function GradeInput() {
     { label: "Third Grading", value: "third" },
     { label: "Fourth Grading", value: "fourth" },
   ];
-  const subjectOptions = subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }));
+  const subjectOptions = subjects?.map(s => ({ label: `${s.name} (${s.code})`, value: s.id })) || [];
   const gradeLevelOptions = [
     { label: "All Grade Levels", value: "" }, 
     ...availableGradeLevels.map(g => ({ label: g, value: g }))
   ];
   const subjectFilterOptions = [
     { label: "All Subjects", value: "" },
-    ...subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))
+    ...(subjects?.map(s => ({ label: `${s.name} (${s.code})`, value: s.id })) || [])
   ];
 
   return (
@@ -931,8 +989,8 @@ export default function GradeInput() {
           )}
 
           {/* Current Subject Grade Level Management */}
-          {selectedSubject && subjects.length > 0 && (() => {
-            const currentSubject = subjects.find(s => s.id === selectedSubject);
+          {selectedSubject && subjects?.length > 0 && (() => {
+            const currentSubject = subjects?.find(s => s.id === selectedSubject);
             if (!currentSubject) return null;
             
             return (
@@ -988,15 +1046,34 @@ export default function GradeInput() {
 
            {showAddStudent && (
              <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Subject Context</label>
-                      <CustomDropdown
-                         value={studentSubjectId}
-                         options={subjects.map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))}
-                         onChange={(val) => setStudentSubjectId(val)}
-                      />
+                {/* Subject Selection Buttons */}
+                <div className="mb-6">
+                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Subject</label>
+                   <div className="flex flex-wrap gap-2">
+                      {subjects?.map((subject) => (
+                        <AnimatedButton
+                           key={subject.id}
+                           onClick={() => {
+                             setStudentSubjectId(currentIds => {
+                               if (currentIds.includes(subject.id)) {
+                                 // Remove the subject
+                                 return currentIds.filter(id => id !== subject.id);
+                               } else {
+                                 // Add the subject
+                                 return [...currentIds, subject.id];
+                               }
+                             });
+                           }}
+                           isActive={studentSubjectId.includes(subject.id)}
+                           style={{ width: 'auto' }}
+                        >
+                           {subject.name} ({subject.code})
+                        </AnimatedButton>
+                      ))}
                    </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
                       <input
@@ -1014,18 +1091,14 @@ export default function GradeInput() {
                           value={newStudent.gradeLevel}
                           onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
                           className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
-                          disabled={!subjects.find(s => s.id === studentSubjectId)}
                         >
-                          {(() => {
-                            const subj = subjects.find(s => s.id === studentSubjectId);
-                            const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
-                              ? subj.gradeLevels
-                              : (subj?.gradeLevel ? [subj.gradeLevel] : []);
-                            if (subjLevels.length === 0) return <option value="">Select subject first</option>;
-                            return allSystemGradeLevels.map((g) => (
-                              <option key={g} value={g} disabled={!subjLevels.includes(g)}>{g}</option>
-                            ));
-                          })()}
+                          {availableGradeLevelsForStudent.length === 0 ? (
+                            <option value="">Select subject first</option>
+                          ) : (
+                            availableGradeLevelsForStudent.map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))
+                          )}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                       </div>
@@ -1106,7 +1179,7 @@ export default function GradeInput() {
 
             <div className="flex flex-wrap items-center gap-3">
                {/* Table specific filters using custom dropdown */}
-               {subjects.length > 0 && (
+               {subjects?.length > 0 && (
                  <div className="w-40">
                    <CustomDropdown 
                       value={studentListSubjectFilter}
