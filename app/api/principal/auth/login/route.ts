@@ -22,17 +22,17 @@ export async function POST(request: NextRequest) {
 
     if (!principal) {
       return NextResponse.json(
-        { message: 'Invalid email or password' },
-        { status: 401 }
+        { message: 'Account not found. Please check your email.' },
+        { status: 404 }
       );
     }
 
     // In a real application, you would hash and compare passwords
-    // For demo purposes, we'll accept any password for existing principals
-    if (!credentials.password) {
+    // For demo purposes, we'll check if password is provided
+    if (!credentials.password || credentials.password !== 'password123') { // Added a simple mock password check
       return NextResponse.json(
-        { message: 'Password is required' },
-        { status: 400 }
+        { message: 'Incorrect password. Please try again.' },
+        { status: 401 }
       );
     }
 

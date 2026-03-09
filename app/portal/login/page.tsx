@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, LogIn, User, Lock, GraduationCap, ChevronDown, Check, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, GraduationCap, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Montserrat } from 'next/font/google';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -20,42 +21,36 @@ export default function UnifiedPortalLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Custom Dropdown State
-  const [isRoleOpen, setIsRoleOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  // Button Animation State
-  const [isBtnHovered, setIsBtnHovered] = useState(false);
+  const [focusedInput, setFocusedInput] = useState<string | null>(null);
   
   const router = useRouter();
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsRoleOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
-    setError('');
+    if (error) setError('');
   };
 
-  const handleRoleSelect = (roleValue: 'teacher' | 'principal') => {
-    setCredentials(prev => ({ ...prev, role: roleValue }));
-    setIsRoleOpen(false);
+  const validateForm = () => {
+    if (!credentials.email || !credentials.password) {
+      setError('Please fill in all fields.');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(credentials.email)) {
+      setError('Please enter a valid email address (missing @ or domain).');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+
+    if (!validateForm()) return;
+
+    setIsLoading(true);
 
     try {
       if (credentials.role === 'teacher') {
@@ -114,189 +109,284 @@ export default function UnifiedPortalLogin() {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-[#1B3E2A] to-green-900 flex items-center justify-center p-4 ${montserrat.className}`}>
-      {/* Added 'relative' here to position the back button absolutely within the card */}
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-gray-100 animate-in fade-in zoom-in duration-500 relative">
-        
-        {/* NEW: Modern Back Button */}
-        <button
-          onClick={() => router.push('/')}
-          className="absolute top-6 left-6 p-2 text-gray-400 hover:text-[#1B3E2A] hover:bg-[#1B3E2A]/5 rounded-full transition-all duration-300 flex items-center gap-2 group z-50"
-          aria-label="Back to website"
-        >
-          <ArrowLeft className="w-5 h-5 transition-transform duration-300 group-hover:-translate-x-1" />
-          <span className="text-sm font-medium max-w-0 overflow-hidden group-hover:max-w-xs opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out whitespace-nowrap">
-            Back to Website
-          </span>
-        </button>
-
-        {/* Header Section */}
-        <div className="text-center mb-8 mt-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#F2C94C]/20 rounded-full mb-4 shadow-inner animate-bounce-slow">
-            <GraduationCap className="w-10 h-10 text-[#1B3E2A]" />
-          </div>
-          <h1 className="text-2xl font-semibold text-[#1B3E2A] tracking-tight">Papaya Academy Portal</h1>
-          <p className="text-gray-500 mt-2 text-sm">Sign in to access your dashboard</p>
+    <div className={`min-h-screen w-full flex bg-white font-sans text-slate-900 ${montserrat.className}`}>
+      
+      {/* Left Side: Branding & Image */}
+      <div 
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12 lg:p-16"
+        style={{ backgroundColor: '#0a241a' }}
+      >
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="/images/storm/_DSC7078.jpg" 
+            alt="Students in classroom" 
+            className="w-full h-full object-cover opacity-40"
+          />
+          {/* Lessened opacity to show more of the background photo as requested */}
+          <div 
+            className="absolute inset-0 z-10" 
+            style={{ backgroundColor: '#0a241a', opacity: 0.6 }}
+          ></div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* CUSTOM DROPDOWN */}
-          <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100 fill-mode-backwards relative z-20" ref={dropdownRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-2 tracking-wide">
-              SELECT ROLE
-            </label>
-            
-            <div className="relative group">
-              <button
-                type="button"
-                onClick={() => setIsRoleOpen(!isRoleOpen)}
-                className={`w-full px-4 py-3 border rounded-lg outline-none bg-gray-50 font-medium text-gray-700 text-left flex justify-between items-center transition-all duration-300 ease-in-out hover:border-[#1B3E2A]/50 ${
-                  isRoleOpen 
-                    ? 'border-[#1B3E2A] bg-white ring-2 ring-[#1B3E2A]/20 scale-[1.02] shadow-lg' 
-                    : 'border-gray-200'
-                }`}
-              >
-                <span className="capitalize">{credentials.role}</span>
-                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-300 ${isRoleOpen ? 'rotate-180 text-[#1B3E2A]' : ''}`} />
-              </button>
-
-              <div 
-                className={`absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-lg shadow-xl overflow-hidden transition-all duration-300 origin-top ${
-                  isRoleOpen 
-                    ? 'opacity-100 translate-y-0 scale-100 visible' 
-                    : 'opacity-0 -translate-y-2 scale-95 invisible'
-                }`}
-              >
-                {(['teacher', 'principal'] as const).map((role) => (
-                  <div
-                    key={role}
-                    onClick={() => handleRoleSelect(role)}
-                    className={`px-4 py-3 cursor-pointer flex items-center justify-between transition-colors duration-200 hover:bg-[#1B3E2A]/5 group-hover:bg-gray-50 ${
-                      credentials.role === role ? 'bg-[#1B3E2A]/10 text-[#1B3E2A] font-medium' : 'text-gray-600'
-                    }`}
-                  >
-                    <span className="capitalize">{role}</span>
-                    {credentials.role === role && (
-                      <Check className="h-4 w-4 text-[#1B3E2A] animate-in zoom-in duration-200" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+        {/* Top Logo */}
+        <div className="relative z-20 flex items-center gap-4">
+          <div className="bg-white p-2.5 rounded-xl shadow-lg flex items-center justify-center">
+            <GraduationCap className="w-7 h-7" style={{ color: '#0a241a' }} strokeWidth={2.5} />
           </div>
+          <span className="text-white text-2xl font-bold tracking-tight">Papaya Academy</span>
+        </div>
 
-          {/* Email Input */}
-          <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 delay-200 fill-mode-backwards relative z-10">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2 tracking-wide">
-              EMAIL ADDRESS
-            </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-[#1B3E2A]/60 transition-colors duration-300 group-focus-within:text-[#1B3E2A]" />
-              </div>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={credentials.email}
-                onChange={handleInputChange}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg outline-none transition-all duration-300 ease-in-out bg-gray-50 placeholder-gray-400 focus:ring-2 focus:ring-[#1B3E2A]/20 focus:border-[#1B3E2A] focus:bg-white focus:scale-[1.02] focus:shadow-lg hover:border-[#1B3E2A]/50"
-                placeholder={credentials.role === 'teacher' ? 'test@papaya.edu' : 'principal@papaya.edu'}
-                required
-              />
-            </div>
-          </div>
+        {/* Middle Content */}
+        <div className="relative z-10 max-w-lg mb-20">
+          <h1 className="text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
+            Empowering futures through education and community support.
+          </h1>
+          <p className="text-lg leading-relaxed" style={{ color: '#CBD5DE' }}>
+            Access the Papaya Web Application portal to manage student progress, track sponsor donations, and oversee academy operations.
+          </p>
+        </div>
 
-          {/* Password Input */}
-          <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 delay-300 fill-mode-backwards relative z-0">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2 tracking-wide">
-              PASSWORD
-            </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="h-5 w-5 text-[#1B3E2A]/60 transition-colors duration-300 group-focus-within:text-[#1B3E2A]" />
-              </div>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={credentials.password}
-                onChange={handleInputChange}
-                className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg outline-none transition-all duration-300 ease-in-out bg-gray-50 placeholder-gray-400 focus:ring-2 focus:ring-[#1B3E2A]/20 focus:border-[#1B3E2A] focus:bg-white focus:scale-[1.02] focus:shadow-lg hover:border-[#1B3E2A]/50"
-                placeholder="Enter your password"
-                required
-              />
-              
-              {/* ANIMATED EYE ICON BUTTON */}
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center justify-center w-10 transition-transform duration-200 active:scale-95 group/eye"
-              >
-                <div className="relative w-5 h-5">
-                   {/* Icon 1: Eye (Open) - Shows when Text is visible (showPassword=true) */}
-                   <Eye 
-                     className={`absolute inset-0 w-5 h-5 text-gray-400 group-hover/eye:text-[#1B3E2A] transition-all duration-500 ease-in-out ${
-                       showPassword 
-                         ? 'opacity-100 rotate-0 scale-100' 
-                         : 'opacity-0 -rotate-180 scale-50'
-                     }`} 
-                   />
-                   
-                   {/* Icon 2: EyeOff (Crossed) - Shows when Text is hidden (showPassword=false) */}
-                   <EyeOff 
-                     className={`absolute inset-0 w-5 h-5 text-gray-400 group-hover/eye:text-[#1B3E2A] transition-all duration-500 ease-in-out ${
-                       !showPassword 
-                         ? 'opacity-100 rotate-0 scale-100' 
-                         : 'opacity-0 rotate-180 scale-50'
-                     }`} 
-                   />
-                </div>
-              </button>
-            </div>
-          </div>
+        {/* Bottom Footer */}
+        <div className="relative z-10 flex items-center gap-2 text-sm">
+          <ShieldCheck className="w-4 h-4" style={{ color: '#CBD5DE' }} />
+          <span style={{ color: '#CBD5DE' }}>Secure Enterprise Portal &copy; 2026 Papaya Academy, Inc.</span>
+        </div>
+      </div>
 
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded text-sm animate-pulse">
-              {error}
-            </div>
-          )}
-
-          {/* Button */}
-          <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 delay-500 fill-mode-backwards">
-            <button
-              type="submit"
-              disabled={isLoading}
-              onMouseEnter={() => setIsBtnHovered(true)}
-              onMouseLeave={() => setIsBtnHovered(false)}
-              className="w-full py-3.5 px-4 rounded-lg font-semibold text-sm tracking-widest border border-[#1B3E2A] border-b-4 shadow-lg transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed transform active:translate-y-1 active:border-b-0"
-              style={{
-                backgroundImage: 'linear-gradient(to top, #F2C94C 50%, #1B3E2A 50%)',
-                backgroundSize: '100% 200%',
-                backgroundPosition: isBtnHovered ? 'bottom' : 'top',
-                color: isBtnHovered ? '#1B3E2A' : '#FFFFFF',
+      {/* Right Side: Login Form */}
+      <div 
+        className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16"
+        style={{ backgroundColor: '#fcfcfc' }}
+      >
+        <div className="w-full max-w-md bg-transparent">
+          {/* Back Button */}
+          <motion.button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 text-sm transition-colors mb-8 group"
+            style={{ color: '#475569' }}
+            aria-label="Go back"
+            whileHover="hover"
+            initial="initial"
+          >
+            <motion.div
+              variants={{
+                initial: { x: 0 },
+                hover: { x: -6 }
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </motion.div>
+            <motion.span
+              variants={{
+                initial: { color: '#475569' },
+                hover: { color: '#1a3828' }
               }}
             >
-              {isLoading ? (
-                <>
-                  <div className={`animate-spin rounded-full h-4 w-4 border-b-2 ${isBtnHovered ? 'border-[#1B3E2A]' : 'border-white'}`}></div>
-                  SIGNING IN...
-                </>
-              ) : (
-                <>
-                  <LogIn className={`w-4 h-4 transition-transform duration-300 ${isBtnHovered ? 'translate-x-1' : ''}`} />
-                  SIGN IN AS {credentials.role === 'teacher' ? 'TEACHER' : 'PRINCIPAL'}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+              Back
+            </motion.span>
+          </motion.button>
 
-        <div className="mt-8 text-center animate-in fade-in duration-1000 delay-700">
-          <p className="text-xs text-gray-400 uppercase tracking-wide">
-            Protected Area • Papaya Academy, Inc.
-          </p>
+          <div className="mb-8">
+            <h2 className="text-4xl font-bold mb-2" style={{ color: '#0a192f' }}>Welcome back</h2>
+            <p className="text-base" style={{ color: '#475569' }}>Please enter your credentials to access your account.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Role Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-bold" style={{ color: '#1e293b' }}>Select Portal Role</label>
+              <div className="flex p-1 rounded-xl border relative" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
+                {/* Sliding background */}
+                <motion.div
+                  className="absolute top-1 bottom-1 rounded-lg bg-white shadow-sm border"
+                  style={{ 
+                    width: 'calc(50% - 4px)',
+                    borderColor: '#e2e8f0',
+                    left: credentials.role === 'teacher' ? '4px' : 'calc(50% + 0px)'
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setCredentials(prev => ({ ...prev, role: 'teacher' }))}
+                  className="flex-1 py-3 text-sm font-bold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 relative z-10"
+                  style={{ color: credentials.role === 'teacher' ? '#0f172a' : '#64748b' }}
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Teacher
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCredentials(prev => ({ ...prev, role: 'principal' }))}
+                  className="flex-1 py-3 text-sm font-bold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 relative z-10"
+                  style={{ color: credentials.role === 'principal' ? '#0f172a' : '#64748b' }}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  Principal
+                </button>
+              </div>
+            </div>
+
+            {/* Email Input */}
+            <div className="space-y-3 relative">
+              <motion.div
+                className="absolute pointer-events-none z-20 flex items-center gap-2"
+                initial={false}
+                animate={{
+                  top: (focusedInput === 'email' || credentials.email) ? -10 : 16,
+                  left: (focusedInput === 'email' || credentials.email) ? 4 : 16,
+                  scale: (focusedInput === 'email' || credentials.email) ? 0.85 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
+                <Mail 
+                  className="h-5 w-5" 
+                  style={{ color: (focusedInput === 'email') ? '#1b4332' : '#94a3b8', backgroundColor: '#ffffff' }} 
+                />
+                {(focusedInput === 'email' || credentials.email) && (
+                  <motion.span 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-xs font-bold px-1"
+                    style={{ color: '#1b4332', backgroundColor: '#ffffff' }}
+                  >
+                    Email Address
+                  </motion.span>
+                )}
+              </motion.div>
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  required
+                  value={credentials.email}
+                  onChange={handleInputChange}
+                  onFocus={() => setFocusedInput('email')}
+                  onBlur={() => setFocusedInput(null)}
+                  className="block w-full pl-12 pr-4 py-4 border rounded-xl outline-none text-base transition-colors"
+                  style={{ backgroundColor: '#ffffff', borderColor: focusedInput === 'email' ? '#1b4332' : '#e2e8f0', color: '#0f172a' }}
+                  placeholder={focusedInput === 'email' ? '' : (credentials.role === 'teacher' ? 'test@teacher.papaya.edu' : 'test@principal.papaya.edu')}
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-3 relative">
+              <div className="relative mt-4">
+                <motion.div
+                  className="absolute pointer-events-none z-20"
+                  initial={false}
+                  animate={{
+                    top: (focusedInput === 'password' || credentials.password) ? -10 : 16,
+                    left: (focusedInput === 'password' || credentials.password) ? 4 : 16,
+                    scale: (focusedInput === 'password' || credentials.password) ? 0.85 : 1,
+                  }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Lock 
+                      className="h-5 w-5" 
+                      style={{ color: (focusedInput === 'password') ? '#1b4332' : '#94a3b8', backgroundColor: '#ffffff' }} 
+                    />
+                    {(focusedInput === 'password' || credentials.password) && (
+                      <motion.span 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-xs font-bold px-1"
+                        style={{ color: '#1b4332', backgroundColor: '#ffffff' }}
+                      >
+                        Password
+                      </motion.span>
+                    )}
+                  </div>
+                </motion.div>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  required
+                  value={credentials.password}
+                  onChange={handleInputChange}
+                  onFocus={() => setFocusedInput('password')}
+                  onBlur={() => setFocusedInput(null)}
+                  className="block w-full pl-12 pr-12 py-4 border rounded-xl outline-none text-base transition-colors"
+                  style={{ backgroundColor: '#ffffff', borderColor: focusedInput === 'password' ? '#1b4332' : '#e2e8f0', color: '#0f172a' }}
+                  placeholder={focusedInput === 'password' ? '' : "Enter your password"}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center focus:outline-none z-20"
+                  style={{ color: '#94a3b8' }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={showPassword ? 'eye-off' : 'eye-on'}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </motion.div>
+                  </AnimatePresence>
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="px-4 py-3 rounded-xl text-sm border font-medium" style={{ backgroundColor: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <motion.button
+              type="submit"
+              disabled={isLoading}
+              whileTap={{ scale: 0.98 }}
+              whileHover="hover"
+              initial="initial"
+              className="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-base font-bold text-white disabled:opacity-70 disabled:cursor-not-allowed mt-4 shadow-sm"
+              style={{ backgroundColor: '#1a3828' }}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {isLoading ? (
+                  <motion.div
+                    key="loading"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center"
+                  >
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Signing in...</span>
+                  </motion.div>
+                ) : (
+                  <motion.span
+                    key="text"
+                    variants={{
+                      initial: { scale: 1 },
+                      hover: { scale: 1.05 }
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    {`Sign in as ${credentials.role === 'teacher' ? 'Teacher' : 'Principal'}`}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          </form>
         </div>
       </div>
     </div>
