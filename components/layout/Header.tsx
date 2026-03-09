@@ -302,7 +302,6 @@ export default function Header() {
                 <div id="mobile-programs-dropdown" className="hidden pl-4 space-y-1 mt-1">
                   <Link href="/projects/apple-scholarships" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Apple Scholarships</Link>
                   <Link href="/projects/pineapple-project" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Pineapple Project</Link>
-                  <Link href="/programs/foundation-day" className="block py-2 px-4 text-sm hover:bg-white/10 rounded transition-colors duration-200" onClick={() => setMobileMenuOpen(false)}>Foundation Day</Link>
                 </div>
               </div>
             </div>
