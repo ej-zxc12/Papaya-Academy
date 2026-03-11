@@ -7,6 +7,28 @@ import ScrollReveal from '@/components/ui/ScrollReveal';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
+interface MissionVisionData {
+  id: string;
+  mission?: {
+    title: string;
+    content: string;
+    image: string;
+  };
+  vision?: {
+    title: string;
+    content: string;
+    image: string;
+  };
+  values?: Array<{
+    title: string;
+    description?: string;
+    icon?: string;
+    id: string;
+  }>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export default function AboutPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -17,8 +39,31 @@ export default function AboutPage() {
 
 function AboutPageContent() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [missionVisionData, setMissionVisionData] = useState<MissionVisionData | null>(null);
+  const [missionVisionLoading, setMissionVisionLoading] = useState(true);
+  const [missionVisionError, setMissionVisionError] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  // Fetch mission and vision data
+  useEffect(() => {
+    const fetchMissionVisionData = async () => {
+      try {
+        const response = await fetch('/api/mission-vision');
+        if (!response.ok) {
+          throw new Error('Failed to fetch mission and vision data');
+        }
+        const result = await response.json();
+        setMissionVisionData(result);
+      } catch (err) {
+        setMissionVisionError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setMissionVisionLoading(false);
+      }
+    };
+
+    fetchMissionVisionData();
+  }, []);
 
   // Handle smooth scrolling when the page loads with a hash
   useEffect(() => {
@@ -202,33 +247,56 @@ function AboutPageContent() {
       <section id="mission" className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
-            <ScrollReveal animation="fade-down">
-              <h2 className="text-3xl font-bold text-papaya-green mb-8 text-center">Our Mission</h2>
-            </ScrollReveal>
-            <ScrollReveal animation="fade-up" delay={200}>
-              <div className="bg-papaya-light p-8 rounded-lg shadow-md">
-                <p className="text-lg text-gray-700 mb-6">
-                  To nurture learners through a student-centered, value-driven education that prepares them for further studies, future careers, and responsible citizenship.
-                </p>
-                <div className="grid md:grid-cols-2 gap-8 mt-10">
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-xl font-semibold text-papaya-green mb-3">Our Vision</h3>
-                    <p className="text-gray-600">
-                     A community where every child-especially the underserved-has access to quality, holistic, and inclusive education that develops the whole person.
-                    </p>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-xl font-semibold text-papaya-green mb-3">Our Values</h3>
-                    <ul className="space-y-2 text-gray-600">
-                      <li>• Compassion and Empathy</li>
-                      <li>• Excellence in Education</li>
-                      <li>• Community Empowerment</li>
-                      <li>• Sustainable Impact</li>
-                    </ul>
-                  </div>
-                </div>
+            {missionVisionLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A] mx-auto"></div>
+                <p className="mt-2 text-gray-600">Loading mission and vision...</p>
               </div>
-            </ScrollReveal>
+            ) : missionVisionError ? (
+              <div className="text-center py-8">
+                <div className="text-red-500 text-4xl mb-2">⚠️</div>
+                <p className="text-gray-600">{missionVisionError}</p>
+              </div>
+            ) : (
+              <>
+                <ScrollReveal animation="fade-down">
+                  <h2 className="text-3xl font-bold text-papaya-green mb-8 text-center">
+                    {missionVisionData?.mission?.title || 'Our Mission'}
+                  </h2>
+                </ScrollReveal>
+                <ScrollReveal animation="fade-up" delay={200}>
+                  <div className="bg-papaya-light p-8 rounded-lg shadow-md">
+                    {missionVisionData?.mission?.content && (
+                      <p className="text-lg text-gray-700 mb-6">
+                        {missionVisionData.mission.content}
+                      </p>
+                    )}
+                    <div className="grid md:grid-cols-2 gap-8 mt-10">
+                      {missionVisionData?.vision && (
+                        <div className="bg-white p-6 rounded-lg shadow-sm">
+                          <h3 className="text-xl font-semibold text-papaya-green mb-3">
+                            {missionVisionData.vision.title || 'Our Vision'}
+                          </h3>
+                          <p className="text-gray-600">
+                            {missionVisionData.vision.content}
+                          </p>
+                        </div>
+                      )}
+                      {missionVisionData?.values && missionVisionData.values.length > 0 && (
+                        <div className="bg-white p-6 rounded-lg shadow-sm">
+                          <h3 className="text-xl font-semibold text-papaya-green mb-3">Our Values</h3>
+                          <ul className="space-y-2 text-gray-600">
+                            {missionVisionData.values.map((value, index) => (
+                              <li key={value.id || `value-${index}`}>{value.title}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ScrollReveal>
+              </>
+            )}
           </div>
         </div>
       </section>

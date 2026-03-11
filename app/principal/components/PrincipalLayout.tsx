@@ -2,19 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Teacher } from '@/types';
+import { Principal } from '@/types';
 import { 
   Home,
-  School,
-  FilePlus,
-  Eye,
-  Table,
-  DollarSign,
+  FileText,
   Menu,
   X,
   LogOut,
-  GraduationCap,
-  FileText
+  Shield,
+  Users,
+  DollarSign
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -36,70 +33,35 @@ const PageSkeleton = () => (
   </div>
 );
 
-interface TeacherLayoutProps {
+interface PrincipalLayoutProps {
   children: React.ReactNode;
   title?: string;
   subtitle?: string;
 }
 
-export default function TeacherLayout({ children, title, subtitle }: TeacherLayoutProps) {
-  const [teacher, setTeacher] = useState<Teacher | null>(null);
+export default function PrincipalLayout({ children, title, subtitle }: PrincipalLayoutProps) {
+  const [principal, setPrincipal] = useState<Principal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-
-  const [firebaseUsername, setFirebaseUsername] = useState<string | null>(null);
-
-  const displayName = firebaseUsername || teacher?.name || 'Teacher';
 
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const initializeSessionAndFetch = async () => {
-      const session = localStorage.getItem('teacherSession');
+      const session = localStorage.getItem('principalSession');
       
       if (!session) {
-        router.push('/teacher/login');
+        router.push('/principal/login');
         return;
       }
 
       const parsedSession = JSON.parse(session);
-      const sessionTeacher = parsedSession?.teacher ?? parsedSession;
+      const sessionPrincipal = parsedSession?.principal ?? parsedSession;
 
-      setTeacher(sessionTeacher);
-
-      if (sessionTeacher?.username) {
-        setFirebaseUsername(sessionTeacher.username);
-      }
-
-      const targetUid = sessionTeacher?.uid || sessionTeacher?.id || sessionTeacher?.userId;
-
-      if (targetUid) {
-        try {
-          const docRef = doc(db, 'teachers_user', targetUid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.username) {
-              setFirebaseUsername(data.username);
-
-              const updatedTeacher = { ...sessionTeacher, ...data };
-              setTeacher(updatedTeacher);
-
-              const updatedSession = parsedSession?.teacher
-                ? { ...parsedSession, teacher: updatedTeacher }
-                : updatedTeacher;
-              localStorage.setItem('teacherSession', JSON.stringify(updatedSession));
-            }
-          }
-        } catch (error) {
-          console.error("Firestore read error:", error);
-        }
-      }
-
+      setPrincipal(sessionPrincipal);
       setIsLoading(false);
     };
 
@@ -107,30 +69,12 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   }, [router]);
 
   useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== 'teacherSession') return;
-      if (!event.newValue) return;
-      try {
-        const parsed = JSON.parse(event.newValue);
-        const sessionTeacher = parsed?.teacher ?? parsed;
-        setTeacher(sessionTeacher);
-        setFirebaseUsername(sessionTeacher?.username ?? null);
-      } catch {
-        // ignore invalid storage value
-      }
-    };
-
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('sidebarCollapsed');
+    const stored = localStorage.getItem('principalSidebarCollapsed');
     setIsCollapsed(stored === 'true');
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+    localStorage.setItem('principalSidebarCollapsed', String(isCollapsed));
   }, [isCollapsed]);
 
   const toggleDesktopSidebar = () => {
@@ -139,18 +83,15 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   };
 
   const menuItems = [
-    { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
-    { icon: FileText, label: 'Weekly Reports', href: '/teacher/weekly-reports' },
-    { icon: School, label: 'Input Grades', href: '/teacher/grades/input' },
-    { icon: FilePlus, label: 'Create SF10', href: '/teacher/sf10/create' },
-    { icon: Eye, label: 'View SF10', href: '/teacher/sf10/list' },
-    { icon: Table, label: 'Class Records', href: '/teacher/grades/view' },
-    { icon: DollarSign, label: 'Contributions', href: '/teacher/contributions' },
+    { icon: Home, label: 'Dashboard', href: '/principal/dashboard' },
+    { icon: FileText, label: 'Weekly Reports', href: '/principal/weekly-reports' },
+    { icon: Users, label: 'Teachers', href: '/principal/teachers' },
+    { icon: DollarSign, label: 'Contributions', href: '/principal/contributions' },
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('teacherSession');
-    router.push('/teacher/login');
+    localStorage.removeItem('principalSession');
+    router.push('/principal/login');
   };
 
   return (
@@ -161,12 +102,12 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
           onClick={() => setSidebarOpen(true)}
           className="p-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-50"
         >
-          <Menu className="w-5 h-5 text-[#1B3E2A]" />
+          <Menu className="w-5 h-5 text-purple-700" />
         </button>
       </div>
 
       <aside className={`
-        fixed inset-y-0 left-0 z-40 bg-white shadow-xl lg:shadow-md transform transition-all duration-300 ease-in-out flex flex-col
+        fixed lg:static inset-y-0 left-0 z-40 bg-white shadow-xl lg:shadow-md transform transition-all duration-300 ease-in-out flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} 
         w-64
@@ -178,15 +119,15 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             <div className={`flex items-center w-full transition-all duration-300 ${isCollapsed ? 'justify-center mb-0' : 'justify-between mb-6'}`}>
               
               <div className={`flex items-center overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}`}>
-                <div className="shrink-0 inline-flex items-center justify-center bg-[#F2C94C]/20 rounded-full w-10 h-10">
-                  <GraduationCap className="w-5 h-5 text-[#1B3E2A]" />
+                <div className="shrink-0 inline-flex items-center justify-center bg-purple-100 rounded-full w-10 h-10">
+                  <Shield className="w-5 h-5 text-purple-700" />
                 </div>
                 <div className="whitespace-nowrap overflow-hidden ml-3">
-                  <h1 className="text-[15px] font-semibold tracking-wide text-[#1B3E2A]">Teacher Portal</h1>
+                  <h1 className="text-[15px] font-semibold tracking-wide text-purple-900">Principal Portal</h1>
                   {isLoading ? (
                      <SkeletonText className="h-3 w-16 mt-1" />
                   ) : (
-                     <p className="text-xs text-gray-500">Grade {teacher?.gradeLevel}</p>
+                     <p className="text-xs text-gray-500">Administrator</p>
                   )}
                 </div>
               </div>
@@ -195,14 +136,14 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                 onClick={toggleDesktopSidebar}
                 className="hidden lg:flex p-1.5 bg-white rounded-md shadow-sm hover:shadow-md transition-all border border-gray-100 items-center justify-center shrink-0"
               >
-                {isCollapsed ? <Menu className="w-5 h-5 text-[#1B3E2A]" /> : <X className="w-5 h-5 text-[#1B3E2A]" />}
+                {isCollapsed ? <Menu className="w-5 h-5 text-purple-700" /> : <X className="w-5 h-5 text-purple-700" />}
               </button>
 
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="lg:hidden p-1.5 bg-white rounded-md shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex items-center justify-center shrink-0"
               >
-                <X className="w-5 h-5 text-[#1B3E2A]" />
+                <X className="w-5 h-5 text-purple-700" />
               </button>
             </div>
 
@@ -216,8 +157,8 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                 ) : (
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
-                    <span className="text-[15px] font-bold text-[#1B3E2A] truncate mt-0.5 whitespace-nowrap">
-                      {displayName}
+                    <span className="text-[15px] font-bold text-purple-900 truncate mt-0.5 whitespace-nowrap">
+                      {principal?.name || 'Principal'}
                     </span>
                   </div>
                 )}
@@ -250,10 +191,10 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                     ${isCollapsed ? 'justify-center p-3 h-12' : 'px-4 py-3 h-11'}
                   `}
                   style={{
-                    backgroundImage: 'linear-gradient(90deg, #1B3E2A 50%, transparent 50%)',
+                    backgroundImage: 'linear-gradient(90deg, #7c3aed 50%, transparent 50%)',
                     backgroundSize: '200% 100%',
                     backgroundPosition: isInteract ? '0%' : '100%',
-                    color: isInteract ? '#F2C94C' : '#1B3E2A', 
+                    color: isInteract ? '#ffffff' : '#7c3aed', 
                   }}
                 >
                   <Icon 
@@ -305,9 +246,8 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         />
       )}
       
-      <main className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'} min-h-screen`}>
-        <div className="p-8">
-          <div className="h-10 lg:hidden"></div>
+      <main className="flex-1 p-8 transition-all duration-300 overflow-y-auto h-screen">
+        <div className="h-10 lg:hidden"></div>
         
         {isLoading ? (
           <PageSkeleton />
@@ -322,8 +262,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             {children}
           </div>
         )}
-      </div>
-    </main>
-  </div>
+      </main>
+    </div>
   );
 }

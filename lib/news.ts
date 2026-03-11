@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, orderBy, where, limit } from 'firebase/firestore';
 
 export interface NewsArticle {
   id: string // Document ID in Firestore
@@ -11,6 +11,16 @@ export interface NewsArticle {
   date?: string
   createdAt?: string
   updatedAt?: string
+}
+
+export interface UpcomingEvent {
+  id: string
+  title?: string
+  description?: string
+  startAt?: string
+  endAt?: string
+  status?: string
+  timezone?: string
 }
 
 export async function getNewsArticles(): Promise<NewsArticle[]> {
@@ -108,4 +118,20 @@ export function formatNewsDate(value: string | undefined): string {
 export function truncateContent(content: string, maxLength: number = 150): string {
   if (!content) return ''
   return content.length > maxLength ? `${content.slice(0, maxLength)}...` : content
+}
+
+export async function getUpcomingEvents(maxCount: number = 3): Promise<UpcomingEvent[]> {
+  try {
+    const eventsRef = collection(db, 'events')
+    const q = query(eventsRef, orderBy('startAt', 'asc'), limit(maxCount))
+    const querySnapshot = await getDocs(q)
+
+    return querySnapshot.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<UpcomingEvent, 'id'>),
+    }))
+  } catch (error) {
+    console.error('Error fetching upcoming events:', error)
+    return []
+  }
 }
