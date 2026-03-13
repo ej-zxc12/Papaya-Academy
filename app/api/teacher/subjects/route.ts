@@ -167,6 +167,73 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const action = body?.action;
+
+    // Handle 'addSection' action
+    if (action === 'addSection') {
+      const section = typeof body?.section === 'string' ? body.section.trim() : '';
+      const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
+
+      if (!section) {
+        return NextResponse.json(
+          { message: 'section is required' },
+          { status: 400 }
+        );
+      }
+
+      if (!subjectId) {
+        return NextResponse.json(
+          { message: 'subjectId is required' },
+          { status: 400 }
+        );
+      }
+
+      // Verify the subject belongs to the teacher
+      const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+      if (!subjectDoc.exists()) {
+        return NextResponse.json(
+          { message: 'Subject not found' },
+          { status: 404 }
+        );
+      }
+
+      const subjectData = subjectDoc.data();
+      if (subjectData.teacherId !== teacherUid && subjectData.teacherUid !== teacherUid) {
+        return NextResponse.json(
+          { message: 'Unauthorized - Subject does not belong to this teacher' },
+          { status: 403 }
+        );
+      }
+
+      // Create or update teacherSubjects document with the section
+      const teacherSubjectsCollection = collection(db, 'teacherSubjects');
+      const q = query(
+        teacherSubjectsCollection,
+        where('teacherId', '==', teacherUid),
+        where('subjectId', '==', subjectId),
+        where('section', '==', section)
+      );
+      const existingSnap = await getDocs(q);
+
+      if (existingSnap.empty) {
+        // Create new teacherSubject entry with this section
+        await addDoc(teacherSubjectsCollection, {
+          teacherId: teacherUid,
+          teacherUid,
+          subjectId,
+          section,
+          schoolYear: subjectData.schoolYear || '2024-2025',
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      return NextResponse.json({
+        message: 'Section added successfully',
+        section: { name: section, subjectId }
+      }, { status: 201 });
+    }
+
+    // Regular subject creation
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const code = typeof body?.code === 'string' ? body.code.trim() : '';
     const gradeLevelsFromBody = Array.isArray(body?.gradeLevels)

@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   LogOut,
-  GraduationCap
+  GraduationCap,
+  FileText
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -140,6 +141,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
     { icon: School, label: 'Input Grades', href: '/teacher/grades/input' },
+    { icon: FileText, label: 'Report Cards', href: '/teacher/report-cards' },
     { icon: FilePlus, label: 'Create SF10', href: '/teacher/sf10/create' },
     { icon: Eye, label: 'View SF10', href: '/teacher/sf10/list' },
     { icon: Table, label: 'Class Records', href: '/teacher/grades/view' },

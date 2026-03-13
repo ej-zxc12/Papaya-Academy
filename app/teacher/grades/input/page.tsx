@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Student, Subject, type GradeInput } from '@/types';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
 import { 
   Save, 
@@ -180,9 +182,15 @@ export default function GradeInput() {
   const [grades, setGrades] = useState<{ [key: string]: string }>({});
   const [remarks, setRemarks] = useState<{ [key: string]: string }>({});
   const [isRemarkManuallyEdited, setIsRemarkManuallyEdited] = useState<{ [key: string]: boolean }>({});
-  const [gradesBySubject, setGradesBySubject] = useState<{ [subjectId: string]: { [studentId: string]: string } }>({});
-  const [remarksBySubject, setRemarksBySubject] = useState<{ [subjectId: string]: { [studentId: string]: string } }>({});
-  const [isRemarkManuallyEditedBySubject, setIsRemarkManuallyEditedBySubject] = useState<{ [subjectId: string]: { [studentId: string]: boolean } }>({});
+  const [gradesBySubjectAndPeriod, setGradesBySubjectAndPeriod] = useState<{
+    [subjectId: string]: { [period: string]: { [studentId: string]: string } }
+  }>({});
+  const [remarksBySubjectAndPeriod, setRemarksBySubjectAndPeriod] = useState<{
+    [subjectId: string]: { [period: string]: { [studentId: string]: string } }
+  }>({});
+  const [isRemarkManuallyEditedBySubjectAndPeriod, setIsRemarkManuallyEditedBySubjectAndPeriod] = useState<{
+    [subjectId: string]: { [period: string]: { [studentId: string]: boolean } }
+  }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -191,10 +199,14 @@ export default function GradeInput() {
   const [studentSubjectId, setStudentSubjectId] = useState<string[]>([]);
   const [availableGradeLevelsForStudent, setAvailableGradeLevelsForStudent] = useState<string[]>([]);
   const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
-  
+  const [sections, setSections] = useState<Array<{ id: string; name: string; subjectId?: string }>>([]);
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', gradeLevel: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '' });
 
   // Subject management states
   const [showAddSubject, setShowAddSubject] = useState(false);
@@ -204,10 +216,6 @@ export default function GradeInput() {
     gradeLevels: [] as string[],
     schoolYear: '2024-2025'
   });
-
-  // Add grade level to existing subject states
-  const [showAddGradeLevel, setShowAddGradeLevel] = useState(false);
-  const [newGradeLevel, setNewGradeLevel] = useState<string>('');
 
   useEffect(() => {
     // Initialize teacher session + persisted active period (run once)
@@ -313,20 +321,24 @@ export default function GradeInput() {
 
   useEffect(() => {
     let filtered = allStudents;
+    console.log('DEBUG: All students before filtering:', allStudents.map(s => ({ id: s.id, name: s.name, gradeLevel: s.gradeLevel, subjectId: s.subjectId })));
     
     // Apply subject filter first
     if (studentListSubjectFilter) {
       // Filter students who are associated with this specific subject
       filtered = filtered.filter(s => s.subjectId === studentListSubjectFilter);
+      console.log('DEBUG: After subject filter (' + studentListSubjectFilter + '):', filtered.length, 'students remain');
     }
     
     // Then apply grade level filter to the already filtered results
     if (selectedGradeLevelFilter) {
       filtered = filtered.filter(s => s.gradeLevel === selectedGradeLevelFilter);
+      console.log('DEBUG: After grade level filter (' + selectedGradeLevelFilter + '):', filtered.length, 'students remain');
     }
     
+    console.log('DEBUG: Final filtered students for grade display:', filtered.map(s => ({ id: s.id, name: s.name, gradeLevel: s.gradeLevel, subjectId: s.subjectId })));
     setStudents(filtered);
-  }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents]);
+  }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents, selectedSubject, selectedGradingPeriod]);
 
   useEffect(() => {
     if (subjects?.length > 0 && studentSubjectId.length === 0) {
@@ -365,12 +377,74 @@ export default function GradeInput() {
     }
   }, [subjects]);
 
+  useEffect(() => {
+    const loadSections = async () => {
+      if (!teacherId) return;
+      try {
+        // Fetch sections from teacherSubjects collection
+        const response = await fetch('/api/teacher/subjects', {
+          headers: {
+            'Authorization': `Bearer ${teacherId}`
+          }
+        });
+
+        if (response.ok) {
+          const teacherSubjectsData = await response.json();
+          // Extract unique sections from teacherSubjects
+          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string }>();
+          
+          teacherSubjectsData.forEach((ts: any) => {
+            if (ts.section && ts.subjectId) {
+              const key = `${ts.subjectId}_${ts.section}`;
+              sectionsMap.set(key, { 
+                id: key, 
+                name: ts.section, 
+                subjectId: ts.subjectId 
+              });
+            }
+          });
+
+          const normalized = Array.from(sectionsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+          setSections(normalized);
+        }
+      } catch (e) {
+        console.error('Error loading sections:', e);
+        setSections([]);
+      }
+    };
+
+    loadSections();
+  }, [teacherId]);
+
   const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
     try {
-      if (selectedSubject && selectedSubject !== subjectId) {
-        setGradesBySubject(prev => ({ ...prev, [selectedSubject]: grades }));
-        setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: remarks }));
-        setIsRemarkManuallyEditedBySubject(prev => ({ ...prev, [selectedSubject]: isRemarkManuallyEdited }));
+      // Only cache current grades if we're SWITCHING to a different subject/period
+      // Don't cache on initial load when grades are empty
+      const isSwitching = selectedSubject && selectedGradingPeriod && 
+        (selectedSubject !== subjectId || selectedGradingPeriod !== gradingPeriod);
+      
+      if (isSwitching && Object.keys(grades).length > 0) {
+        setGradesBySubjectAndPeriod(prev => ({
+          ...prev,
+          [selectedSubject]: {
+            ...(prev[selectedSubject] || {}),
+            [selectedGradingPeriod]: grades
+          }
+        }));
+        setRemarksBySubjectAndPeriod(prev => ({
+          ...prev,
+          [selectedSubject]: {
+            ...(prev[selectedSubject] || {}),
+            [selectedGradingPeriod]: remarks
+          }
+        }));
+        setIsRemarkManuallyEditedBySubjectAndPeriod(prev => ({
+          ...prev,
+          [selectedSubject]: {
+            ...(prev[selectedSubject] || {}),
+            [selectedGradingPeriod]: isRemarkManuallyEdited
+          }
+        }));
       }
 
       const response = await fetch(`/api/teacher/grades?teacherId=${teacherId}&subjectId=${subjectId}&gradingPeriod=${gradingPeriod}`, {
@@ -381,49 +455,96 @@ export default function GradeInput() {
       
       if (response.ok) {
         const existingGrades = await response.json();
+        console.log('DEBUG: Loaded grades from API for', subjectId, gradingPeriod, ':', existingGrades);
+        
         const gradesMap: { [key: string]: string } = {};
         const remarksMap: { [key: string]: string } = {};
         
         existingGrades.forEach((grade: any) => {
-          // Find the current student ID for this student name in this subject
-          const currentStudentId = students.find(s => s.name === grade.studentName)?.id;
-          if (currentStudentId) {
-            gradesMap[currentStudentId] = grade.grade.toString();
+          if (grade.studentId) {
+            gradesMap[grade.studentId] = grade.grade?.toString() || '';
             if (grade.remarks) {
-              remarksMap[currentStudentId] = grade.remarks;
+              remarksMap[grade.studentId] = grade.remarks;
             }
           }
         });
         
-        const savedGrades = gradesBySubject[subjectId] || {};
-        const savedRemarks = remarksBySubject[subjectId] || {};
-        const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
+        console.log('DEBUG: Grades map from API:', gradesMap);
+        console.log('DEBUG: Student IDs with grades:', Object.keys(gradesMap));
         
-        const mergedGrades = { ...gradesMap, ...savedGrades };
-        const mergedRemarks = { ...remarksMap, ...savedRemarks };
-        const mergedManualEdits = { ...savedManualEdits };
+        // For initial load or refresh, use API data directly (no merge with empty cache)
+        // Only merge with cache if we're switching back to a previously viewed subject/period
+        let finalGrades = gradesMap;
+        let finalRemarks = remarksMap;
+        let finalManualEdits: { [key: string]: boolean } = {};
         
-        setGrades(mergedGrades);
-        setRemarks(mergedRemarks);
-        setIsRemarkManuallyEdited(mergedManualEdits);
+        if (isSwitching) {
+          // When switching, merge cache (unsaved changes) over API data
+          const cachedGrades = gradesBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+          const cachedRemarks = remarksBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+          const cachedManualEdits = isRemarkManuallyEditedBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+          
+          finalGrades = { ...gradesMap, ...cachedGrades };
+          finalRemarks = { ...remarksMap, ...cachedRemarks };
+          finalManualEdits = { ...cachedManualEdits };
+        }
+        
+        console.log('DEBUG: Final grades to display:', finalGrades);
+        setGrades(finalGrades);
+        setRemarks(finalRemarks);
+        setIsRemarkManuallyEdited(finalManualEdits);
+        
+        // Also update the cache with the loaded data
+        setGradesBySubjectAndPeriod(prev => ({
+          ...prev,
+          [subjectId]: {
+            ...(prev[subjectId] || {}),
+            [gradingPeriod]: finalGrades
+          }
+        }));
+        setRemarksBySubjectAndPeriod(prev => ({
+          ...prev,
+          [subjectId]: {
+            ...(prev[subjectId] || {}),
+            [gradingPeriod]: finalRemarks
+          }
+        }));
+
+        // IMMEDIATELY update students to show those with grades
+        // This ensures grades appear even if filters change
+        const studentIdsWithGrades = Object.keys(finalGrades).filter(id => finalGrades[id] && finalGrades[id] !== '' && finalGrades[id] !== '0');
+        if (studentIdsWithGrades.length > 0) {
+          console.log('DEBUG: Ensuring students with grades are visible:', studentIdsWithGrades);
+          setStudents(prev => {
+            const currentIds = new Set(prev.map(s => s.id));
+            const missingStudents = allStudents.filter(s => studentIdsWithGrades.includes(s.id) && !currentIds.has(s.id));
+            if (missingStudents.length > 0) {
+              return [...prev, ...missingStudents];
+            }
+            return prev;
+          });
+        }
       } else {
-        const savedGrades = gradesBySubject[subjectId] || {};
-        const savedRemarks = remarksBySubject[subjectId] || {};
-        const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
+        // API failed - try to load from cache
+        console.log('DEBUG: API failed, loading from cache');
+        const cachedGrades = gradesBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+        const cachedRemarks = remarksBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+        const cachedManualEdits = isRemarkManuallyEditedBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
         
-        setGrades(savedGrades);
-        setRemarks(savedRemarks);
-        setIsRemarkManuallyEdited(savedManualEdits);
+        setGrades(cachedGrades);
+        setRemarks(cachedRemarks);
+        setIsRemarkManuallyEdited(cachedManualEdits);
       }
     } catch (error) {
       console.error('Error loading existing grades:', error);
-      const savedGrades = gradesBySubject[subjectId] || {};
-      const savedRemarks = remarksBySubject[subjectId] || {};
-      const savedManualEdits = isRemarkManuallyEditedBySubject[subjectId] || {};
+      // On error, try cache
+      const cachedGrades = gradesBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+      const cachedRemarks = remarksBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
+      const cachedManualEdits = isRemarkManuallyEditedBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
       
-      setGrades(savedGrades);
-      setRemarks(savedRemarks);
-      setIsRemarkManuallyEdited(savedManualEdits);
+      setGrades(cachedGrades);
+      setRemarks(cachedRemarks);
+      setIsRemarkManuallyEdited(cachedManualEdits);
     }
   };
 
@@ -443,8 +564,15 @@ export default function GradeInput() {
       const newGrades = { ...grades, [studentId]: value };
       setGrades(newGrades);
       
-      if (selectedSubject) {
-        setGradesBySubject(prev => ({ ...prev, [selectedSubject]: newGrades }));
+      // Cache by both subject AND grading period
+      if (selectedSubject && selectedGradingPeriod) {
+        setGradesBySubjectAndPeriod(prev => ({
+          ...prev,
+          [selectedSubject]: {
+            ...(prev[selectedSubject] || {}),
+            [selectedGradingPeriod]: newGrades
+          }
+        }));
       }
 
       if (value === '') {
@@ -453,17 +581,35 @@ export default function GradeInput() {
         setRemarks(newRemarks);
         setIsRemarkManuallyEdited(newManualEdits);
         
-        if (selectedSubject) {
-          setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
-          setIsRemarkManuallyEditedBySubject(prev => ({ ...prev, [selectedSubject]: newManualEdits }));
+        if (selectedSubject && selectedGradingPeriod) {
+          setRemarksBySubjectAndPeriod(prev => ({
+            ...prev,
+            [selectedSubject]: {
+              ...(prev[selectedSubject] || {}),
+              [selectedGradingPeriod]: newRemarks
+            }
+          }));
+          setIsRemarkManuallyEditedBySubjectAndPeriod(prev => ({
+            ...prev,
+            [selectedSubject]: {
+              ...(prev[selectedSubject] || {}),
+              [selectedGradingPeriod]: newManualEdits
+            }
+          }));
         }
       } else if (!isRemarkManuallyEdited[studentId]) {
         const autoRemark = getAutoRemark(numValue);
         const newRemarks = { ...remarks, [studentId]: autoRemark };
         setRemarks(newRemarks);
         
-        if (selectedSubject) {
-          setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
+        if (selectedSubject && selectedGradingPeriod) {
+          setRemarksBySubjectAndPeriod(prev => ({
+            ...prev,
+            [selectedSubject]: {
+              ...(prev[selectedSubject] || {}),
+              [selectedGradingPeriod]: newRemarks
+            }
+          }));
         }
       }
     }
@@ -476,9 +622,22 @@ export default function GradeInput() {
     setRemarks(newRemarks);
     setIsRemarkManuallyEdited(newManualEdits);
     
-    if (selectedSubject) {
-      setRemarksBySubject(prev => ({ ...prev, [selectedSubject]: newRemarks }));
-      setIsRemarkManuallyEditedBySubject(prev => ({ ...prev, [selectedSubject]: newManualEdits }));
+    // Cache by both subject AND grading period
+    if (selectedSubject && selectedGradingPeriod) {
+      setRemarksBySubjectAndPeriod(prev => ({
+        ...prev,
+        [selectedSubject]: {
+          ...(prev[selectedSubject] || {}),
+          [selectedGradingPeriod]: newRemarks
+        }
+      }));
+      setIsRemarkManuallyEditedBySubjectAndPeriod(prev => ({
+        ...prev,
+        [selectedSubject]: {
+          ...(prev[selectedSubject] || {}),
+          [selectedGradingPeriod]: newManualEdits
+        }
+      }));
     }
   };
 
@@ -536,56 +695,14 @@ export default function GradeInput() {
     }
   };
 
-  const handleAddGradeLevelToSubject = async () => {
-    if (!selectedSubject || !newGradeLevel) {
-      setMessage({ type: 'error', text: 'Please select a subject and grade level' });
-      return;
-    }
-
-    setMessage(null);
-    try {
-      const session = localStorage.getItem('teacherSession');
-      const teacherData = JSON.parse(session!);
-      const t = teacherData?.teacher ?? teacherData;
-      const teacherUid = t?.uid || t?.id || '';
-
-      const response = await fetch('/api/teacher/subjects', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${teacherUid}`
-        },
-        body: JSON.stringify({
-          subjectId: selectedSubject,
-          gradeLevels: [newGradeLevel]
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const subjectName = subjects?.find(s => s.id === selectedSubject)?.name;
-        
-        setSubjects(prev => prev.map(subject => 
-          subject.id === selectedSubject 
-            ? { ...subject, gradeLevels: result.gradeLevels, gradeLevel: result.gradeLevels[0] }
-            : subject
-        ));
-
-        setNewGradeLevel('');
-        setShowAddGradeLevel(false);
-        setMessage({ type: 'success', text: `Grade ${newGradeLevel} added to ${subjectName}` });
-      } else {
-        const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.message || 'Failed to add grade level' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to add grade level' });
-    }
-  };
-
   const handleAddStudent = async () => {
     if (!newStudent.name.trim()) {
       setMessage({ type: 'error', text: 'Student name is required' });
+      return;
+    }
+
+    if (!newStudent.lrn.trim()) {
+      setMessage({ type: 'error', text: 'LRN is required' });
       return;
     }
 
@@ -627,7 +744,9 @@ export default function GradeInput() {
         },
         body: JSON.stringify({
           name: newStudent.name.trim(),
+          lrn: newStudent.lrn.trim(),
           gradeLevel: newStudent.gradeLevel,
+          section: selectedSection,
           subjectIds: studentSubjectId // Send all selected subject IDs
         })
       });
@@ -648,7 +767,8 @@ export default function GradeInput() {
           const refreshedStudents = await refreshedStudentsResponse.json();
           setAllStudents(refreshedStudents);
         }
-        setNewStudent({ name: '', gradeLevel: '' });
+        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '' });
+        setSelectedSection('');
         setShowAddStudent(false);
         const subjectNames = studentSubjectId.map(id => 
           subjects?.find(s => s.id === id)?.name || 'Unknown Subject'
@@ -715,6 +835,28 @@ export default function GradeInput() {
     return errors;
   };
 
+  const getGradeColor = (grade: string) => {
+    if (!grade) return '';
+    const numGrade = parseFloat(grade);
+    if (numGrade >= 90) return 'text-green-600 font-bold';
+    if (numGrade >= 80) return 'text-blue-600 font-semibold';
+    if (numGrade >= 75) return 'text-yellow-600 font-medium';
+    return 'text-red-600 font-medium';
+  };
+
+  const gradingOrder = (period: 'first' | 'second' | 'third' | 'fourth') => {
+    switch (period) {
+      case 'first': return 1;
+      case 'second': return 2;
+      case 'third': return 3;
+      case 'fourth': return 4;
+      default: return 0;
+    }
+  };
+
+  const isLockedByDefault = gradingOrder(selectedGradingPeriod) < gradingOrder(activeGradingPeriod);
+  const isReadOnly = isLockedByDefault && !isEditingUnlocked;
+
   const handleSave = async () => {
     if (students.length === 0) {
       setMessage({ 
@@ -746,6 +888,7 @@ export default function GradeInput() {
         grade: parseFloat(grades[student.id] || '0'),
         remarks: remarks[student.id] || '',
         teacherId: teacherUid,
+        gradeLevel: student.gradeLevel || 'Unknown',
         dateInput: new Date().toISOString()
       }));
 
@@ -768,6 +911,11 @@ export default function GradeInput() {
         }
         
         setMessage({ type: 'success', text: message });
+        
+        // Reload grades to ensure they persist after save
+        if (selectedSubject) {
+          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod);
+        }
       } else {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.message || `Failed to save grades` });
@@ -779,34 +927,18 @@ export default function GradeInput() {
     }
   };
 
-  const getGradeColor = (grade: string) => {
-    if (!grade) return '';
-    const numGrade = parseFloat(grade);
-    if (numGrade >= 90) return 'text-green-600 font-bold';
-    if (numGrade >= 80) return 'text-blue-600 font-semibold';
-    if (numGrade >= 75) return 'text-yellow-600 font-medium';
-    return 'text-red-600 font-medium';
-  };
-
-  const gradingOrder = (period: 'first' | 'second' | 'third' | 'fourth') => {
-    switch (period) {
-      case 'first': return 1;
-      case 'second': return 2;
-      case 'third': return 3;
-      case 'fourth': return 4;
-      default: return 0;
-    }
-  };
-
-  const isLockedByDefault = gradingOrder(selectedGradingPeriod) < gradingOrder(activeGradingPeriod);
-  const isReadOnly = isLockedByDefault && !isEditingUnlocked;
-
   const selectedSubjectObj = subjects?.find(s => s.id === selectedSubject);
   const availableGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
     ? selectedSubjectObj.gradeLevels
     : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
 
   const allSystemGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+  
+  // Use all system grade levels for filter, not just selected subject's levels
+  const gradeLevelFilterOptions = [
+    { label: "All Grade Levels", value: "" }, 
+    ...allSystemGradeLevels.map(g => ({ label: g, value: g }))
+  ];
 
   const handleUnlockEditing = () => {
     if (!isLockedByDefault) return;
@@ -828,6 +960,64 @@ export default function GradeInput() {
 
   const handleChangeStudentListSubjectFilter = (value: string) => {
     setStudentListSubjectFilter(value);
+  };
+
+  const handleAddSection = async () => {
+    if (!newSectionName.trim()) {
+      setMessage({ type: 'error', text: 'Section name is required' });
+      return;
+    }
+
+    if (!teacherId) {
+      setMessage({ type: 'error', text: 'Please login first' });
+      return;
+    }
+
+    setMessage(null);
+    try {
+      // Add section to the selected subject's teacherSubject document
+      if (!selectedSubject) {
+        setMessage({ type: 'error', text: 'Please select a subject first' });
+        return;
+      }
+
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
+
+      // Create or update teacherSubject with the section
+      const response = await fetch('/api/teacher/subjects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${teacherUid}`
+        },
+        body: JSON.stringify({
+          section: newSectionName.trim(),
+          subjectId: selectedSubject,
+          action: 'addSection'
+        })
+      });
+
+      if (response.ok) {
+        const created = { id: selectedSubject + '_' + newSectionName.trim(), name: newSectionName.trim(), subjectId: selectedSubject };
+        setSections((prev) => {
+          const next = [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
+          return next;
+        });
+        setSelectedSection(created.name);
+        setNewSectionName('');
+        setShowAddSection(false);
+        setMessage({ type: 'success', text: 'Section added successfully' });
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.message || 'Failed to add section' });
+      }
+    } catch (e) {
+      console.error('Error adding section:', e);
+      setMessage({ type: 'error', text: 'Failed to add section' });
+    }
   };
 
   if (isLoading) {
@@ -919,6 +1109,44 @@ export default function GradeInput() {
             </AnimatedButton>
           </div>
 
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <h4 className="text-sm font-semibold text-[#1B3E2A] uppercase tracking-wider">Sections</h4>
+            <AnimatedButton
+              onClick={() => setShowAddSection(!showAddSection)}
+              className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+              style={{ width: 'auto' }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Section
+            </AnimatedButton>
+          </div>
+
+          {showAddSection && (
+            <div className="border-t border-dashed border-gray-200 pt-6 mb-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section Name</label>
+                  <input
+                    type="text"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="e.g. Section A"
+                  />
+                </div>
+                <div className="flex items-end justify-end">
+                  <AnimatedButton
+                    onClick={handleAddSection}
+                    className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                    style={{ width: 'auto' }}
+                  >
+                    Confirm Add Section
+                  </AnimatedButton>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Section will be added to the currently selected subject</p>
+            </div>
+          )}
           {showAddSubject && (
             <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -956,7 +1184,7 @@ export default function GradeInput() {
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Levels</label>
                   <div className="flex flex-wrap gap-2">
                     {['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((level) => (
-                      <label key={level} className={`cursor-pointer px-3 py-1 rounded-full text-xs font-medium transition-colors border ${newSubject.gradeLevels.includes(level) ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1B3E2A]'}`}>
+                      <label key={level} className={`cursor-pointer px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${newSubject.gradeLevels.includes(level) ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1B3E2A]'}`}>
                         <input
                           type="checkbox"
                           className="hidden"
@@ -987,180 +1215,137 @@ export default function GradeInput() {
               </div>
             </div>
           )}
+        </div>
 
-          {/* Current Subject Grade Level Management */}
-          {selectedSubject && subjects?.length > 0 && (() => {
-            const currentSubject = subjects?.find(s => s.id === selectedSubject);
-            if (!currentSubject) return null;
-            
-            return (
-              <div className="mt-6 bg-[#f0f7f3] rounded-xl p-4 border border-green-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                   <div className="bg-white p-2 rounded-full shadow-sm">
-                      <BookOpen className="w-5 h-5 text-[#1B3E2A]" />
-                   </div>
-                   <div>
-                      <h4 className="text-sm font-semibold text-[#1B3E2A]">Current Subject: {currentSubject.name}</h4>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {currentSubject.gradeLevels && currentSubject.gradeLevels.length > 0 ? (
-                          currentSubject.gradeLevels.map((grade) => (
-                            <span key={grade} className="px-2 py-0.5 bg-white text-[#1B3E2A] text-[10px] uppercase font-bold tracking-wide rounded border border-green-200">
-                              {grade}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 text-xs italic">No levels assigned</span>
-                        )}
-                      </div>
-                   </div>
+        {/* Add Student Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-[#1B3E2A] flex items-center gap-2">
+              <Users className="w-5 h-5 text-[#F2C94C]" />
+              Student Management
+            </h3>
+            <AnimatedButton
+              onClick={() => setShowAddStudent(!showAddStudent)}
+              className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+              style={{ width: 'auto' }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Student
+            </AnimatedButton>
+          </div>
+
+          {showAddStudent && (
+            <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
+              {/* Subject Selection Buttons */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Subject</label>
+                <div className="flex flex-wrap gap-2">
+                  {subjects?.map((subject) => (
+                    <AnimatedButton
+                      key={subject.id}
+                      onClick={() => {
+                        setStudentSubjectId(currentIds => {
+                          if (currentIds.includes(subject.id)) {
+                            // Remove the subject
+                            return currentIds.filter(id => id !== subject.id);
+                          } else {
+                            // Add the subject
+                            return [...currentIds, subject.id];
+                          }
+                        });
+                      }}
+                      isActive={studentSubjectId.includes(subject.id)}
+                      style={{ width: 'auto' }}
+                    >
+                      {subject.name} ({subject.code})
+                    </AnimatedButton>
+                  ))}
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
+                  <input
+                    type="text"
+                    value={newStudent.name}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="Enter student name"
+                  />
+                  <div className="mt-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">LRN</label>
+                    <input
+                      type="text"
+                      value={newStudent.lrn}
+                      onChange={(e) => setNewStudent(prev => ({ ...prev, lrn: e.target.value }))}
+                      className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                      placeholder="Enter LRN"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
+                  <div className="relative h-11">
+                    <select
+                      value={newStudent.gradeLevel}
+                      onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
+                      className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                    >
+                      {availableGradeLevelsForStudent.length === 0 ? (
+                        <option value="">Select subject first</option>
+                      ) : (
+                        availableGradeLevelsForStudent.map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))
+                      )}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section</label>
+                    <div className="relative h-11">
+                      <select
+                        value={selectedSection}
+                        onChange={(e) => setSelectedSection(e.target.value)}
+                        className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                      >
+                        <option value=""></option>
+                        {sections
+                          .filter((s) => {
+                            // Show section if no subjectId (applies to all) or if selected subject matches
+                            if (!s.subjectId) return true;
+                            return studentSubjectId.includes(s.subjectId);
+                          })
+                          .map((s) => (
+                            <option key={s.id} value={s.name}>{s.name}</option>
+                          ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    </div>
+                    {sections.filter((s) => {
+                      if (!s.subjectId) return true;
+                      return studentSubjectId.includes(s.subjectId);
+                    }).length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">No sections available for selected subjects. Add a section in Subject Management.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
                 <AnimatedButton
-                  onClick={() => setShowAddGradeLevel(true)}
-                  className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                  onClick={handleAddStudent}
+                  className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
                   style={{ width: 'auto' }}
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Level
+                  Confirm Add Student
                 </AnimatedButton>
               </div>
-            );
-          })()}
-        </div>
-
-        {/* Add Student Section - MOVED ON TOP OF GRADE LIST */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-100">
-           <div className="flex flex-col sm:flex-row items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-[#1B3E2A] flex items-center gap-2">
-                 <Users className="w-5 h-5 text-[#F2C94C]" />
-                 Student Management
-              </h3>
-              <AnimatedButton
-                onClick={() => setShowAddStudent(!showAddStudent)}
-                className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-                style={{ width: 'auto' }}
-              >
-                <Plus className="w-4 h-4" />
-                Add Student
-              </AnimatedButton>
-           </div>
-
-           {showAddStudent && (
-             <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
-                {/* Subject Selection Buttons */}
-                <div className="mb-6">
-                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Subject</label>
-                   <div className="flex flex-wrap gap-2">
-                      {subjects?.map((subject) => (
-                        <AnimatedButton
-                           key={subject.id}
-                           onClick={() => {
-                             setStudentSubjectId(currentIds => {
-                               if (currentIds.includes(subject.id)) {
-                                 // Remove the subject
-                                 return currentIds.filter(id => id !== subject.id);
-                               } else {
-                                 // Add the subject
-                                 return [...currentIds, subject.id];
-                               }
-                             });
-                           }}
-                           isActive={studentSubjectId.includes(subject.id)}
-                           style={{ width: 'auto' }}
-                        >
-                           {subject.name} ({subject.code})
-                        </AnimatedButton>
-                      ))}
-                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
-                      <input
-                        type="text"
-                        value={newStudent.name}
-                        onChange={(e) => setNewStudent(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
-                        placeholder="Enter student name"
-                      />
-                   </div>
-                   <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
-                      <div className="relative h-11">
-                        <select
-                          value={newStudent.gradeLevel}
-                          onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
-                          className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
-                        >
-                          {availableGradeLevelsForStudent.length === 0 ? (
-                            <option value="">Select subject first</option>
-                          ) : (
-                            availableGradeLevelsForStudent.map((g) => (
-                              <option key={g} value={g}>{g}</option>
-                            ))
-                          )}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                      </div>
-                   </div>
-                </div>
-                <div className="mt-6 flex justify-end">
-                  <AnimatedButton
-                    onClick={handleAddStudent}
-                    className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-                    style={{ width: 'auto' }}
-                  >
-                    Confirm Add Student
-                  </AnimatedButton>
-                </div>
-             </div>
-           )}
-        </div>
-
-        {/* Filters Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100 relative overflow-visible">
-          <div className="absolute top-0 left-0 w-1 h-full bg-[#F2C94C]"></div>
-          
-          <div className="flex flex-col gap-6">
-            {/* Top Row Filters */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-               <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-                 <CustomDropdown 
-                    label="Active Period"
-                    value={activeGradingPeriod}
-                    options={gradingOptions}
-                    onChange={(val) => handleChangeActiveGrading(val as any)}
-                 />
-                 <CustomDropdown 
-                    label="Subject Context"
-                    value={selectedSubject}
-                    options={subjectOptions}
-                    onChange={(val) => setSelectedSubject(val)}
-                 />
-               </div>
-
-               {isLockedByDefault && (
-                  <AnimatedButton
-                    onClick={handleUnlockEditing}
-                    className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-                    style={{ width: 'auto' }}
-                  >
-                    {isEditingUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                    {isEditingUnlocked ? 'Unlocked' : 'Locked (Read-Only)'}
-                  </AnimatedButton>
-               )}
             </div>
-            
-            <div className="h-px bg-gray-100 w-full"></div>
-            
-            {/* Status Text */}
-            <div className="flex items-center gap-2 text-sm">
-               <div className={`w-2 h-2 rounded-full ${isReadOnly ? 'bg-orange-400' : 'bg-green-500'}`}></div>
-               <span className={`${isReadOnly ? 'text-orange-600 font-medium' : 'text-green-700 font-medium'}`}>
-                  {isReadOnly ? 'Grading period is currently read-only. Unlock to edit.' : 'Editing enabled.'}
-               </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Grades Table Section */}
@@ -1189,11 +1374,11 @@ export default function GradeInput() {
                    />
                  </div>
                )}
-               {availableGradeLevels.length > 0 && (
+               {allSystemGradeLevels.length > 0 && (
                  <div className="w-40">
                     <CustomDropdown
                       value={selectedGradeLevelFilter}
-                      options={gradeLevelOptions}
+                      options={gradeLevelFilterOptions}
                       onChange={handleChangeGradeLevelFilter}
                       placeholder="Filter Grade"
                     />
@@ -1300,62 +1485,6 @@ export default function GradeInput() {
             </div>
           )}
         </div>
-
-        {/* Add Grade Level Modal */}
-        {showAddGradeLevel && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
-               <div className="flex items-center gap-4 mb-6">
-                 <div className="w-12 h-12 rounded-full bg-[#f0f7f3] flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-[#1B3E2A]" />
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-bold text-[#1B3E2A]">Add Grade Level</h3>
-                    <p className="text-sm text-gray-500">to {selectedSubjectObj?.name}</p>
-                 </div>
-               </div>
-               
-               <div className="grid grid-cols-2 gap-3 mb-8">
-                  {allSystemGradeLevels.map((grade) => {
-                    const isAlreadyAdded = selectedSubjectObj?.gradeLevels?.includes(grade);
-                    return (
-                      <AnimatedButton
-                        key={grade}
-                        onClick={() => setNewGradeLevel(grade)}
-                        disabled={isAlreadyAdded}
-                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                          isAlreadyAdded 
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : newGradeLevel === grade
-                              ? 'bg-[#1B3E2A] text-white border-[#1B3E2A] shadow-md transform scale-105'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-[#1B3E2A] hover:text-[#1B3E2A]'
-                        }`}
-                      >
-                        {grade}
-                        {isAlreadyAdded && <span className="block text-[10px] mt-1">Added</span>}
-                      </AnimatedButton>
-                    );
-                  })}
-               </div>
-               
-               <div className="flex justify-end gap-3">
-                 <AnimatedButton 
-                   onClick={() => setShowAddGradeLevel(false)} 
-                   className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-                 >
-                   Cancel
-                 </AnimatedButton>
-                 <AnimatedButton 
-                   onClick={handleAddGradeLevelToSubject} 
-                   disabled={!newGradeLevel}
-                   className="px-5 py-2.5 bg-[#1B3E2A] text-white rounded-lg hover:bg-[#2d5a3f] disabled:opacity-50 font-medium shadow-md transition-all"
-                 >
-                   Confirm Add
-                 </AnimatedButton>
-               </div>
-            </div>
-          </div>
-        )}
       </div>
     </TeacherLayout>
   );

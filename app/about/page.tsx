@@ -186,7 +186,7 @@ function AboutPageContent() {
                     The Papaya Academy teaches Kindergarten, Grades 1 to 6, covering subjects like Math, Science, English, Filipino, MAKABAYAN, EPP, and Computer. The school focuses not only on curricular activities but also on non-curricular activities like scouting, chess, table tennis, volleyball, basketball, and theater (drama, singing, and dancing).
                   </p>
                   <p>
-                    The school has several facilities that help children in their learning, including classrooms that can cater to 30 children, a library, audio and computer room, administration office,kitchen, clinic, and science laboratory. Besides all the activities done annually, the children have sports, and music competitions with other schools.
+                    The school has several facilities that help children in their learning, including classrooms that can cater to 30 children, a library, audio and computer room, administration office, kitchen, clinic, and science laboratory. Besides all the activities done annually, the children have sports, and music competitions with other schools.
                   </p>
                   <p>
                     The children and teachers have different religious backgrounds, and all religions are respected. The teachers at Papaya Academy are professionals equipped with talents that can greatly benefit their students.

@@ -300,6 +300,60 @@ export interface Achievement {
   level: 'school' | 'district' | 'division' | 'regional' | 'national';
 }
 
+// New normalized collections
+
+export interface TeacherSubject {
+  id: string;
+  teacherId: string;
+  subjectId: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  createdAt: string;
+}
+
+export interface Grade {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  subjectId: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  grade: number;
+  remarks: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Attendance {
+  id: string;
+  studentId: string;
+  schoolYear: string;
+  gradeLevel: string;
+  section: string;
+  daysPresent: number;
+  daysAbsent: number;
+  daysTardy: number;
+}
+
+export interface SF10 {
+  id: string;
+  studentId: string;
+  schoolYear: string;
+  gradeLevel: string;
+  section: string;
+  subjects: SF10Subject[];
+  generalAverage: number;
+  attendance: {
+    daysPresent: number;
+    daysAbsent: number;
+    daysTardy: number;
+  };
+  generatedAt: string;
+}
+
 // Legacy interfaces for backward compatibility during migration
 export interface LegacyGradeRecord {
   id: string;

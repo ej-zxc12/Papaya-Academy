@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Student } from '@/types';
+import { Student, StudentDocument } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, Timestamp, QueryConstraint } from 'firebase/firestore';
 
@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const gradeLevel = searchParams.get('gradeLevel');
+    const section = searchParams.get('section');
     const gradeLevels = searchParams
       .getAll('gradeLevels')
       .filter(Boolean)
@@ -94,8 +95,13 @@ export async function GET(request: NextRequest) {
         );
       }
       baseConstraints.push(where('gradeLevel', 'in', gradeLevels));
-    } else if (gradeLevel) {
-      baseConstraints.push(where('gradeLevel', '==', gradeLevel));
+    } else {
+      if (gradeLevel) {
+        baseConstraints.push(where('gradeLevel', '==', gradeLevel));
+      }
+      if (section) {
+        baseConstraints.push(where('section', '==', section));
+      }
     }
 
     const results = await Promise.all(
@@ -117,10 +123,17 @@ export async function GET(request: NextRequest) {
     const students = Array.from(merged.entries()).map(([id, data]) => {
       return {
         id,
-        name: data?.name,
-        gradeLevel: data?.gradeLevel,
+        name: data?.name || '',
+        lrn: data?.lrn || '',
+        gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
+        section: data?.section || data?.currentSection,
+        currentGradeLevel: data?.currentGradeLevel,
+        currentSection: data?.currentSection,
         teacherId: data?.teacherId,
         subjectId: data?.subjectId,
+        status: data?.status || 'enrolled',
+        createdAt: data?.createdAt,
+        updatedAt: data?.updatedAt
       };
     });
 
@@ -148,7 +161,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const lrn = typeof body?.lrn === 'string' ? body.lrn.trim() : '';
     const gradeLevel = typeof body?.gradeLevel === 'string' ? body.gradeLevel.trim() : '';
+    const section = typeof body?.section === 'string' ? body.section.trim() : '';
     const subjectIds = Array.isArray(body?.subjectIds) 
       ? body.subjectIds.filter((id: any) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
       : (typeof body?.subjectId === 'string' ? [body.subjectId.trim()] : []);
@@ -174,10 +189,16 @@ export async function POST(request: NextRequest) {
     for (const subjectId of subjectIds) {
       const studentData = {
         name,
+        lrn,
         gradeLevel,
+        section,
+        currentGradeLevel: gradeLevel,
+        currentSection: section,
         teacherId,
         subjectId, // Each student record gets its own subject ID
-        createdAt: Timestamp.now()
+        status: 'enrolled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
       };
 
       const docRef = await addDoc(studentsCollection, studentData);
