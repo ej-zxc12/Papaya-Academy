@@ -21,6 +21,17 @@ const COLLECTION = 'contributions_payments';
      }
    }
 
+   const principalCookie = request.cookies.get('principalSession')?.value;
+   if (principalCookie) {
+     try {
+       const sessionData = JSON.parse(principalCookie);
+       const p = sessionData?.principal ?? sessionData;
+       return p?.id ?? p?.uid ?? null;
+     } catch {
+       return null;
+     }
+   }
+
    return null;
  }
 

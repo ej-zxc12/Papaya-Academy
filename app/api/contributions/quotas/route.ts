@@ -28,6 +28,19 @@ function getTeacherIdFromRequest(request: NextRequest) {
     }
   }
 
+  const principalCookie = request.cookies.get('principalSession')?.value;
+  if (principalCookie) {
+    try {
+      const sessionData = JSON.parse(principalCookie);
+      const p = sessionData?.principal ?? sessionData;
+      const pid = p?.id ?? p?.uid ?? null;
+      console.log('[quotas] Extracted principalId from cookie:', pid);
+      return pid;
+    } catch {
+      return null;
+    }
+  }
+
   return null;
 }
 

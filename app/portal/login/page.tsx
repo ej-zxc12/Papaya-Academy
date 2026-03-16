@@ -72,6 +72,7 @@ export default function UnifiedPortalLogin() {
 
         // The API sets an httpOnly cookie (teacherSession) used by middleware.
         // We also keep a localStorage copy for client-side pages/components.
+        localStorage.removeItem('principalSession');
         if (data?.session) {
           localStorage.setItem('teacherSession', JSON.stringify(data.session));
         } else if (data?.teacher) {
@@ -95,6 +96,7 @@ export default function UnifiedPortalLogin() {
 
       if (response.ok) {
         const data = await response.json();
+        localStorage.removeItem('teacherSession');
         localStorage.setItem('principalSession', JSON.stringify(data));
         router.push('/principal/dashboard');
       } else {

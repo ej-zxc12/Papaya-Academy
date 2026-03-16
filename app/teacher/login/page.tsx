@@ -53,6 +53,14 @@ export default function TeacherLogin() {
         return;
       }
 
+      const profile = docSnap.data() as any;
+      const role = typeof profile.role === 'string' ? profile.role : null;
+      if (role && role !== 'teacher') {
+        await signOut(auth);
+        setError('Account is not registered as a teacher. Please contact the administrator.');
+        return;
+      }
+
       // 3. Combine Auth data and Firestore data
       let teacherData = { 
         uid: user.uid, 
@@ -62,6 +70,7 @@ export default function TeacherLogin() {
       teacherData = { ...teacherData, ...docSnap.data() };
 
       // 4. Store the complete session locally for the Layout to use
+      localStorage.removeItem('principalSession');
       localStorage.setItem('teacherSession', JSON.stringify(teacherData));
       
       // 5. Redirect to Dashboard

@@ -79,7 +79,6 @@ export default function PrincipalWeeklyReportsPage() {
       try {
         // Check for principal session
         const principalSession = localStorage.getItem('principalSession');
-        const teacherSession = localStorage.getItem('teacherSession');
         
         let sessionData = null;
         let userId = null;
@@ -87,10 +86,6 @@ export default function PrincipalWeeklyReportsPage() {
         if (principalSession) {
           const parsed = JSON.parse(principalSession);
           sessionData = parsed.principal || parsed;
-          userId = sessionData?.uid || sessionData?.id || sessionData?.userId;
-        } else if (teacherSession) {
-          const parsed = JSON.parse(teacherSession);
-          sessionData = parsed.teacher || parsed;
           userId = sessionData?.uid || sessionData?.id || sessionData?.userId;
         }
 

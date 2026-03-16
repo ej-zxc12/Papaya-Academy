@@ -2,6 +2,7 @@ import { auth } from './firebase';
 import { signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import type { Principal, PrincipalCredentials } from '@/types';
 
 export interface TeacherCredentials {
   email: string;
@@ -17,6 +18,45 @@ export interface Teacher {
   subjects: string[];
   gradeLevel: string;
   isActive: boolean;
+}
+
+export async function signInPrincipal(credentials: PrincipalCredentials): Promise<{ user: User; principal: Principal }> {
+  try {
+    console.log('Attempting principal sign in for:', credentials.email);
+
+    const userCredential = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+    const user = userCredential.user;
+
+    const profileRef = doc(db, 'teachers_user', user.uid);
+    const profileSnap = await getDoc(profileRef);
+
+    if (!profileSnap.exists()) {
+      await signOut(auth);
+      throw new Error('Principal profile not found');
+    }
+
+    const data = profileSnap.data() as any;
+    const role = typeof data.role === 'string' ? data.role : null;
+    if (role !== 'principal') {
+      await signOut(auth);
+      throw new Error('Account is not registered as a principal');
+    }
+
+    const principal: Principal = {
+      id: user.uid,
+      name: data.name ?? data.username ?? user.displayName ?? credentials.email,
+      email: data.email ?? user.email ?? credentials.email,
+      employeeId: data.employeeId ?? '',
+      position: data.position ?? 'Principal',
+      isActive: data.isActive ?? true,
+    };
+
+    console.log('Principal profile loaded for:', principal.email);
+    return { user, principal };
+  } catch (error) {
+    console.error('Firebase principal auth error:', error);
+    throw error;
+  }
 }
 
 export async function signInTeacher(credentials: TeacherCredentials): Promise<{ user: User; teacher: Teacher }> {
@@ -39,6 +79,11 @@ export async function signInTeacher(credentials: TeacherCredentials): Promise<{ 
     }
 
     const data = teacherSnap.data() as any;
+    const role = typeof data.role === 'string' ? data.role : null;
+    if (role && role !== 'teacher') {
+      await signOut(auth);
+      throw new Error('Account is not registered as a teacher');
+    }
     const teacher: Teacher = {
       id: user.uid,
       name: data.name ?? data.username ?? user.displayName ?? credentials.email,
