@@ -24,7 +24,7 @@ import ScrollReveal from '../../components/ui/ScrollReveal';
 import Footer from '../../components/layout/Footer'; 
 import AboutDropdown from '../../components/AboutDropdown';
 import NewsArticleCard from '../../components/NewsArticleCard';
-import { getNewsArticles, getUpcomingEvents, NewsArticle, formatNewsDate, UpcomingEvent } from '@/lib/news';
+import { NewsArticle, formatNewsDate, UpcomingEvent } from '@/lib/news';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -40,6 +40,7 @@ export default function NewsPage() {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeCategoryKey = activeCategory.trim().toLowerCase();
 
@@ -49,11 +50,21 @@ export default function NewsPage() {
         setLoading(true);
 
         console.log('Starting to fetch articles...');
-        const data = await getNewsArticles();
-        console.log('Articles fetched successfully:', data);
-        setArticles(data);
-
-        const eventsData = await getUpcomingEvents(3);
+        
+        // Use cached API endpoints instead of direct Firestore
+        const [newsRes, eventsRes] = await Promise.all([
+          fetch('/api/news'),
+          fetch('/api/events?limit=3')
+        ]);
+        
+        if (!newsRes.ok) throw new Error('Failed to fetch news');
+        if (!eventsRes.ok) throw new Error('Failed to fetch events');
+        
+        const newsData = await newsRes.json();
+        const eventsData = await eventsRes.json();
+        
+        console.log('Articles fetched successfully:', newsData);
+        setArticles(newsData);
         setUpcomingEvents(eventsData);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -68,9 +79,22 @@ export default function NewsPage() {
   }, []);
 
   const filteredArticles = (() => {
+    let result = articles;
 
+    // Apply search filter if query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((item) => {
+        const titleMatch = item.title?.toLowerCase().includes(query);
+        const contentMatch = item.content?.toLowerCase().includes(query);
+        const authorMatch = item.author?.toLowerCase().includes(query);
+        return titleMatch || contentMatch || authorMatch;
+      });
+    }
+
+    // Apply category filter
     if (activeCategoryKey === 'features') {
-      return articles.filter((item) => Boolean(item.imageUrl));
+      return result.filter((item) => Boolean(item.imageUrl));
     }
 
     const categoryMappings: Record<string, string[]> = {
@@ -81,7 +105,7 @@ export default function NewsPage() {
     };
     const validCategories = categoryMappings[activeCategoryKey] || [activeCategoryKey];
 
-    return articles.filter((item) => {
+    return result.filter((item) => {
       const rawCategory = (item as any).category ?? (item as any).categoryType ?? (item as any).type;
       const normalizedItemCategory = typeof rawCategory === 'string' ? rawCategory.toLowerCase() : '';
 
@@ -201,7 +225,17 @@ export default function NewsPage() {
             {/* No articles message */}
             {standardStories.length === 0 && !loading && (
               <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No articles found in this category.</p>
+                <p className="text-gray-500 text-lg">
+                  {searchQuery ? `No articles found matching &quot;${searchQuery}&quot;` : 'No articles found in this category.'}
+                </p>
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="mt-4 px-4 py-2 bg-papaya-green text-white rounded-md hover:bg-papaya-green/90 transition-colors"
+                  >
+                    Clear Search
+                  </button>
+                )}
               </div>
             )}
             
@@ -225,10 +259,23 @@ export default function NewsPage() {
                 <input 
                   type="text" 
                   placeholder="Search articles..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F2C94C]"
                 />
                 <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
               </div>
+              {searchQuery && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Found {standardStories.length} result{standardStories.length !== 1 ? 's' : ''} for &quot;{searchQuery}&quot;
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="ml-2 text-papaya-green hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Categories Widget (Desktop) */}

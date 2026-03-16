@@ -3,14 +3,12 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import Image from 'next/image';
 import { Montserrat } from 'next/font/google';
-import { collection, getDocs, query } from 'firebase/firestore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GraduationCap, Search, Users, School, BookOpen, User, ChevronDown, Award, Calendar } from 'lucide-react';
 
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
 import ScrollReveal from '../../../components/ui/ScrollReveal';
-import { db } from '../../../lib/firebase';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -89,30 +87,12 @@ export default function SchoolAlumniPage() {
         setLoading(true);
         setError(null);
 
-        const alumniRef = collection(db, 'alumni');
-        const q = query(alumniRef);
-        const snap = await getDocs(q);
-
-        const rows: Alumni[] = snap.docs.map((d) => {
-          const data = d.data() as AlumniDoc;
-          const name = normalizeName(data.name) || 'Unnamed Alumni';
-          const imageUrl = normalizeName(data.imageUrl) || undefined;
-
-          return {
-            id: d.id,
-            name,
-            age: typeof data.age === 'number' ? data.age : undefined,
-            batchYear: typeof data.batchYear === 'number' ? data.batchYear : undefined,
-            educationalStatus: normalizeName(data.educationalStatus) || undefined,
-            imageUrl,
-            nameOfSchool: normalizeName(data.nameOfSchool) || undefined,
-            programOrGrade: normalizeName(data.programOrGrade) || undefined,
-          };
-        });
+        // Use cached API endpoint instead of direct Firestore
+        const res = await fetch('/api/alumni');
+        if (!res.ok) throw new Error('Failed to fetch alumni');
+        const rows: Alumni[] = await res.json();
 
         if (!mounted) return;
-
-        rows.sort((a, b) => (b.batchYear ?? 0) - (a.batchYear ?? 0));
         setAlumni(rows);
       } catch (e: any) {
         if (!mounted) return;

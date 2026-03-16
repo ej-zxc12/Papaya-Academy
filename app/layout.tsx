@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Montserrat } from 'next/font/google'
+import LoadingScreen from '../components/ui/LoadingScreen';
 
 // Configure the font with the weights you need (Light, Regular, Bold)
 const montserrat = Montserrat({ 
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
+        <LoadingScreen>
+          {children}
+        </LoadingScreen>
       </body>
     </html>
   );
