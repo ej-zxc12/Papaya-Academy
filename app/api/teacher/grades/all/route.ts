@@ -32,31 +32,55 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const schoolYear = searchParams.get('schoolYear') || '2025-2026';
+    const schoolYear = searchParams.get('schoolYear') || '2024-2025';
 
-    // Get teacher's subject assignments to filter grades
+    // Get teacher's subjects from both subjects and teacherSubjects collections
+    const subjectsQuery = query(
+      collection(db, 'subjects'),
+      where('teacherId', '==', teacherId),
+      where('schoolYear', '==', schoolYear)
+    );
+    
     const teacherSubjectsQuery = query(
       collection(db, 'teacherSubjects'),
       where('teacherId', '==', teacherId),
       where('schoolYear', '==', schoolYear)
     );
     
-    const teacherSubjectsSnapshot = await getDocs(teacherSubjectsQuery);
+    const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
+      getDocs(subjectsQuery),
+      getDocs(teacherSubjectsQuery)
+    ]);
+    
+    const subjects = subjectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      subjectId: doc.id,
+      ...doc.data()
+    }));
+    
     const teacherSubjects = teacherSubjectsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
 
-    if (teacherSubjects.length === 0) {
+    // Combine both collections and remove duplicates
+    const allTeacherSubjects = [...subjects, ...teacherSubjects];
+    const uniqueSubjects = Array.from(new Map(allTeacherSubjects.map(item => [
+      (item as any).subjectId || (item as any).id, 
+      item
+    ])).values());
+
+    if (uniqueSubjects.length === 0) {
       return NextResponse.json([]);
     }
 
     // Get all grades for the teacher's assigned subjects
-    const gradesPromises = teacherSubjects.map(async (ts: any) => {
+    const gradesPromises = uniqueSubjects.map(async (ts: any) => {
+      const subjectId = ts.subjectId || ts.id;
       const gradesQuery = query(
         collection(db, 'grades'),
         where('teacherId', '==', teacherId),
-        where('subjectId', '==', ts.subjectId),
+        where('subjectId', '==', subjectId),
         where('schoolYear', '==', schoolYear)
       );
       

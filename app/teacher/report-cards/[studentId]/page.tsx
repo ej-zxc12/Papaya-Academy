@@ -45,7 +45,7 @@ export default function ReportCardViewerPage() {
   const action = searchParams?.get('action');
   const schoolYearFromQuery = searchParams?.get('schoolYear');
 
-  const [schoolYear, setSchoolYear] = useState(schoolYearFromQuery || '2025-2026');
+  const [schoolYear, setSchoolYear] = useState(schoolYearFromQuery || '2024-2025');
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [teacherData, setTeacherData] = useState<any>(null);
@@ -102,7 +102,7 @@ export default function ReportCardViewerPage() {
         return;
       }
 
-      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}`, {
+      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}&schoolYear=${schoolYear}`, {
         headers: { Authorization: `Bearer ${teacherId}` },
       });
 
@@ -110,6 +110,22 @@ export default function ReportCardViewerPage() {
       if (gradesResponse.ok) {
         gradesData = await gradesResponse.json();
       }
+
+      // Fetch subjects to get subject names
+      const subjectsResponse = await fetch('/api/teacher/subjects', {
+        headers: { Authorization: `Bearer ${teacherId}` }
+      });
+      
+      let subjectsData: any[] = [];
+      if (subjectsResponse.ok) {
+        subjectsData = await subjectsResponse.json();
+      }
+
+      // Create a map of subjectId to subjectName
+      const subjectNamesMap = new Map<string, string>();
+      subjectsData.forEach(subject => {
+        subjectNamesMap.set(subject.id, subject.name);
+      });
 
       const studentGrades: StudentWithGrades['grades'] = {};
       defaultSubjects.forEach((subject) => {
@@ -120,7 +136,8 @@ export default function ReportCardViewerPage() {
 
       const studentGradeRecords = gradesData.filter((g) => g.studentId === found.id);
       studentGradeRecords.forEach((grade) => {
-        const subjectName = grade.subjectId || 'Unknown Subject';
+        // Get subject name from subjects collection
+        const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
         const quarterIndex =
           grade.quarter === 'Q1' ? 0 : grade.quarter === 'Q2' ? 1 : grade.quarter === 'Q3' ? 2 : 3;
 

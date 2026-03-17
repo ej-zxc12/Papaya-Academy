@@ -47,7 +47,7 @@ export default function ReportCardsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
-  const [schoolYear, setSchoolYear] = useState('2025-2026');
+  const [schoolYear, setSchoolYear] = useState('2024-2025');
   const [teacherData, setTeacherData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -106,7 +106,7 @@ export default function ReportCardsPage() {
 
       const studentsData: Student[] = await studentsResponse.json();
 
-      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}`, {
+      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}&schoolYear=${schoolYear}`, {
         headers: { 'Authorization': `Bearer ${teacherId}` }
       });
 
@@ -114,6 +114,44 @@ export default function ReportCardsPage() {
       if (gradesResponse.ok) {
         gradesData = await gradesResponse.json();
       }
+
+      console.log('🔍 DEBUG: All grades fetched from API:', gradesData.map(g => ({
+        studentId: g.studentId,
+        studentName: studentsData.find(s => s.id === g.studentId)?.name || 'Unknown',
+        subjectId: g.subjectId,
+        grade: g.grade,
+        quarter: g.quarter,
+        schoolYear: g.schoolYear
+      })));
+
+      console.log('🔍 SIMPLE DEBUG: Total grades count:', gradesData.length);
+      gradesData.forEach((grade, index) => {
+        console.log(`🔍 Grade ${index + 1}:`, {
+          studentId: grade.studentId,
+          subjectId: grade.subjectId,
+          grade: grade.grade,
+          quarter: grade.quarter
+        });
+      });
+
+      // Fetch subjects to get subject names
+      const subjectsResponse = await fetch('/api/teacher/subjects', {
+        headers: { 'Authorization': `Bearer ${teacherId}` }
+      });
+      
+      let subjectsData: any[] = [];
+      if (subjectsResponse.ok) {
+        subjectsData = await subjectsResponse.json();
+      }
+
+      // Create a map of subjectId to subjectName
+      const subjectNamesMap = new Map<string, string>();
+      subjectsData.forEach(subject => {
+        subjectNamesMap.set(subject.id, subject.name);
+      });
+
+      console.log('🔍 DEBUG: Available subjects:', subjectsData.map(s => ({ id: s.id, name: s.name })));
+      console.log('🔍 DEBUG: Subject names map:', Object.fromEntries(subjectNamesMap));
 
       const processedStudents = studentsData.map(student => {
         const studentGrades: Record<string, {
@@ -125,8 +163,18 @@ export default function ReportCardsPage() {
         // Initialize with empty structure - will be populated by actual grades
         const studentGradeRecords = gradesData.filter(g => g.studentId === student.id);
         
+        console.log(`🔍 DEBUG: Student ${student.name} has ${studentGradeRecords.length} grade records:`, studentGradeRecords.map(g => ({
+          subjectId: g.subjectId,
+          subjectName: g.subjectName,
+          grade: g.grade,
+          quarter: g.quarter
+        })));
+        
         studentGradeRecords.forEach(grade => {
-          const subjectName = grade.subjectName || grade.subjectId || 'Unknown Subject';
+          // Get subject name from subjects collection
+          const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
+          
+          console.log(`🔍 DEBUG: Processing grade - SubjectID: ${grade.subjectId}, ResolvedName: ${subjectName}, Grade: ${grade.grade}`);
           
           if (!studentGrades[subjectName]) {
             studentGrades[subjectName] = { quarters: [null, null, null, null] };

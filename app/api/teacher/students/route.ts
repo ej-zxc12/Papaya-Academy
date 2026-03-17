@@ -206,7 +206,50 @@ export async function POST(request: NextRequest) {
 
     const studentsCollection = collection(db, 'students');
 
-    // Create a single student document with multiple subjects
+    // Check if student already exists with same name, LRN, grade level, and section
+    const existingStudentQuery = query(
+      studentsCollection,
+      where('teacherId', '==', teacherId),
+      where('name', '==', name),
+      where('lrn', '==', lrn),
+      where('gradeLevel', '==', gradeLevel),
+      where('section', '==', section)
+    );
+    
+    const existingStudentSnapshot = await getDocs(existingStudentQuery);
+    
+    if (!existingStudentSnapshot.empty) {
+      // Student exists, update their subjects
+      const existingStudentDoc = existingStudentSnapshot.docs[0];
+      const existingStudentData = existingStudentDoc.data();
+      const existingSubjectIds = existingStudentData.subjectIds || [];
+      
+      // Merge new subject IDs with existing ones (avoid duplicates)
+      const mergedSubjectIds = Array.from(new Set([...existingSubjectIds, ...subjectIds]));
+      
+      // Update the existing student
+      await import('firebase/firestore').then(({ updateDoc, doc }) => {
+        return updateDoc(doc(db, 'students', existingStudentDoc.id), {
+          subjectIds: mergedSubjectIds,
+          updatedAt: Timestamp.now()
+        });
+      });
+      
+      const updatedStudent = {
+        id: existingStudentDoc.id,
+        ...existingStudentData,
+        subjectIds: mergedSubjectIds,
+        updatedAt: new Date().toISOString()
+      };
+
+      return NextResponse.json({
+        message: `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
+        student: updatedStudent,
+        isUpdate: true
+      });
+    }
+
+    // Create a new student document if no existing student found
     const studentData = {
       name,
       lrn,
