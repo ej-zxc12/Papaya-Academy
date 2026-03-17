@@ -196,6 +196,7 @@ export default function GradeInput() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [selectedGradeLevelFilter, setSelectedGradeLevelFilter] = useState<string>('');
+  const [selectedSectionFilter, setSelectedSectionFilter] = useState<string>('');
   const [studentSubjectId, setStudentSubjectId] = useState<string[]>([]);
   const [availableGradeLevelsForStudent, setAvailableGradeLevelsForStudent] = useState<string[]>([]);
   const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
@@ -269,7 +270,8 @@ export default function GradeInput() {
 
         setSelectedSubject((prev) => {
           if (prev && subjectsData.some(s => s.id === prev)) return prev;
-          return subjectsData[0]?.id ?? '';
+          const validSubjects = subjectsData.filter(s => s.name && s.code && s.id);
+          return validSubjects[0]?.id ?? '';
         });
       } catch (error) {
         console.error('Error loading subjects:', error);
@@ -317,32 +319,217 @@ export default function GradeInput() {
 
   useEffect(() => {
     setIsEditingUnlocked(false);
+    // CRITICAL: Clear ALL grades when switching subjects to prevent bleed-over
+    console.log('🧹 CLEARING ALL GRADES - Subject changed to:', selectedSubject);
+    setGrades({});
+    setRemarks({});
+    setIsRemarkManuallyEdited({});
+    
+    // Also clear any conflicting filters
+    if (studentListSubjectFilter && studentListSubjectFilter !== selectedSubject) {
+      console.log('🧹 CLEARING CONFLICTING FILTER:', studentListSubjectFilter);
+      setStudentListSubjectFilter('');
+    }
   }, [selectedSubject, selectedGradingPeriod]);
 
   useEffect(() => {
     let filtered = allStudents;
-    console.log('DEBUG: All students before filtering:', allStudents.map(s => ({ id: s.id, name: s.name, gradeLevel: s.gradeLevel, subjectId: s.subjectId })));
+    console.log('🔍 DEBUG: Starting student filtering...');
+    console.log('🔍 DEBUG: All students before filtering:', allStudents.map(s => ({ 
+      id: s.id, 
+      name: s.name || 'Unnamed Student', 
+      gradeLevel: s.gradeLevel || 'Unknown Grade', 
+      subjectId: s.subjectId || null, 
+      subjectIds: s.subjectIds || [] 
+    })));
+    console.log('🔍 DEBUG: Selected subject:', selectedSubject || 'NONE');
     
-    // Apply subject filter first
-    if (studentListSubjectFilter) {
-      // Filter students who are associated with this specific subject
-      filtered = filtered.filter(s => s.subjectId === studentListSubjectFilter);
-      console.log('DEBUG: After subject filter (' + studentListSubjectFilter + '):', filtered.length, 'students remain');
+    // CRITICAL: Check if there are grades from other subjects in memory
+    const currentGrades = Object.keys(grades);
+    console.log('🔍 DEBUG: Current grades in memory:', currentGrades.length, 'grades for students:', currentGrades.map(studentId => ({
+      studentId,
+      grade: grades[studentId],
+      studentName: allStudents.find(s => s.id === studentId)?.name || 'Unknown',
+      studentSubjectId: allStudents.find(s => s.id === studentId)?.subjectId || 'NONE',
+      studentSubjectIds: allStudents.find(s => s.id === studentId)?.subjectIds || []
+    })));
+    
+    // IMMEDIATE ACTION: If we have more grades than filtered students, clear excess grades
+    if (currentGrades.length > filtered.length && selectedSubject) {
+      console.log('🚨 IMMEDIATE: More grades than students - clearing excess grades!');
+      console.log('🚨 Grades:', currentGrades.length, 'Students:', filtered.length);
+      
+      // Keep only grades for students who are actually in the filtered list
+      const validGrades: { [key: string]: string } = {};
+      const validRemarks: { [key: string]: string } = {};
+      const validManualEdits: { [key: string]: boolean } = {};
+      
+      filtered.forEach(student => {
+        if (grades[student.id]) {
+          validGrades[student.id] = grades[student.id];
+          console.log('✅ Keeping grade for student:', student.name, '-', grades[student.id]);
+        }
+        if (remarks[student.id]) validRemarks[student.id] = remarks[student.id];
+        if (isRemarkManuallyEdited[student.id]) validManualEdits[student.id] = isRemarkManuallyEdited[student.id];
+      });
+      
+      console.log('🔧 IMMEDIATE: Setting valid grades:', validGrades);
+      setGrades(validGrades);
+      setRemarks(validRemarks);
+      setIsRemarkManuallyEdited(validManualEdits);
+      
+      console.log('🔧 IMMEDIATE: Cleared excess grades, now have', Object.keys(validGrades).length, 'grades');
     }
     
-    // Then apply grade level filter to the already filtered results
+    // EMERGENCY CLEAR: If we have grades but no matching students, clear all grades
+    if (currentGrades.length > 0 && selectedSubject) {
+      console.log('🔍 DEBUG: Checking grades for subject isolation...');
+      const gradesForCurrentSubject = currentGrades.filter(studentId => {
+        const student = allStudents.find(s => s.id === studentId);
+        console.log('🔍 DEBUG: Checking grade for student', studentId, '-', student?.name || 'Unknown');
+        console.log('🔍 DEBUG: Student subjectId:', student?.subjectId, 'subjectIds:', student?.subjectIds);
+        console.log('🔍 DEBUG: Selected subject:', selectedSubject);
+        
+        if (!student) {
+          console.log('🔍 DEBUG: Student not found in allStudents - excluding grade');
+          return false;
+        }
+        
+        const belongsToCurrentSubject = student.subjectId === selectedSubject || 
+               (student.subjectIds && student.subjectIds.includes(selectedSubject));
+        
+        console.log('🔍 DEBUG: Student belongs to current subject?', belongsToCurrentSubject);
+        return belongsToCurrentSubject;
+      });
+      
+      console.log('🔍 DEBUG: Grades analysis:', {
+        totalGrades: currentGrades.length,
+        gradesForCurrentSubject: gradesForCurrentSubject.length,
+        shouldTriggerEmergency: gradesForCurrentSubject.length < currentGrades.length
+      });
+      
+      if (gradesForCurrentSubject.length < currentGrades.length) {
+        console.log('🚨 EMERGENCY: Clearing grades from other subjects!');
+        console.log('🚨 Had', currentGrades.length, 'grades, but only', gradesForCurrentSubject.length, 'belong to current subject');
+        
+        // Keep only grades for current subject
+        const validGrades: { [key: string]: string } = {};
+        const validRemarks: { [key: string]: string } = {};
+        const validManualEdits: { [key: string]: boolean } = {};
+        
+        gradesForCurrentSubject.forEach(studentId => {
+          validGrades[studentId] = grades[studentId];
+          if (remarks[studentId]) validRemarks[studentId] = remarks[studentId];
+          if (isRemarkManuallyEdited[studentId]) validManualEdits[studentId] = isRemarkManuallyEdited[studentId];
+        });
+        
+        console.log('🔧 EMERGENCY: Setting valid grades:', validGrades);
+        setGrades(validGrades);
+        setRemarks(validRemarks);
+        setIsRemarkManuallyEdited(validManualEdits);
+        
+        console.log('🔧 EMERGENCY: Kept only', Object.keys(validGrades).length, 'valid grades for current subject');
+      } else {
+        console.log('✅ All grades belong to current subject - no emergency clearing needed');
+      }
+    }
+    
+    // ABSOLUTE REQUIREMENT: Only show students enrolled in the EXACT selected subject
+    if (selectedSubject) {
+      console.log('🔍 DEBUG: Filtering students for subject:', selectedSubject);
+      filtered = filtered.filter(s => {
+        const enrolledInOldField = s.subjectId === selectedSubject;
+        const enrolledInNewArray = s.subjectIds && s.subjectIds.includes(selectedSubject);
+        const isEnrolled = enrolledInOldField || enrolledInNewArray;
+        
+        console.log('🔍 DEBUG: Student', s.name, 'enrolled in subject', selectedSubject, '?', isEnrolled, {
+          studentId: s.id,
+          subjectId: s.subjectId,
+          subjectIds: s.subjectIds,
+          enrolledInOldField,
+          enrolledInNewArray
+        });
+        
+        return isEnrolled;
+      });
+      
+      console.log('🔍 DEBUG: After filtering by selectedSubject (' + selectedSubject + '):', filtered.length, 'students remain');
+    }
+    
+    // Apply additional subject filter if set (but only if it doesn't conflict)
+    if (studentListSubjectFilter) {
+      console.log('🔍 DEBUG: Additional filter active:', studentListSubjectFilter);
+      if (studentListSubjectFilter !== selectedSubject) {
+        console.log('🚨 WARNING: Additional filter conflicts with selected subject - clearing additional filter');
+        setStudentListSubjectFilter(''); // Auto-clear conflicting filter
+      } else {
+        filtered = filtered.filter(s => 
+          s.subjectId === studentListSubjectFilter || 
+          (s.subjectIds && s.subjectIds.includes(studentListSubjectFilter))
+        );
+        console.log('🔍 DEBUG: After additional subject filter:', filtered.length, 'students remain');
+      }
+    }
+    
+    // Apply grade level filter
     if (selectedGradeLevelFilter) {
       filtered = filtered.filter(s => s.gradeLevel === selectedGradeLevelFilter);
-      console.log('DEBUG: After grade level filter (' + selectedGradeLevelFilter + '):', filtered.length, 'students remain');
+      console.log('🔍 DEBUG: After grade level filter:', filtered.length, 'students remain');
     }
     
-    console.log('DEBUG: Final filtered students for grade display:', filtered.map(s => ({ id: s.id, name: s.name, gradeLevel: s.gradeLevel, subjectId: s.subjectId })));
+    // Apply section filter
+    if (selectedSectionFilter) {
+      filtered = filtered.filter(s => s.section === selectedSectionFilter);
+      console.log('🔍 DEBUG: After section filter:', filtered.length, 'students remain');
+    }
+    
+    console.log('🔍 DEBUG: Final filtered students:', filtered.map(s => ({ 
+      id: s.id, 
+      name: s.name || 'Unnamed Student', 
+      gradeLevel: s.gradeLevel || 'Unknown Grade', 
+      subjectId: s.subjectId || null, 
+      subjectIds: s.subjectIds || [] 
+    })));
+    
+    // CRITICAL: Check for any students with grades who shouldn't be here
+    const invalidStudents = filtered.filter(s => {
+      const hasGrade = grades[s.id] && grades[s.id] !== '' && grades[s.id] !== '0';
+      if (!hasGrade) return false;
+      
+      const isEnrolled = s.subjectId === selectedSubject || 
+                        (s.subjectIds && s.subjectIds.includes(selectedSubject));
+      
+      if (!isEnrolled) {
+        console.log('🚨 CROSS-SUBJECT GRADE DETECTED:', {
+          studentId: s.id,
+          studentName: s.name,
+          selectedSubject: selectedSubject,
+          studentSubjectId: s.subjectId,
+          studentSubjectIds: s.subjectIds,
+          grade: grades[s.id],
+          isEnrolled: isEnrolled
+        });
+        return true;
+      }
+      return false;
+    });
+    
+    if (invalidStudents.length > 0) {
+      console.log('🚨 FOUND', invalidStudents.length, 'INVALID STUDENTS WITH CROSS-SUBJECT GRADES!');
+      // Remove invalid students immediately
+      filtered = filtered.filter(s => !invalidStudents.find(inv => inv.id === s.id));
+      console.log('🔧 DEBUG: Removed invalid students, now showing:', filtered.length, 'students');
+    }
+    
     setStudents(filtered);
-  }, [selectedGradeLevelFilter, studentListSubjectFilter, allStudents, selectedSubject, selectedGradingPeriod]);
+  }, [selectedGradeLevelFilter, selectedSectionFilter, studentListSubjectFilter, allStudents, selectedSubject, selectedGradingPeriod, grades, remarks, isRemarkManuallyEdited]);
 
   useEffect(() => {
     if (subjects?.length > 0 && studentSubjectId.length === 0) {
-      setStudentSubjectId([subjects[0].id]);
+      const validSubjects = subjects.filter(subject => subject.name && subject.code && subject.id);
+      if (validSubjects.length > 0) {
+        setStudentSubjectId([validSubjects[0].id]);
+      }
     }
   }, [subjects, studentSubjectId]);
 
@@ -373,7 +560,10 @@ export default function GradeInput() {
 
   useEffect(() => {
     if (subjects?.length > 0 && !selectedSubject) {
-      setSelectedSubject(subjects[0].id);
+      const validSubjects = subjects.filter(subject => subject.name && subject.code && subject.id);
+      if (validSubjects.length > 0) {
+        setSelectedSubject(validSubjects[0].id);
+      }
     }
   }, [subjects]);
 
@@ -390,6 +580,7 @@ export default function GradeInput() {
 
         if (response.ok) {
           const teacherSubjectsData = await response.json();
+          console.log('Sections API response:', teacherSubjectsData); // Debug log
           // Extract unique sections from teacherSubjects
           const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string }>();
           
@@ -405,6 +596,7 @@ export default function GradeInput() {
           });
 
           const normalized = Array.from(sectionsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+          console.log('Processed sections:', normalized); // Debug log
           setSections(normalized);
         }
       } catch (e) {
@@ -472,14 +664,15 @@ export default function GradeInput() {
         console.log('DEBUG: Grades map from API:', gradesMap);
         console.log('DEBUG: Student IDs with grades:', Object.keys(gradesMap));
         
-        // For initial load or refresh, use API data directly (no merge with empty cache)
-        // Only merge with cache if we're switching back to a previously viewed subject/period
+        // For initial load or refresh, use API data directly - NO CACHE MERGING
+        // This ensures grades are completely isolated per subject
         let finalGrades = gradesMap;
         let finalRemarks = remarksMap;
         let finalManualEdits: { [key: string]: boolean } = {};
         
-        if (isSwitching) {
-          // When switching, merge cache (unsaved changes) over API data
+        // NEVER merge cached grades between different subjects
+        // Only merge if we're loading the EXACT SAME subject/period
+        if (isSwitching && subjectId === selectedSubject && gradingPeriod === selectedGradingPeriod) {
           const cachedGrades = gradesBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
           const cachedRemarks = remarksBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
           const cachedManualEdits = isRemarkManuallyEditedBySubjectAndPeriod[subjectId]?.[gradingPeriod] || {};
@@ -487,6 +680,10 @@ export default function GradeInput() {
           finalGrades = { ...gradesMap, ...cachedGrades };
           finalRemarks = { ...remarksMap, ...cachedRemarks };
           finalManualEdits = { ...cachedManualEdits };
+          
+          console.log('DEBUG: Merged cached grades for SAME subject/period', subjectId, gradingPeriod, ':', cachedGrades);
+        } else {
+          console.log('DEBUG: Using fresh API data for subject', subjectId, '- no cache merge to prevent bleed-over');
         }
         
         console.log('DEBUG: Final grades to display:', finalGrades);
@@ -510,20 +707,9 @@ export default function GradeInput() {
           }
         }));
 
-        // IMMEDIATELY update students to show those with grades
-        // This ensures grades appear even if filters change
-        const studentIdsWithGrades = Object.keys(finalGrades).filter(id => finalGrades[id] && finalGrades[id] !== '' && finalGrades[id] !== '0');
-        if (studentIdsWithGrades.length > 0) {
-          console.log('DEBUG: Ensuring students with grades are visible:', studentIdsWithGrades);
-          setStudents(prev => {
-            const currentIds = new Set(prev.map(s => s.id));
-            const missingStudents = allStudents.filter(s => studentIdsWithGrades.includes(s.id) && !currentIds.has(s.id));
-            if (missingStudents.length > 0) {
-              return [...prev, ...missingStudents];
-            }
-            return prev;
-          });
-        }
+        // REMOVED: Code that was forcing students with grades to appear across subjects
+        // This was causing grades from one subject to appear in other subjects
+        // Students should only appear if they are enrolled in the selected subject
       } else {
         // API failed - try to load from cache
         console.log('DEBUG: API failed, loading from cache');
@@ -770,9 +956,10 @@ export default function GradeInput() {
         setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '' });
         setSelectedSection('');
         setShowAddStudent(false);
-        const subjectNames = studentSubjectId.map(id => 
-          subjects?.find(s => s.id === id)?.name || 'Unknown Subject'
-        ).join(', ');
+        const subjectNames = studentSubjectId.map(id => {
+          const subject = subjects?.find(s => s.id === id);
+          return subject?.name && subject?.code ? `${subject.name} (${subject.code})` : 'Unknown Subject';
+        }).join(', ');
         
         setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${newStudent.gradeLevel})` });
       } else {
@@ -889,6 +1076,7 @@ export default function GradeInput() {
         remarks: remarks[student.id] || '',
         teacherId: teacherUid,
         gradeLevel: student.gradeLevel || 'Unknown',
+        section: student.section || 'Default', // Use student's actual section
         dateInput: new Date().toISOString()
       }));
 
@@ -940,6 +1128,13 @@ export default function GradeInput() {
     ...allSystemGradeLevels.map(g => ({ label: g, value: g }))
   ];
 
+  // Get unique sections from all students for filtering
+  const availableSections = Array.from(new Set(allStudents.map(s => s.section).filter((section): section is string => Boolean(section))));
+  const sectionFilterOptions = [
+    { label: "All Sections", value: "" },
+    ...availableSections.map(section => ({ label: section, value: section }))
+  ];
+
   const handleUnlockEditing = () => {
     if (!isLockedByDefault) return;
     if (confirm('Unlock editing to fix errors?')) {
@@ -956,6 +1151,10 @@ export default function GradeInput() {
 
   const handleChangeGradeLevelFilter = (value: string) => {
     setSelectedGradeLevelFilter(value);
+  };
+
+  const handleChangeSectionFilter = (value: string) => {
+    setSelectedSectionFilter(value);
   };
 
   const handleChangeStudentListSubjectFilter = (value: string) => {
@@ -1001,12 +1200,37 @@ export default function GradeInput() {
       });
 
       if (response.ok) {
-        const created = { id: selectedSubject + '_' + newSectionName.trim(), name: newSectionName.trim(), subjectId: selectedSubject };
-        setSections((prev) => {
-          const next = [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
-          return next;
+        // Refresh sections from API to get the updated list
+        const sectionsResponse = await fetch('/api/teacher/subjects', {
+          headers: {
+            'Authorization': `Bearer ${teacherUid}`
+          }
         });
-        setSelectedSection(created.name);
+
+        if (sectionsResponse.ok) {
+          const teacherSubjectsData = await sectionsResponse.json();
+          console.log('Sections API response after adding section:', teacherSubjectsData); // Debug log
+          // Extract unique sections from teacherSubjects
+          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string }>();
+          
+          teacherSubjectsData.forEach((ts: any) => {
+            if (ts.section && ts.subjectId) {
+              const key = `${ts.subjectId}_${ts.section}`;
+              sectionsMap.set(key, { 
+                id: key, 
+                name: ts.section, 
+                subjectId: ts.subjectId 
+              });
+            }
+          });
+
+          const normalized = Array.from(sectionsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+          console.log('Processed sections after adding:', normalized); // Debug log
+          setSections(normalized);
+        }
+
+        // Set the newly added section as selected
+        setSelectedSection(newSectionName.trim());
         setNewSectionName('');
         setShowAddSection(false);
         setMessage({ type: 'success', text: 'Section added successfully' });
@@ -1043,7 +1267,6 @@ export default function GradeInput() {
     ...availableGradeLevels.map(g => ({ label: g, value: g }))
   ];
   const subjectFilterOptions = [
-    { label: "All Subjects", value: "" },
     ...(subjects?.map(s => ({ label: `${s.name} (${s.code})`, value: s.id })) || [])
   ];
 
@@ -1240,7 +1463,7 @@ export default function GradeInput() {
               <div className="mb-6">
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Subject</label>
                 <div className="flex flex-wrap gap-2">
-                  {subjects?.map((subject) => (
+                  {subjects?.filter(subject => subject.name && subject.code && subject.id).map((subject) => (
                     <AnimatedButton
                       key={subject.id}
                       onClick={() => {
@@ -1315,9 +1538,12 @@ export default function GradeInput() {
                         <option value=""></option>
                         {sections
                           .filter((s) => {
-                            // Show section if no subjectId (applies to all) or if selected subject matches
+                            // Show section if no subjectId (applies to all) 
+                            // OR if no subjects selected for student (show all)
+                            // OR if section matches selected student subjects or main selected subject
                             if (!s.subjectId) return true;
-                            return studentSubjectId.includes(s.subjectId);
+                            if (studentSubjectId.length === 0) return true;
+                            return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
                           })
                           .map((s) => (
                             <option key={s.id} value={s.name}>{s.name}</option>
@@ -1327,7 +1553,8 @@ export default function GradeInput() {
                     </div>
                     {sections.filter((s) => {
                       if (!s.subjectId) return true;
-                      return studentSubjectId.includes(s.subjectId);
+                      if (studentSubjectId.length === 0) return true;
+                      return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
                     }).length === 0 && (
                       <p className="text-xs text-gray-500 mt-1">No sections available for selected subjects. Add a section in Subject Management.</p>
                     )}
@@ -1363,24 +1590,34 @@ export default function GradeInput() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-               {/* Table specific filters using custom dropdown */}
+               {/* MAIN SUBJECT SELECTOR - This was missing! */}
                {subjects?.length > 0 && (
-                 <div className="w-40">
+                 <div className="w-48">
                    <CustomDropdown 
-                      value={studentListSubjectFilter}
-                      options={subjectFilterOptions}
-                      onChange={handleChangeStudentListSubjectFilter}
-                      placeholder="Filter Subject"
+                      value={selectedSubject}
+                      options={subjects.filter(s => s.name && s.code && s.id).map(s => ({ label: `${s.name} (${s.code})`, value: s.id }))}
+                      onChange={(value) => setSelectedSubject(value)}
+                      placeholder="Select Subject"
                    />
                  </div>
                )}
-               {allSystemGradeLevels.length > 0 && (
+                              {allSystemGradeLevels.length > 0 && (
                  <div className="w-40">
-                    <CustomDropdown
+                    <CustomDropdown 
                       value={selectedGradeLevelFilter}
                       options={gradeLevelFilterOptions}
                       onChange={handleChangeGradeLevelFilter}
                       placeholder="Filter Grade"
+                    />
+                 </div>
+               )}
+               {availableSections.length > 0 && (
+                 <div className="w-40">
+                    <CustomDropdown 
+                      value={selectedSectionFilter}
+                      options={sectionFilterOptions}
+                      onChange={handleChangeSectionFilter}
+                      placeholder="Filter Section"
                     />
                  </div>
                )}
@@ -1391,7 +1628,6 @@ export default function GradeInput() {
                     onChange={(val) => setSelectedGradingPeriod(val as any)}
                   />
                </div>
-
                <AnimatedButton
                   onClick={handleSave}
                   disabled={isSaving || !selectedSubject || isReadOnly}

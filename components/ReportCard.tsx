@@ -84,17 +84,17 @@ export default function ReportCard({
 
   const generalAverage = calculateGeneralAverage();
 
-  const orderedSubjects = officialLearningAreas.map((area) => {
-    const found = subjects.find((s) => s.learningArea.toLowerCase().trim() === area.toLowerCase().trim());
-    return (
-      found || {
-        learningArea: area,
-        quarters: [null, null, null, null] as [number | null, number | null, number | null, number | null],
-        finalGrade: undefined,
-        remarks: '',
-      }
-    );
-  });
+  // Display subjects as they are provided, without forcing them into official learning areas
+  const displaySubjects = subjects.map((subject) => ({
+    ...subject,
+    // Ensure all quarters have values (null if not provided)
+    quarters: [
+      subject.quarters[0] ?? null,
+      subject.quarters[1] ?? null,
+      subject.quarters[2] ?? null,
+      subject.quarters[3] ?? null
+    ] as [number | null, number | null, number | null, number | null]
+  }));
 
   const getRemarks = (grade: number | null | undefined) => {
     if (grade === null || grade === undefined || isNaN(grade)) return '';
@@ -391,7 +391,7 @@ export default function ReportCard({
                 </tr>
               </thead>
               <tbody>
-                {orderedSubjects.map((subject, index) => (
+                {displaySubjects.map((subject, index) => (
                   <tr key={index} className="h-[26px]">
                     <td className="border border-black px-3 py-1 text-[11px] leading-tight font-bold text-left">
                       {subject.learningArea}

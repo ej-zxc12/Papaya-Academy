@@ -28,6 +28,12 @@ export interface Student {
   gradeLevel: string;
   teacherId: string;
   subjectId?: string;
+  subjectIds?: string[];
+  section?: string;
+  lrn?: string;
+  status?: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AttendanceRecord {
@@ -129,6 +135,36 @@ export interface GradeInput {
   remarks?: string;
   teacherId: string;
   dateInput: string;
+}
+
+export interface ReportCardGrade {
+  id: string;
+  studentId: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  teacherId: string;
+  subjects: ReportCardSubject[];
+  generalAverage?: number;
+  status?: 'promoted' | 'retained' | 'dropped';
+  adviserName?: string;
+  dateCompleted?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ReportCardSubject {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  firstGrading: number;
+  secondGrading: number;
+  thirdGrading: number;
+  fourthGrading: number;
+  finalRating: number;
+  remarks?: string;
+  teacherId?: string;
+  teacherName?: string;
 }
 
 export interface Principal {
@@ -317,6 +353,7 @@ export interface Grade {
   studentId: string;
   teacherId: string;
   subjectId: string;
+  subjectName?: string;
   gradeLevel: string;
   section: string;
   schoolYear: string;

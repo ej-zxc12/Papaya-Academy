@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // Add filters if provided
     const baseConstraints: QueryConstraint[] = [];
     if (subjectId) {
-      baseConstraints.push(where('subjectId', '==', subjectId));
+      // We'll handle subject filtering in the query section below
     } else if (gradeLevels.length > 0) {
       if (gradeLevels.length > 10) {
         return NextResponse.json(
@@ -106,10 +106,31 @@ export async function GET(request: NextRequest) {
 
     const results = await Promise.all(
       teacherIdsToTry.map(async (tid) => {
-        const constraints: QueryConstraint[] = [where('teacherId', '==', tid), ...baseConstraints];
-        const q = query(studentsCollection, ...constraints);
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        // For subject filtering, we need to handle both old and new structures
+        if (subjectId) {
+          // Query for old structure (single subjectId)
+          const oldConstraints: QueryConstraint[] = [where('teacherId', '==', tid), where('subjectId', '==', subjectId)];
+          const oldQuery = query(studentsCollection, ...oldConstraints);
+          const oldSnapshot = await getDocs(oldQuery);
+          
+          // Query for new structure (subjectIds array)
+          const newConstraints: QueryConstraint[] = [where('teacherId', '==', tid), where('subjectIds', 'array-contains', subjectId)];
+          const newQuery = query(studentsCollection, ...newConstraints);
+          const newSnapshot = await getDocs(newQuery);
+          
+          const oldResults = oldSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+          const newResults = newSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+          
+          // Combine and remove duplicates
+          const combined = [...oldResults, ...newResults];
+          const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+          return unique;
+        } else {
+          const constraints: QueryConstraint[] = [where('teacherId', '==', tid), ...baseConstraints];
+          const q = query(studentsCollection, ...constraints);
+          const querySnapshot = await getDocs(q);
+          return querySnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        }
       })
     );
 
@@ -131,6 +152,7 @@ export async function GET(request: NextRequest) {
         currentSection: data?.currentSection,
         teacherId: data?.teacherId,
         subjectId: data?.subjectId,
+        subjectIds: data?.subjectIds || [],
         status: data?.status || 'enrolled',
         createdAt: data?.createdAt,
         updatedAt: data?.updatedAt
@@ -183,37 +205,33 @@ export async function POST(request: NextRequest) {
     }
 
     const studentsCollection = collection(db, 'students');
-    const createdStudents = [];
 
-    // Create a separate student record for each subject
-    for (const subjectId of subjectIds) {
-      const studentData = {
-        name,
-        lrn,
-        gradeLevel,
-        section,
-        currentGradeLevel: gradeLevel,
-        currentSection: section,
-        teacherId,
-        subjectId, // Each student record gets its own subject ID
-        status: 'enrolled',
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      };
+    // Create a single student document with multiple subjects
+    const studentData = {
+      name,
+      lrn,
+      gradeLevel,
+      section,
+      currentGradeLevel: gradeLevel,
+      currentSection: section,
+      teacherId,
+      subjectIds, // Store all subject IDs in an array
+      status: 'enrolled',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
 
-      const docRef = await addDoc(studentsCollection, studentData);
-      const newStudent = {
-        id: docRef.id,
-        ...studentData,
-        createdAt: studentData.createdAt.toDate().toISOString()
-      };
-
-      createdStudents.push(newStudent);
-    }
+    const docRef = await addDoc(studentsCollection, studentData);
+    const newStudent = {
+      id: docRef.id,
+      ...studentData,
+      createdAt: studentData.createdAt.toDate().toISOString(),
+      updatedAt: studentData.updatedAt.toDate().toISOString()
+    };
 
     return NextResponse.json({
-      message: `Student created for ${subjectIds.length} subject(s)`,
-      students: createdStudents
+      message: `Student created with ${subjectIds.length} subject(s) in single document`,
+      student: newStudent
     });
 
   } catch (error) {

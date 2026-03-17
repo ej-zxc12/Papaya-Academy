@@ -20,6 +20,7 @@ export class GradeService {
   static async saveGrades(gradeData: {
     studentId: string;
     subjectId: string;
+    subjectName?: string;
     gradeLevel: string;
     section: string;
     schoolYear: string;
@@ -58,6 +59,7 @@ export class GradeService {
           studentId: grade.studentId,
           teacherId: grade.teacherId,
           subjectId: grade.subjectId,
+          subjectName: grade.subjectName || 'Unknown Subject',
           gradeLevel: grade.gradeLevel,
           section: grade.section,
           schoolYear: grade.schoolYear,

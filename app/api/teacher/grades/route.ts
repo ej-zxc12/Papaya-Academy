@@ -92,9 +92,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get unique subject IDs to fetch their names
+    const uniqueSubjectIds = Array.from(new Set(grades.map(g => g.subjectId)));
+    const subjectNamesMap = new Map<string, string>();
+
+    // Fetch subject names for all subject IDs
+    if (uniqueSubjectIds.length > 0) {
+      const subjectsQuery = query(
+        collection(db, 'teacherSubjects'),
+        where('id', 'in', uniqueSubjectIds.slice(0, 10)) // Firestore 'in' limit is 10
+      );
+      const subjectsSnapshot = await getDocs(subjectsQuery);
+      
+      subjectsSnapshot.docs.forEach(doc => {
+        const subjectData = doc.data();
+        subjectNamesMap.set(doc.id, subjectData.name || 'Unknown Subject');
+      });
+    }
+
     const gradeData = grades.map(grade => ({
       studentId: grade.studentId,
       subjectId: grade.subjectId,
+      subjectName: subjectNamesMap.get(grade.subjectId) || 'Unknown Subject',
       gradeLevel: grade.gradeLevel || 'Unknown',
       section: grade.section || 'Default',
       schoolYear,

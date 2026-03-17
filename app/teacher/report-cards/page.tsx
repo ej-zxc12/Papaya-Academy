@@ -122,25 +122,26 @@ export default function ReportCardsPage() {
           remarks?: string;
         }> = {};
 
-        defaultSubjects.forEach(subject => {
-          studentGrades[subject] = {
-            quarters: [null, null, null, null],
-          };
-        });
-
+        // Initialize with empty structure - will be populated by actual grades
         const studentGradeRecords = gradesData.filter(g => g.studentId === student.id);
         
         studentGradeRecords.forEach(grade => {
-          const subjectName = grade.subjectId || 'Unknown Subject';
-          const quarterIndex = grade.quarter === 'Q1' ? 0 : 
-                              grade.quarter === 'Q2' ? 1 : 
-                              grade.quarter === 'Q3' ? 2 : 3;
+          const subjectName = grade.subjectName || grade.subjectId || 'Unknown Subject';
           
           if (!studentGrades[subjectName]) {
             studentGrades[subjectName] = { quarters: [null, null, null, null] };
           }
           
-          studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
+          // Handle both quarter formats (Q1-Q4 and numeric)
+          const quarterIndex = grade.quarter === 'Q1' ? 0 : 
+                              grade.quarter === 'Q2' ? 1 : 
+                              grade.quarter === 'Q3' ? 2 : 
+                              grade.quarter === 'Q4' ? 3 : 
+                              (grade.quarter && typeof grade.quarter === 'string') ? parseInt(grade.quarter.replace('Q', '')) - 1 : 0;
+          
+          if (quarterIndex >= 0 && quarterIndex <= 3) {
+            studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
+          }
         });
 
         Object.keys(studentGrades).forEach(subject => {

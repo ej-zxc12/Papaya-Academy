@@ -121,11 +121,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch both subjects and teacherSubjects
     const subjectsCollection = collection(db, 'subjects');
+    const teacherSubjectsCollection = collection(db, 'teacherSubjects');
+    
     // Prefer the canonical key teacherUid; fall back to teacherId for older data.
-    const [byUidSnap, byIdSnap] = await Promise.all([
+    const [byUidSnap, byIdSnap, teacherSubjectsByIdSnap, teacherSubjectsByUidSnap] = await Promise.all([
       getDocs(query(subjectsCollection, where('teacherUid', '==', teacherUid))),
       getDocs(query(subjectsCollection, where('teacherId', '==', teacherUid))),
+      getDocs(query(teacherSubjectsCollection, where('teacherId', '==', teacherUid))),
+      getDocs(query(teacherSubjectsCollection, where('teacherUid', '==', teacherUid))),
     ]);
 
     const mergedDocs = new Map<string, (typeof byUidSnap.docs)[number]>();
@@ -145,7 +150,21 @@ export async function GET(request: NextRequest) {
       } as Subject;
     });
 
-    return NextResponse.json(subjects);
+    // Merge teacherSubjects data (which contains sections) - avoid duplicates
+    const teacherSubjectsMap = new Map<string, any>();
+    [...teacherSubjectsByIdSnap.docs, ...teacherSubjectsByUidSnap.docs].forEach((docSnap) => {
+      teacherSubjectsMap.set(docSnap.id, docSnap.data());
+    });
+
+    const teacherSubjects = Array.from(teacherSubjectsMap.values()).map((data) => {
+      return {
+        id: data.id || Math.random().toString(), // Ensure id exists
+        ...data,
+      };
+    });
+
+    // Return both subjects and teacherSubjects data
+    return NextResponse.json([...subjects, ...teacherSubjects]);
 
   } catch (error) {
     console.error('Error fetching subjects:', error);
