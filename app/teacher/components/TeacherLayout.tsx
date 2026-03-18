@@ -226,7 +226,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             </div>
           </div>
 
-          <nav className="flex-1 space-y-3 w-full">
+          <nav className="flex-1 space-y-3 w-full overflow-y-auto min-h-0 scrollbar-minimal scrollbar-left pl-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -325,6 +325,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         )}
       </div>
     </main>
-  </div>
+
+    </div>
   );
 }

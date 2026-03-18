@@ -287,3 +287,31 @@ body::before {
 .animate-bounce-dot {
   animation: bounce-dot 0.8s ease-in-out infinite;
 }
+
+/* Custom scrollbar for sidebar */
+.scrollbar-minimal::-webkit-scrollbar {
+  width: 3px;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 12px 0;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb {
+  background: rgba(27, 62, 42, 0.35);
+  border-radius: 10px;
+  min-height: 40px;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb:hover {
+  background: rgba(27, 62, 42, 0.55);
+}
+
+.scrollbar-left {
+  direction: rtl;
+}
+
+.scrollbar-left > * {
+  direction: ltr;
+}
