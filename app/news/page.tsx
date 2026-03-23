@@ -24,21 +24,23 @@ import ScrollReveal from '../../components/ui/ScrollReveal';
 import Footer from '../../components/layout/Footer'; 
 import AboutDropdown from '../../components/AboutDropdown';
 import NewsArticleCard from '../../components/NewsArticleCard';
-import { getNewsArticles, NewsArticle, formatNewsDate } from '@/lib/news';
+import { NewsArticle, formatNewsDate, UpcomingEvent } from '@/lib/news';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
 });
 
-const CATEGORIES = ["All", "Features", "Cultural", "Academic", "Support"];
+const CATEGORIES = ["Features", "Cultural", "Academic", "Support"];
 
 export default function NewsPage() {
   const [isHovered, setIsHovered] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("Features");
   const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const activeCategoryKey = activeCategory.trim().toLowerCase();
 
@@ -46,10 +48,24 @@ export default function NewsPage() {
     const fetchArticles = async () => {
       try {
         setLoading(true);
+
         console.log('Starting to fetch articles...');
-        const data = await getNewsArticles();
-        console.log('Articles fetched successfully:', data);
-        setArticles(data);
+        
+        // Use cached API endpoints instead of direct Firestore
+        const [newsRes, eventsRes] = await Promise.all([
+          fetch('/api/news'),
+          fetch('/api/events?limit=3')
+        ]);
+        
+        if (!newsRes.ok) throw new Error('Failed to fetch news');
+        if (!eventsRes.ok) throw new Error('Failed to fetch events');
+        
+        const newsData = await newsRes.json();
+        const eventsData = await eventsRes.json();
+        
+        console.log('Articles fetched successfully:', newsData);
+        setArticles(newsData);
+        setUpcomingEvents(eventsData);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
         console.error('Error fetching articles:', err);
@@ -63,10 +79,22 @@ export default function NewsPage() {
   }, []);
 
   const filteredArticles = (() => {
-    if (activeCategoryKey === 'all') return articles;
+    let result = articles;
 
+    // Apply search filter if query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((item) => {
+        const titleMatch = item.title?.toLowerCase().includes(query);
+        const contentMatch = item.content?.toLowerCase().includes(query);
+        const authorMatch = item.author?.toLowerCase().includes(query);
+        return titleMatch || contentMatch || authorMatch;
+      });
+    }
+
+    // Apply category filter
     if (activeCategoryKey === 'features') {
-      return articles.filter((item) => Boolean(item.imageUrl));
+      return result.filter((item) => Boolean(item.imageUrl));
     }
 
     const categoryMappings: Record<string, string[]> = {
@@ -77,7 +105,7 @@ export default function NewsPage() {
     };
     const validCategories = categoryMappings[activeCategoryKey] || [activeCategoryKey];
 
-    return articles.filter((item) => {
+    return result.filter((item) => {
       const rawCategory = (item as any).category ?? (item as any).categoryType ?? (item as any).type;
       const normalizedItemCategory = typeof rawCategory === 'string' ? rawCategory.toLowerCase() : '';
 
@@ -89,6 +117,19 @@ export default function NewsPage() {
 
   // All and Features both show filtered results directly
   const standardStories = filteredArticles;
+
+  const formatEventDateTime = (value?: string) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-PH', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   if (loading) {
     return (
@@ -184,7 +225,17 @@ export default function NewsPage() {
             {/* No articles message */}
             {standardStories.length === 0 && !loading && (
               <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No articles found in this category.</p>
+                <p className="text-gray-500 text-lg">
+                  {searchQuery ? `No articles found matching &quot;${searchQuery}&quot;` : 'No articles found in this category.'}
+                </p>
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="mt-4 px-4 py-2 bg-papaya-green text-white rounded-md hover:bg-papaya-green/90 transition-colors"
+                  >
+                    Clear Search
+                  </button>
+                )}
               </div>
             )}
             
@@ -208,10 +259,23 @@ export default function NewsPage() {
                 <input 
                   type="text" 
                   placeholder="Search articles..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#F2C94C]"
                 />
                 <Search className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
               </div>
+              {searchQuery && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Found {standardStories.length} result{standardStories.length !== 1 ? 's' : ''} for &quot;{searchQuery}&quot;
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="ml-2 text-papaya-green hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Categories Widget (Desktop) */}
@@ -237,24 +301,51 @@ export default function NewsPage() {
             {/* Upcoming Events Widget */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-papaya-green mb-4">Upcoming Events</h3>
-              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center">
-                    <Lock className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-gray-800">Coming Soon</div>
-                    <div className="text-xs text-gray-500">Upcoming events will be posted here.</div>
+              {upcomingEvents.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center">
+                      <Lock className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-800">Coming Soon</div>
+                      <div className="text-xs text-gray-500">Upcoming events will be posted here.</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="absolute left-0 top-0 h-full w-1 bg-papaya-green/80" />
 
+                      <div className="flex items-start gap-3 pl-2">
+                        <div className="w-10 h-10 rounded-lg bg-papaya-green/10 flex items-center justify-center flex-shrink-0">
+                          <Calendar className="w-5 h-5 text-papaya-green" />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{event.title || 'Event'}</div>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="truncate">
+                              {formatEventDateTime(event.startAt)}
+                              {event.endAt ? ` - ${formatEventDateTime(event.endAt)}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

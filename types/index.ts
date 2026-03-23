@@ -28,6 +28,12 @@ export interface Student {
   gradeLevel: string;
   teacherId: string;
   subjectId?: string;
+  subjectIds?: string[];
+  section?: string;
+  lrn?: string;
+  status?: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AttendanceRecord {
@@ -129,6 +135,36 @@ export interface GradeInput {
   remarks?: string;
   teacherId: string;
   dateInput: string;
+}
+
+export interface ReportCardGrade {
+  id: string;
+  studentId: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  teacherId: string;
+  subjects: ReportCardSubject[];
+  generalAverage?: number;
+  status?: 'promoted' | 'retained' | 'dropped';
+  adviserName?: string;
+  dateCompleted?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ReportCardSubject {
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  firstGrading: number;
+  secondGrading: number;
+  thirdGrading: number;
+  fourthGrading: number;
+  finalRating: number;
+  remarks?: string;
+  teacherId?: string;
+  teacherName?: string;
 }
 
 export interface Principal {
@@ -298,6 +334,61 @@ export interface Achievement {
   date: string;
   award: string;
   level: 'school' | 'district' | 'division' | 'regional' | 'national';
+}
+
+// New normalized collections
+
+export interface TeacherSubject {
+  id: string;
+  teacherId: string;
+  subjectId: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  createdAt: string;
+}
+
+export interface Grade {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  subjectId: string;
+  subjectName?: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  grade: number;
+  remarks: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Attendance {
+  id: string;
+  studentId: string;
+  schoolYear: string;
+  gradeLevel: string;
+  section: string;
+  daysPresent: number;
+  daysAbsent: number;
+  daysTardy: number;
+}
+
+export interface SF10 {
+  id: string;
+  studentId: string;
+  schoolYear: string;
+  gradeLevel: string;
+  section: string;
+  subjects: SF10Subject[];
+  generalAverage: number;
+  attendance: {
+    daysPresent: number;
+    daysAbsent: number;
+    daysTardy: number;
+  };
+  generatedAt: string;
 }
 
 // Legacy interfaces for backward compatibility during migration

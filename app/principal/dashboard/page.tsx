@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { WeeklyReport, Principal, ContributionSummary, ContributionQuota } from '@/types';
+import PrincipalLayout from '../components/PrincipalLayout';
 import { 
-  ArrowLeft, 
-  LogOut, 
-  User as UserIcon,
-  Shield,
   FileText,
   MessageSquare,
   CheckCircle,
@@ -68,11 +65,6 @@ export default function PrincipalDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('principalSession');
-    router.push('/principal/login');
   };
 
   const handleViewReport = (report: WeeklyReport) => {
@@ -166,35 +158,9 @@ export default function PrincipalDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Shield className="w-8 h-8 text-purple-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">Principal Portal</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <UserIcon className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-700">{principal?.name}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <PrincipalLayout title="Dashboard" subtitle="Overview of weekly reports and contributions">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -367,7 +333,6 @@ export default function PrincipalDashboard() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Report Detail Modal */}
       {selectedReport && (
@@ -500,6 +465,6 @@ export default function PrincipalDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </PrincipalLayout>
   );
 }

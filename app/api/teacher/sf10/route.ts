@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StudentDocument, SF10Record } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, doc, getDoc, orderBy, limit } from 'firebase/firestore';
-import SF10Generator from '@/lib/sf10-generator';
+import SF10NormalizedGenerator from '@/lib/sf10-normalized-generator';
 
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -77,18 +77,22 @@ export async function GET(request: NextRequest) {
         student: {
           id: student.id,
           lrn: student.lrn,
-          name: SF10Generator.formatStudentName(student) || 
-                (student as any).name || 
-                (student as any).fullName || 
-                (student as any).displayName ||
-                `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-                sf10Record.studentName || 
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
                 `Student ${student.id}`,
           gradeLevel: student.academicRecords[schoolYear]?.gradeLevel || student.currentGradeLevel,
           section: student.academicRecords[schoolYear]?.section || student.currentSection
         },
         sf10: sf10Record,
-        completionStatus: SF10Generator.getSF10CompletionStatus(student.academicRecords[schoolYear])
+        completionStatus: {
+          firstGrading: student.academicRecords[schoolYear]?.grades?.first ? true : false,
+          secondGrading: student.academicRecords[schoolYear]?.grades?.second ? true : false,
+          thirdGrading: student.academicRecords[schoolYear]?.grades?.third ? true : false,
+          fourthGrading: student.academicRecords[schoolYear]?.grades?.fourth ? true : false,
+          overall: student.academicRecords[schoolYear]?.grades?.first && 
+                    student.academicRecords[schoolYear]?.grades?.second && 
+                    student.academicRecords[schoolYear]?.grades?.third && 
+                    student.academicRecords[schoolYear]?.grades?.fourth
+        }
       });
     }
 
@@ -137,18 +141,22 @@ export async function GET(request: NextRequest) {
         student: {
           id: student.id,
           lrn: student.lrn,
-          name: SF10Generator.formatStudentName(student) || 
-                (student as any).name || 
-                (student as any).fullName || 
-                (student as any).displayName ||
-                `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-                sf10Record.studentName || 
+          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
                 `Student ${student.id}`,
           gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
           section: yearRecord.section || student.currentSection
         },
         sf10: sf10Record,
-        completionStatus: SF10Generator.getSF10CompletionStatus(yearRecord)
+        completionStatus: {
+          firstGrading: yearRecord?.grades?.first ? true : false,
+          secondGrading: yearRecord?.grades?.second ? true : false,
+          thirdGrading: yearRecord?.grades?.third ? true : false,
+          fourthGrading: yearRecord?.grades?.fourth ? true : false,
+          overall: yearRecord?.grades?.first && 
+                    yearRecord?.grades?.second && 
+                    yearRecord?.grades?.third && 
+                    yearRecord?.grades?.fourth
+        }
       });
     }
 
@@ -225,12 +233,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate SF10
-    const sf10Record = await SF10Generator.generateOrUpdateSF10(studentId, schoolYear);
+    const sf10Record = await SF10NormalizedGenerator.generateSF10(studentId, schoolYear);
 
     return NextResponse.json({
       message: 'SF10 generated successfully',
       sf10: sf10Record,
-      completionStatus: SF10Generator.getSF10CompletionStatus(yearRecord)
+      completionStatus: {
+          firstGrading: yearRecord?.grades?.first ? true : false,
+          secondGrading: yearRecord?.grades?.second ? true : false,
+          thirdGrading: yearRecord?.grades?.third ? true : false,
+          fourthGrading: yearRecord?.grades?.fourth ? true : false,
+          overall: yearRecord?.grades?.first && 
+                    yearRecord?.grades?.second && 
+                    yearRecord?.grades?.third && 
+                    yearRecord?.grades?.fourth
+        }
     });
 
   } catch (error) {
@@ -309,7 +326,16 @@ export async function PATCH(request: NextRequest) {
         sectionStats[section].sf10Generated++;
       }
 
-      const completionStatus = SF10Generator.getSF10CompletionStatus(yearRecord);
+      const completionStatus = {
+          firstGrading: yearRecord?.grades?.first ? true : false,
+          secondGrading: yearRecord?.grades?.second ? true : false,
+          thirdGrading: yearRecord?.grades?.third ? true : false,
+          fourthGrading: yearRecord?.grades?.fourth ? true : false,
+          overall: yearRecord?.grades?.first && 
+                    yearRecord?.grades?.second && 
+                    yearRecord?.grades?.third && 
+                    yearRecord?.grades?.fourth
+        };
 
       if (completionStatus.firstGrading) firstGradingComplete++;
       if (completionStatus.secondGrading) secondGradingComplete++;

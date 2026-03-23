@@ -34,12 +34,22 @@ if (!admin.apps.length) {
     });
     console.log('[firebase-admin] Initialized with service account');
   } else {
-    // Fallback for development without service account key
-    console.warn('[firebase-admin] No credentials found, using application default');
-    admin.initializeApp({
-      projectId: 'papayaacademy-system',
-      credential: admin.credential.applicationDefault()
-    });
+    // Fallback for development/deployment without service account key
+    console.warn('[firebase-admin] No credentials found, attempting application default credentials');
+    try {
+      admin.initializeApp({
+        projectId: 'papayaacademy-system',
+        credential: admin.credential.applicationDefault()
+      });
+      console.log('[firebase-admin] Initialized with application default credentials');
+    } catch (appDefaultError: any) {
+      console.error('[firebase-admin] Failed to initialize with application default credentials:', appDefaultError?.message || appDefaultError);
+      // Last resort: initialize without credentials for local development
+      admin.initializeApp({
+        projectId: 'papayaacademy-system'
+      });
+      console.warn('[firebase-admin] Initialized without credentials - some features may not work');
+    }
   }
 }
 

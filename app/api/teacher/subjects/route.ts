@@ -3,7 +3,7 @@ import { Subject } from '@/types';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
 
-// Mock subject data - replace with actual database
+// Mock subject data for higher grades (4-6) - replace with actual database
 const mockSubjects: Subject[] = [
   {
     id: 'subj1',
@@ -121,11 +121,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch both subjects and teacherSubjects
     const subjectsCollection = collection(db, 'subjects');
+    const teacherSubjectsCollection = collection(db, 'teacherSubjects');
+    
     // Prefer the canonical key teacherUid; fall back to teacherId for older data.
-    const [byUidSnap, byIdSnap] = await Promise.all([
+    const [byUidSnap, byIdSnap, teacherSubjectsByIdSnap, teacherSubjectsByUidSnap] = await Promise.all([
       getDocs(query(subjectsCollection, where('teacherUid', '==', teacherUid))),
       getDocs(query(subjectsCollection, where('teacherId', '==', teacherUid))),
+      getDocs(query(teacherSubjectsCollection, where('teacherId', '==', teacherUid))),
+      getDocs(query(teacherSubjectsCollection, where('teacherUid', '==', teacherUid))),
     ]);
 
     const mergedDocs = new Map<string, (typeof byUidSnap.docs)[number]>();
@@ -145,7 +150,21 @@ export async function GET(request: NextRequest) {
       } as Subject;
     });
 
-    return NextResponse.json(subjects);
+    // Merge teacherSubjects data (which contains sections) - avoid duplicates
+    const teacherSubjectsMap = new Map<string, any>();
+    [...teacherSubjectsByIdSnap.docs, ...teacherSubjectsByUidSnap.docs].forEach((docSnap) => {
+      teacherSubjectsMap.set(docSnap.id, docSnap.data());
+    });
+
+    const teacherSubjects = Array.from(teacherSubjectsMap.values()).map((data) => {
+      return {
+        id: data.id || Math.random().toString(), // Ensure id exists
+        ...data,
+      };
+    });
+
+    // Return only subjects and teacherSubjects data (no automatic generation)
+    return NextResponse.json([...subjects, ...teacherSubjects]);
 
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -167,6 +186,73 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const action = body?.action;
+
+    // Handle 'addSection' action
+    if (action === 'addSection') {
+      const section = typeof body?.section === 'string' ? body.section.trim() : '';
+      const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
+
+      if (!section) {
+        return NextResponse.json(
+          { message: 'section is required' },
+          { status: 400 }
+        );
+      }
+
+      if (!subjectId) {
+        return NextResponse.json(
+          { message: 'subjectId is required' },
+          { status: 400 }
+        );
+      }
+
+      // Verify the subject belongs to the teacher
+      const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+      if (!subjectDoc.exists()) {
+        return NextResponse.json(
+          { message: 'Subject not found' },
+          { status: 404 }
+        );
+      }
+
+      const subjectData = subjectDoc.data();
+      if (subjectData.teacherId !== teacherUid && subjectData.teacherUid !== teacherUid) {
+        return NextResponse.json(
+          { message: 'Unauthorized - Subject does not belong to this teacher' },
+          { status: 403 }
+        );
+      }
+
+      // Create or update teacherSubjects document with the section
+      const teacherSubjectsCollection = collection(db, 'teacherSubjects');
+      const q = query(
+        teacherSubjectsCollection,
+        where('teacherId', '==', teacherUid),
+        where('subjectId', '==', subjectId),
+        where('section', '==', section)
+      );
+      const existingSnap = await getDocs(q);
+
+      if (existingSnap.empty) {
+        // Create new teacherSubject entry with this section
+        await addDoc(teacherSubjectsCollection, {
+          teacherId: teacherUid,
+          teacherUid,
+          subjectId,
+          section,
+          schoolYear: subjectData.schoolYear || '2024-2025',
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      return NextResponse.json({
+        message: 'Section added successfully',
+        section: { name: section, subjectId }
+      }, { status: 201 });
+    }
+
+    // Regular subject creation
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
     const code = typeof body?.code === 'string' ? body.code.trim() : '';
     const gradeLevelsFromBody = Array.isArray(body?.gradeLevels)

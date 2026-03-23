@@ -40,6 +40,7 @@ export default function PrincipalLogin() {
 
       if (response.ok) {
         const data = await response.json();
+        localStorage.removeItem('teacherSession');
         localStorage.setItem('principalSession', JSON.stringify(data));
         router.push('/principal/dashboard');
       } else {

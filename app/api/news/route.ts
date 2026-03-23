@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, storage } from '../../../lib/firebase-admin'
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
+// Cache for 5 minutes (300 seconds) - public content that changes infrequently
+export const revalidate = 300
+
 export async function GET() {
   try {
     const newsSnapshot = await db.collection('news').orderBy('date', 'desc').get()
@@ -10,7 +13,11 @@ export async function GET() {
       ...doc.data()
     }))
     
-    return NextResponse.json(newsItems)
+    return NextResponse.json(newsItems, {
+      headers: {
+        'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
+      },
+    })
   } catch (error) {
     console.error('Error fetching news:', error)
     return NextResponse.json({ error: 'Failed to fetch news' }, { status: 500 })

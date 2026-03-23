@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Student } from '@/types';
+import { Student, StudentDocument } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, Timestamp, QueryConstraint } from 'firebase/firestore';
 
@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const gradeLevel = searchParams.get('gradeLevel');
+    const section = searchParams.get('section');
     const gradeLevels = searchParams
       .getAll('gradeLevels')
       .filter(Boolean)
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
     // Add filters if provided
     const baseConstraints: QueryConstraint[] = [];
     if (subjectId) {
-      baseConstraints.push(where('subjectId', '==', subjectId));
+      // We'll handle subject filtering in the query section below
     } else if (gradeLevels.length > 0) {
       if (gradeLevels.length > 10) {
         return NextResponse.json(
@@ -94,16 +95,42 @@ export async function GET(request: NextRequest) {
         );
       }
       baseConstraints.push(where('gradeLevel', 'in', gradeLevels));
-    } else if (gradeLevel) {
-      baseConstraints.push(where('gradeLevel', '==', gradeLevel));
+    } else {
+      if (gradeLevel) {
+        baseConstraints.push(where('gradeLevel', '==', gradeLevel));
+      }
+      if (section) {
+        baseConstraints.push(where('section', '==', section));
+      }
     }
 
     const results = await Promise.all(
       teacherIdsToTry.map(async (tid) => {
-        const constraints: QueryConstraint[] = [where('teacherId', '==', tid), ...baseConstraints];
-        const q = query(studentsCollection, ...constraints);
-        const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        // For subject filtering, we need to handle both old and new structures
+        if (subjectId) {
+          // Query for old structure (single subjectId)
+          const oldConstraints: QueryConstraint[] = [where('teacherId', '==', tid), where('subjectId', '==', subjectId)];
+          const oldQuery = query(studentsCollection, ...oldConstraints);
+          const oldSnapshot = await getDocs(oldQuery);
+          
+          // Query for new structure (subjectIds array)
+          const newConstraints: QueryConstraint[] = [where('teacherId', '==', tid), where('subjectIds', 'array-contains', subjectId)];
+          const newQuery = query(studentsCollection, ...newConstraints);
+          const newSnapshot = await getDocs(newQuery);
+          
+          const oldResults = oldSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+          const newResults = newSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+          
+          // Combine and remove duplicates
+          const combined = [...oldResults, ...newResults];
+          const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+          return unique;
+        } else {
+          const constraints: QueryConstraint[] = [where('teacherId', '==', tid), ...baseConstraints];
+          const q = query(studentsCollection, ...constraints);
+          const querySnapshot = await getDocs(q);
+          return querySnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        }
       })
     );
 
@@ -117,10 +144,18 @@ export async function GET(request: NextRequest) {
     const students = Array.from(merged.entries()).map(([id, data]) => {
       return {
         id,
-        name: data?.name,
-        gradeLevel: data?.gradeLevel,
+        name: data?.name || '',
+        lrn: data?.lrn || '',
+        gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
+        section: data?.section || data?.currentSection,
+        currentGradeLevel: data?.currentGradeLevel,
+        currentSection: data?.currentSection,
         teacherId: data?.teacherId,
         subjectId: data?.subjectId,
+        subjectIds: data?.subjectIds || [],
+        status: data?.status || 'enrolled',
+        createdAt: data?.createdAt,
+        updatedAt: data?.updatedAt
       };
     });
 
@@ -148,8 +183,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const lrn = typeof body?.lrn === 'string' ? body.lrn.trim() : '';
     const gradeLevel = typeof body?.gradeLevel === 'string' ? body.gradeLevel.trim() : '';
-    const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
+    const section = typeof body?.section === 'string' ? body.section.trim() : '';
+    const subjectIds = Array.isArray(body?.subjectIds) 
+      ? body.subjectIds.filter((id: any) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
+      : (typeof body?.subjectId === 'string' ? [body.subjectId.trim()] : []);
 
     if (!name || !gradeLevel || !teacherId) {
       return NextResponse.json(
@@ -158,23 +197,85 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (subjectIds.length === 0) {
+      return NextResponse.json(
+        { message: 'At least one subject ID is required' },
+        { status: 400 }
+      );
+    }
+
     const studentsCollection = collection(db, 'students');
+
+    // Check if student already exists with same name, LRN, grade level, and section
+    const existingStudentQuery = query(
+      studentsCollection,
+      where('teacherId', '==', teacherId),
+      where('name', '==', name),
+      where('lrn', '==', lrn),
+      where('gradeLevel', '==', gradeLevel),
+      where('section', '==', section)
+    );
+    
+    const existingStudentSnapshot = await getDocs(existingStudentQuery);
+    
+    if (!existingStudentSnapshot.empty) {
+      // Student exists, update their subjects
+      const existingStudentDoc = existingStudentSnapshot.docs[0];
+      const existingStudentData = existingStudentDoc.data();
+      const existingSubjectIds = existingStudentData.subjectIds || [];
+      
+      // Merge new subject IDs with existing ones (avoid duplicates)
+      const mergedSubjectIds = Array.from(new Set([...existingSubjectIds, ...subjectIds]));
+      
+      // Update the existing student
+      await import('firebase/firestore').then(({ updateDoc, doc }) => {
+        return updateDoc(doc(db, 'students', existingStudentDoc.id), {
+          subjectIds: mergedSubjectIds,
+          updatedAt: Timestamp.now()
+        });
+      });
+      
+      const updatedStudent = {
+        id: existingStudentDoc.id,
+        ...existingStudentData,
+        subjectIds: mergedSubjectIds,
+        updatedAt: new Date().toISOString()
+      };
+
+      return NextResponse.json({
+        message: `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
+        student: updatedStudent,
+        isUpdate: true
+      });
+    }
+
+    // Create a new student document if no existing student found
     const studentData = {
       name,
+      lrn,
       gradeLevel,
+      section,
+      currentGradeLevel: gradeLevel,
+      currentSection: section,
       teacherId,
-      subjectId,
-      createdAt: Timestamp.now()
+      subjectIds, // Store all subject IDs in an array
+      status: 'enrolled',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
     };
 
     const docRef = await addDoc(studentsCollection, studentData);
     const newStudent = {
       id: docRef.id,
       ...studentData,
-      createdAt: studentData.createdAt.toDate().toISOString()
+      createdAt: studentData.createdAt.toDate().toISOString(),
+      updatedAt: studentData.updatedAt.toDate().toISOString()
     };
 
-    return NextResponse.json(newStudent);
+    return NextResponse.json({
+      message: `Student created with ${subjectIds.length} subject(s) in single document`,
+      student: newStudent
+    });
 
   } catch (error) {
     console.error('Error adding student:', error);

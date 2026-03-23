@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   LogOut,
-  GraduationCap
+  GraduationCap,
+  FileText
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -139,7 +140,9 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
 
   const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
+    { icon: FileText, label: 'Weekly Reports', href: '/teacher/weekly-reports' },
     { icon: School, label: 'Input Grades', href: '/teacher/grades/input' },
+    { icon: FileText, label: 'Report Cards', href: '/teacher/report-cards' },
     { icon: FilePlus, label: 'Create SF10', href: '/teacher/sf10/create' },
     { icon: Eye, label: 'View SF10', href: '/teacher/sf10/list' },
     { icon: Table, label: 'Class Records', href: '/teacher/grades/view' },
@@ -164,7 +167,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
       </div>
 
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40 bg-white shadow-xl lg:shadow-md transform transition-all duration-300 ease-in-out flex flex-col
+        fixed inset-y-0 left-0 z-40 bg-white shadow-xl lg:shadow-md transform transition-all duration-300 ease-in-out flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} 
         w-64
@@ -223,7 +226,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             </div>
           </div>
 
-          <nav className="flex-1 space-y-3 w-full">
+          <nav className="flex-1 space-y-3 w-full overflow-y-auto min-h-0 scrollbar-minimal scrollbar-left pl-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -303,8 +306,9 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         />
       )}
       
-      <main className="flex-1 p-8 transition-all duration-300 overflow-y-auto h-screen">
-        <div className="h-10 lg:hidden"></div>
+      <main className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'} min-h-screen`}>
+        <div className="p-8">
+          <div className="h-10 lg:hidden"></div>
         
         {isLoading ? (
           <PageSkeleton />
@@ -319,7 +323,9 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
             {children}
           </div>
         )}
-      </main>
+      </div>
+    </main>
+
     </div>
   );
 }
