@@ -186,7 +186,7 @@ export default function ReportCardsPage() {
                               grade.quarter === 'Q2' ? 1 : 
                               grade.quarter === 'Q3' ? 2 : 
                               grade.quarter === 'Q4' ? 3 : 
-                              parseInt(grade.quarter.replace('Q', '')) - 1;
+                              parseInt((grade.quarter as string).replace('Q', '')) - 1;
           
           if (quarterIndex >= 0 && quarterIndex <= 3) {
             studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
