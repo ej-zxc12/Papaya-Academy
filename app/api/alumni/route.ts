@@ -41,8 +41,19 @@ export async function GET() {
         'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching alumni:', error);
+    
+    // Return empty array instead of error if Firebase is not available
+    if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+      console.warn('Firebase not available - returning empty alumni data');
+      return NextResponse.json([], {
+        headers: {
+          'Cache-Control': 'no-cache, must-revalidate',
+        },
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch alumni' },
       { status: 500 }

@@ -52,8 +52,32 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching mission and vision data:', error);
+    
+    // Return default data instead of error if Firebase is not available
+    if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+      console.warn('Firebase not available - returning default mission and vision data');
+      return NextResponse.json({
+        id: 'default',
+        mission: {
+          title: 'Our Mission',
+          content: 'To provide quality education and holistic development for every child.',
+          image: '/images/default-mission.jpg'
+        },
+        vision: {
+          title: 'Our Vision', 
+          content: 'To be a leading educational institution that nurtures future leaders.',
+          image: '/images/default-vision.jpg'
+        },
+        values: []
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache, must-revalidate',
+        },
+      });
+    }
+    
     return NextResponse.json(
       { error: `Failed to fetch mission and vision data: ${error}` },
       { status: 500 }

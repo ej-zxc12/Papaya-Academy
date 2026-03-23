@@ -15,9 +15,12 @@ export interface Event {
 // Cache for 5 minutes (300 seconds) - public content that changes infrequently
 export const revalidate = 300;
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = new URL(request.url).searchParams;
     const maxCount = Math.min(parseInt(searchParams.get('limit') || '3', 10), 50);
 
     const eventsSnapshot = await db
@@ -47,8 +50,19 @@ export async function GET(request: Request) {
         'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching events:', error);
+    
+    // Return empty array instead of error if Firebase is not available
+    if (error.message?.includes('credentials') || error.message?.includes('authentication')) {
+      console.warn('Firebase not available - returning empty events data');
+      return NextResponse.json([], {
+        headers: {
+          'Cache-Control': 'no-cache, must-revalidate',
+        },
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch events' },
       { status: 500 }
