@@ -3,7 +3,7 @@ import { Subject } from '@/types';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
 
-// Mock subject data - replace with actual database
+// Mock subject data for higher grades (4-6) - replace with actual database
 const mockSubjects: Subject[] = [
   {
     id: 'subj1',
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Return both subjects and teacherSubjects data
+    // Return only subjects and teacherSubjects data (no automatic generation)
     return NextResponse.json([...subjects, ...teacherSubjects]);
 
   } catch (error) {

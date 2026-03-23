@@ -68,7 +68,9 @@ export default function SF10List() {
       const response = await fetch('/api/teacher/sf10');
       
       if (!response.ok) {
-        throw new Error('Failed to fetch SF10 records');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', response.status, errorData);
+        throw new Error(errorData.message || `Failed to fetch SF10 records (${response.status})`);
       }
       
       const data = await response.json();

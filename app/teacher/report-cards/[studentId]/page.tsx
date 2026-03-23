@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Download, Loader2, Printer } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams, useParams } from 'next/navigation';
+import { Student, Grade } from '@/types';
+import { ArrowLeft, Printer, Download, Loader2 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
 import ReportCard from '@/components/ReportCard';
-import { Grade, Student } from '@/types';
 import { toPng } from 'html-to-image';
 
+// Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
   'Filipino',
   'English',
@@ -18,7 +19,7 @@ const defaultSubjects = [
   'EPP',
   'MAPEH',
   'Music & Arts',
-  'Physical Education & Health',
+  'Physical Education & Health'
 ];
 
 interface StudentWithGrades extends Student {
@@ -128,15 +129,21 @@ export default function ReportCardViewerPage() {
       });
 
       const studentGrades: StudentWithGrades['grades'] = {};
-      defaultSubjects.forEach((subject) => {
-        studentGrades[subject] = {
-          quarters: [null, null, null, null],
-        };
-      });
-
+      
+      // Initialize with subjects that actually exist for this teacher
+      // Only create entries for subjects that have been created by the teacher
       const studentGradeRecords = gradesData.filter((g) => g.studentId === found.id);
+      
+      // First, create entries for subjects that have actual grades
       studentGradeRecords.forEach((grade) => {
-        // Get subject name from subjects collection
+        const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
+        if (!studentGrades[subjectName]) {
+          studentGrades[subjectName] = { quarters: [null, null, null, null] };
+        }
+      });
+      
+      // Then populate the grades
+      studentGradeRecords.forEach((grade) => {
         const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
         const quarterIndex =
           grade.quarter === 'Q1' ? 0 : grade.quarter === 'Q2' ? 1 : grade.quarter === 'Q3' ? 2 : 3;

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Student, Subject, type GradeInput } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import * as XLSX from 'xlsx';
 
 import { 
   Save, 
@@ -17,7 +18,10 @@ import {
   Unlock,
   Search,
   ChevronDown,
-  Check
+  Check,
+  Upload,
+  FileText,
+  Download
 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
 
@@ -64,17 +68,19 @@ const AnimatedButton = ({
       }}
       className={
         className ??
-        'flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 disabled:opacity-50 disabled:cursor-not-allowed'
+        'flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-xs tracking-normal h-11 disabled:opacity-50 disabled:cursor-not-allowed'
       }
       style={{
-        backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
-        backgroundSize: '100% 200%',
-        backgroundPosition: isVisuallyActive ? 'bottom' : 'top',
+        backgroundColor: isVisuallyActive ? '#1B3E2A' : 'transparent',
         color: isActive ? '#FFFFFF' : (isVisuallyActive ? '#F2C94C' : '#1B3E2A'),
         borderColor: '#1B3E2A',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderBottomWidth: '2px',
         boxShadow: isVisuallyActive
           ? '0 4px 12px rgba(27, 62, 42, 0.3)'
           : '0 2px 4px rgba(0,0,0,0.1)',
+        transition: 'all 300ms ease',
         ...(style ?? {}),
       }}
     >
@@ -208,6 +214,12 @@ export default function GradeInput() {
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '' });
+  
+  // Excel upload states
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showExcelUpload, setShowExcelUpload] = useState(false);
+  const [excelPreview, setExcelPreview] = useState<any[]>([]);
 
   // Subject management states
   const [showAddSubject, setShowAddSubject] = useState(false);
@@ -1244,6 +1256,131 @@ export default function GradeInput() {
     }
   };
 
+  // Excel upload functions
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        setExcelFile(file);
+        parseExcelFile(file);
+      } else {
+        setMessage({ type: 'error', text: 'Please select a valid Excel file (.xlsx or .xls)' });
+      }
+    }
+  };
+
+  const parseExcelFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        setExcelPreview(jsonData.slice(0, 5)); // Show first 5 rows as preview
+        setMessage({ type: 'success', text: `Excel file loaded successfully. Found ${jsonData.length} students.` });
+      } catch (error) {
+        setMessage({ type: 'error', text: 'Failed to parse Excel file. Please check the format.' });
+        console.error('Excel parsing error:', error);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleExcelUpload = async () => {
+    if (!excelFile || studentSubjectId.length === 0) {
+      setMessage({ type: 'error', text: 'Please select an Excel file and at least one subject' });
+      return;
+    }
+
+    setIsUploading(true);
+    setMessage(null);
+
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
+
+      const formData = new FormData();
+      formData.append('file', excelFile);
+      formData.append('subjectIds', JSON.stringify(studentSubjectId));
+
+      const response = await fetch('/api/teacher/students/bulk-upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${teacherUid}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Refresh students list
+        const selectedSubjectObj = subjects?.find(s => s.id === studentSubjectId[0]);
+        const allowedGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
+          ? selectedSubjectObj.gradeLevels
+          : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
+
+        const studentsUrl = allowedGradeLevels.length > 0
+          ? `/api/teacher/students?${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
+          : '/api/teacher/students';
+
+        const refreshedStudentsResponse = await fetch(studentsUrl, {
+          headers: {
+            'Authorization': `Bearer ${teacherUid}`
+          }
+        });
+
+        if (refreshedStudentsResponse.ok) {
+          const refreshedStudents = await refreshedStudentsResponse.json();
+          setAllStudents(refreshedStudents);
+        }
+
+        setExcelFile(null);
+        setExcelPreview([]);
+        setShowExcelUpload(false);
+        setMessage({ 
+          type: 'success', 
+          text: `Successfully uploaded ${result.uploadedCount} students. ${result.skippedCount || 0} duplicates skipped.` 
+        });
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.message || 'Failed to upload students' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to upload students' });
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const downloadExcelTemplate = () => {
+    const template = [
+      {
+        'Student Name': 'Juan Dela Cruz',
+        'LRN': '123456789012',
+        'Grade Level': 'Grade 5',
+        'Section': 'Section A'
+      },
+      {
+        'Student Name': 'Maria Santos',
+        'LRN': '123456789013',
+        'Grade Level': 'Grade 5',
+        'Section': 'Section A'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+    XLSX.writeFile(wb, 'student_template.xlsx');
+  };
+
   if (isLoading) {
     return (
       <TeacherLayout>
@@ -1447,14 +1584,32 @@ export default function GradeInput() {
               <Users className="w-5 h-5 text-[#F2C94C]" />
               Student Management
             </h3>
-            <AnimatedButton
-              onClick={() => setShowAddStudent(!showAddStudent)}
-              className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-              style={{ width: 'auto' }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Student
-            </AnimatedButton>
+            <div className="flex flex-wrap gap-2">
+              <AnimatedButton
+                onClick={() => setShowExcelUpload(!showExcelUpload)}
+                className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                style={{ width: 'auto', backgroundColor: '#10b981', color: '#FFFFFF' }}
+              >
+                <Upload className="w-4 h-4" />
+                Upload Excel
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={downloadExcelTemplate}
+                className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                style={{ width: 'auto', backgroundColor: '#3b82f6', color: '#FFFFFF' }}
+              >
+                <Download className="w-4 h-4" />
+                Download Template
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={() => setShowAddStudent(!showAddStudent)}
+                className="flex items-center justify-center gap-2 px-5 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                style={{ width: 'auto' }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Student
+              </AnimatedButton>
+            </div>
           </div>
 
           {showAddStudent && (
@@ -1569,6 +1724,116 @@ export default function GradeInput() {
                   style={{ width: 'auto' }}
                 >
                   Confirm Add Student
+                </AnimatedButton>
+              </div>
+            </div>
+          )}
+
+          {/* Excel Upload Section */}
+          {showExcelUpload && (
+            <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
+              {/* Subject Selection for Excel Upload */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Select Subject(s) for Excel Upload</label>
+                <div className="flex flex-wrap gap-2">
+                  {subjects?.filter(subject => subject.name && subject.code && subject.id).map((subject) => (
+                    <AnimatedButton
+                      key={subject.id}
+                      onClick={() => {
+                        setStudentSubjectId(currentIds => {
+                          if (currentIds.includes(subject.id)) {
+                            return currentIds.filter(id => id !== subject.id);
+                          } else {
+                            return [...currentIds, subject.id];
+                          }
+                        });
+                      }}
+                      isActive={studentSubjectId.includes(subject.id)}
+                      style={{ width: 'auto' }}
+                    >
+                      {subject.name} ({subject.code})
+                    </AnimatedButton>
+                  ))}
+                </div>
+                {studentSubjectId.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-2">Please select at least one subject for the students</p>
+                )}
+              </div>
+
+              {/* File Upload Area */}
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Upload Excel File</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#1B3E2A] transition-colors">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="excel-upload"
+                  />
+                  <label
+                    htmlFor="excel-upload"
+                    className="cursor-pointer flex flex-col items-center gap-3"
+                  >
+                    <FileText className="w-12 h-12 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">
+                        {excelFile ? excelFile.name : 'Click to upload Excel file'}
+                      </p>
+                      <p className="text-xs text-gray-500">.xlsx or .xls files only</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Preview Section */}
+              {excelPreview.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Preview (First 5 rows)</label>
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LRN</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade Level</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {excelPreview.map((row, index) => (
+                          <tr key={index}>
+                            <td className="px-4 py-2 text-sm text-gray-900">{row['Student Name'] || row['student_name'] || ''}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{row['LRN'] || row['lrn'] || ''}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{row['Grade Level'] || row['grade_level'] || ''}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{row['Section'] || row['section'] || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload Button */}
+              <div className="flex justify-end">
+                <AnimatedButton
+                  onClick={handleExcelUpload}
+                  disabled={!excelFile || studentSubjectId.length === 0 || isUploading}
+                  className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ width: 'auto', backgroundColor: '#10b981', color: '#FFFFFF' }}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload Students
+                    </>
+                  )}
                 </AnimatedButton>
               </div>
             </div>

@@ -327,7 +327,7 @@ function AboutPageContent() {
                 </div>
                 <div className="bg-white px-6 py-4 rounded-lg shadow-md border-2 border-papaya-green text-center w-72 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                   <h3 className="font-bold text-papaya-green">
-                    Sheryl Ann B. Queliza
+                    Sheryl Queliza
                   </h3>
                   <p className="text-sm text-gray-600">
                     School Principal

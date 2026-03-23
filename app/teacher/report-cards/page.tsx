@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
 
+// Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
   'Filipino',
   'English', 
@@ -185,7 +186,7 @@ export default function ReportCardsPage() {
                               grade.quarter === 'Q2' ? 1 : 
                               grade.quarter === 'Q3' ? 2 : 
                               grade.quarter === 'Q4' ? 3 : 
-                              (grade.quarter && typeof grade.quarter === 'string') ? parseInt(grade.quarter.replace('Q', '')) - 1 : 0;
+                              parseInt(grade.quarter.replace('Q', '')) - 1;
           
           if (quarterIndex >= 0 && quarterIndex <= 3) {
             studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
