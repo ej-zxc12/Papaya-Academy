@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X } from 'lucide-react';
+import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -26,6 +26,7 @@ interface WeeklyReport {
   authorId: string;
   authorName: string;
   authorRole: 'teacher' | 'principal';
+  authorImageUrl?: string | null;
   acknowledged: boolean;
   attachments: { name: string; url: string }[];
   createdAt: Timestamp | null;
@@ -37,6 +38,7 @@ interface Comment {
   authorId: string;
   authorName: string;
   authorRole: 'teacher' | 'principal';
+  authorImageUrl?: string | null;
   createdAt: Timestamp | null;
 }
 
@@ -58,6 +60,33 @@ export default function WeeklyReportsPage() {
   const [commentInputs, setCommentInputs] = useState<{ [reportId: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showComments, setShowComments] = useState<{ [reportId: string]: boolean }>({});
+  const [userImages, setUserImages] = useState<{ [userId: string]: string | null }>({});
+  const [isReportsLoading, setIsReportsLoading] = useState(true);
+
+  // Skeleton component for reports
+  const ReportSkeleton = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-pulse">
+      <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
+        <div className="flex items-center space-x-3">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-gray-200"></div>
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-24"></div>
+            <div className="h-3 bg-gray-200 rounded w-16"></div>
+          </div>
+        </div>
+      </div>
+      <div className="p-5 space-y-3 bg-white">
+        <div className="h-4 bg-gray-200 rounded w-full"></div>
+        <div className="h-4 bg-gray-200 rounded w-full"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      </div>
+      <div className="border-t border-gray-100 px-5 py-3 flex items-center space-x-4 bg-gray-50">
+        <div className="h-8 bg-gray-200 rounded w-24"></div>
+        <div className="h-8 bg-gray-200 rounded w-32"></div>
+      </div>
+    </div>
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate deadline (next Friday at 5 PM)
@@ -135,8 +164,11 @@ export default function WeeklyReportsPage() {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(reportsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(reportsQuery, async (snapshot) => {
+      setIsReportsLoading(true);
       const reportsData: WeeklyReport[] = [];
+      const uniqueUserIds = new Set<string>();
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
         reportsData.push({
@@ -149,8 +181,36 @@ export default function WeeklyReportsPage() {
           attachments: data.attachments || [],
           createdAt: data.createdAt || null
         });
+        if (data.authorId) {
+          uniqueUserIds.add(data.authorId);
+        }
       });
-      setReports(reportsData);
+      
+      // Fetch user images for all unique authors
+      const newImages: { [userId: string]: string | null } = {};
+      const userIdsArray = Array.from(uniqueUserIds);
+      for (const userId of userIdsArray) {
+        if (!userImages[userId]) {
+          const imageUrl = await fetchUserImage(userId);
+          if (imageUrl) {
+            newImages[userId] = imageUrl;
+          }
+        }
+      }
+      
+      if (Object.keys(newImages).length > 0) {
+        setUserImages(prev => ({ ...prev, ...newImages }));
+      }
+      
+      // Add imageUrl to each report using combined images (new + existing)
+      const combinedImages = { ...userImages, ...newImages };
+      const reportsWithImages = reportsData.map(report => ({
+        ...report,
+        authorImageUrl: combinedImages[report.authorId] || null
+      }));
+      
+      setReports(reportsWithImages);
+      setIsReportsLoading(false);
     });
 
     return () => unsubscribe();
@@ -168,8 +228,10 @@ export default function WeeklyReportsPage() {
         orderBy('createdAt', 'asc')
       );
 
-      const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
         const commentsData: Comment[] = [];
+        const uniqueUserIds = new Set<string>();
+        
         snapshot.forEach((doc) => {
           const data = doc.data();
           commentsData.push({
@@ -180,8 +242,34 @@ export default function WeeklyReportsPage() {
             authorRole: data.authorRole || 'teacher',
             createdAt: data.createdAt || null
           });
+          if (data.authorId) {
+            uniqueUserIds.add(data.authorId);
+          }
         });
-        setComments((prev) => ({ ...prev, [report.id]: commentsData }));
+        
+        // Fetch user images for all unique authors
+        const newImages: { [userId: string]: string | null } = {};
+        const userIdsArray = Array.from(uniqueUserIds);
+        for (const userId of userIdsArray) {
+          if (!userImages[userId]) {
+            const imageUrl = await fetchUserImage(userId);
+            if (imageUrl) {
+              newImages[userId] = imageUrl;
+            }
+          }
+        }
+        
+        if (Object.keys(newImages).length > 0) {
+          setUserImages(prev => ({ ...prev, ...newImages }));
+        }
+        
+        // Add imageUrl to each comment
+        const commentsWithImages = commentsData.map(comment => ({
+          ...comment,
+          authorImageUrl: userImages[comment.authorId] || null
+        }));
+        
+        setComments((prev) => ({ ...prev, [report.id]: commentsWithImages }));
       });
 
       unsubscribes.push(unsubscribe);
@@ -282,6 +370,26 @@ export default function WeeklyReportsPage() {
     }
   };
 
+  // Fetch user image from teachers_user collection
+  const fetchUserImage = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'teachers_user', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return userData.imageUrl || null;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching user image:', error);
+      return null;
+    }
+  };
+
+  // Toggle comments visibility
+  const toggleComments = (reportId: string) => {
+    setShowComments(prev => ({ ...prev, [reportId]: !prev[reportId] }));
+  };
+
   const formatDate = (timestamp: Timestamp | null) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate();
@@ -364,7 +472,13 @@ export default function WeeklyReportsPage() {
                   placeholder="Type your weekly update here. What did you teach? What do you need help with?"
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
+                  maxLength={500}
                 ></textarea>
+                <div className="flex justify-end">
+                  <span className={`text-xs ${newPostContent.length > 450 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {newPostContent.length}/500 characters
+                  </span>
+                </div>
 
                 {/* Attached Files List */}
                 {attachedFiles.length > 0 && (
@@ -407,7 +521,7 @@ export default function WeeklyReportsPage() {
 
                   <button 
                     onClick={handlePostReport}
-                    disabled={(!newPostContent.trim() && attachedFiles.length === 0) || isSubmitting || isUploading}
+                    disabled={(!newPostContent.trim() && attachedFiles.length === 0) || isSubmitting || isUploading || newPostContent.length > 500}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 text-base shadow-sm mt-2"
                   >
                     {isSubmitting || isUploading ? (
@@ -450,7 +564,13 @@ export default function WeeklyReportsPage() {
           </div>
 
           <div className="space-y-6">
-            {reports.length === 0 ? (
+            {isReportsLoading ? (
+              <>
+                <ReportSkeleton />
+                <ReportSkeleton />
+                <ReportSkeleton />
+              </>
+            ) : reports.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <FileText className="mx-auto h-12 w-12 text-gray-300" />
                 <h3 className="mt-4 text-sm font-medium text-gray-900">No reports yet</h3>
@@ -462,13 +582,23 @@ export default function WeeklyReportsPage() {
               </div>
             ) : (
               reports.map((report) => (
-                <div key={report.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div key={report.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
                   
                   {/* Report Header */}
                   <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2.5 rounded-full ${report.authorRole === 'principal' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
-                        <User size={20} />
+                      <div className={`shrink-0 w-10 h-10 rounded-full overflow-hidden border ${report.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-green-100 border-green-200'}`}>
+                        {report.authorImageUrl ? (
+                          <img 
+                            src={report.authorImageUrl} 
+                            alt={report.authorName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${report.authorRole === 'principal' ? 'text-purple-700' : 'text-green-700'}`}>
+                            <User size={20} />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="text-base font-semibold text-gray-800">{report.authorName}</p>
@@ -531,51 +661,69 @@ export default function WeeklyReportsPage() {
                       </div>
                     )}
                     
-                    <div className="flex items-center space-x-1.5 px-3 py-1.5 text-gray-600 text-sm font-medium">
+                    <button 
+                      onClick={() => toggleComments(report.id)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 text-sm font-medium rounded-md transition-colors"
+                    >
                       <MessageCircle size={18} />
                       <span>{(comments[report.id] || []).length} Comments</span>
-                    </div>
+                      {showComments[report.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
                   </div>
 
-                  {/* Comments Section */}
-                  <div className="border-t border-gray-100 bg-gray-50 p-5">
-                    {(comments[report.id] || []).length > 0 && (
-                      <div className="space-y-4 mb-5">
-                        {(comments[report.id] || []).map((comment) => (
-                          <div key={comment.id} className="flex space-x-3">
-                            <div className={`mt-0.5 p-2 rounded-full h-fit border ${comment.authorRole === 'principal' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-                              <User size={16} />
+                  {/* Comments Section - Collapsible with smooth transition */}
+                  <div 
+                    className={`border-t border-gray-100 bg-gray-50 overflow-hidden transition-all duration-300 ease-in-out ${showComments[report.id] ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+                  >
+                    <div className="p-5">
+                      {(comments[report.id] || []).length > 0 && (
+                        <div className="space-y-4 mb-5">
+                          {(comments[report.id] || []).map((comment) => (
+                            <div key={comment.id} className="flex space-x-3">
+                              <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full overflow-hidden border ${comment.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-white border-gray-200'}`}>
+                                {comment.authorImageUrl ? (
+                                  <img 
+                                    src={comment.authorImageUrl} 
+                                    alt={comment.authorName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className={`w-full h-full flex items-center justify-center ${comment.authorRole === 'principal' ? 'text-purple-700' : 'text-gray-500'}`}>
+                                    <User size={14} />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-white border border-gray-200 rounded-lg p-3 flex-1 shadow-sm">
+                                <p className="text-sm font-semibold text-gray-800">{comment.authorName}</p>
+                                <p className="text-sm text-gray-700 mt-1 leading-relaxed">{comment.text}</p>
+                                <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
+                              </div>
                             </div>
-                            <div className="bg-white border border-gray-200 rounded-lg p-3 flex-1 shadow-sm">
-                              <p className="text-sm font-semibold text-gray-800">{comment.authorName}</p>
-                              <p className="text-sm text-gray-700 mt-1 leading-relaxed">{comment.text}</p>
-                              <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
 
-                    {/* Add Comment Input */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mt-2">
-                      <label htmlFor={`comment-${report.id}`} className="sr-only">Add comment</label>
-                      <input
-                        id={`comment-${report.id}`}
-                        type="text"
-                        placeholder="Type a comment here..."
-                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
-                        value={commentInputs[report.id] || ''}
-                        onChange={(e) => setCommentInputs({ ...commentInputs, [report.id]: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && handlePostComment(report.id)}
-                      />
-                      <button 
-                        onClick={() => handlePostComment(report.id)}
-                        disabled={!commentInputs[report.id]?.trim()}
-                        className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 transition-colors font-medium text-sm flex justify-center items-center gap-2"
-                      >
-                        <Send size={16} />
-                        Post
-                      </button>
+                      {/* Add Comment Input */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mt-2">
+                        <label htmlFor={`comment-${report.id}`} className="sr-only">Add comment</label>
+                        <input
+                          id={`comment-${report.id}`}
+                          type="text"
+                          placeholder="Type a comment here..."
+                          className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
+                          value={commentInputs[report.id] || ''}
+                          onChange={(e) => setCommentInputs({ ...commentInputs, [report.id]: e.target.value })}
+                          onKeyPress={(e) => e.key === 'Enter' && handlePostComment(report.id)}
+                        />
+                        <button 
+                          onClick={() => handlePostComment(report.id)}
+                          disabled={!commentInputs[report.id]?.trim()}
+                          className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 transition-colors font-medium text-sm flex justify-center items-center gap-2"
+                        >
+                          <Send size={16} />
+                          Post
+                        </button>
+                      </div>
                     </div>
                   </div>
 

@@ -55,7 +55,7 @@ export default function ContributionManagement() {
     collected: 0,
     expected: 0,
   });
-  const [totalsScope, setTotalsScope] = useState<'teacher' | 'school'>('teacher');
+  const [totalsScope, setTotalsScope] = useState<'teacher' | 'school'>('school');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   
@@ -283,13 +283,21 @@ export default function ContributionManagement() {
     // Calculate required amount (assuming monthly target)
     const monthsInYear = 12;
     const totalRequired = TARGET_AMOUNT_PER_STUDENT * monthsInYear;
-    const remainingBalance = totalRequired - totalPaid;
+    let remainingBalance = totalRequired - totalPaid;
+    
+    // Fix precision issues (e.g., 0.01 remaining when it should be 0)
+    // If remaining is less than 0.1, we consider it paid to avoid 0.01 pending
+    if (remainingBalance > -0.1 && remainingBalance < 0.1) {
+      remainingBalance = 0;
+    } else {
+      remainingBalance = Math.max(0, Math.round(remainingBalance * 100) / 100);
+    }
     
     setStudentPaymentData({
       studentId: student.id,
       studentName: student.name,
       totalRequired,
-      totalPaid,
+      totalPaid: Math.round(totalPaid * 100) / 100,
       remainingBalance,
       monthlyPayments
     });
@@ -328,6 +336,12 @@ export default function ContributionManagement() {
         type: 'error', 
         text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
       });
+      
+      // Still set it but cap it at remaining balance for better UX
+      setUnsavedPayments(prev => ({
+        ...prev,
+        [studentId]: remainingBalance
+      }));
       return;
     }
     
@@ -368,13 +382,6 @@ export default function ContributionManagement() {
         const student = students.find(s => s.id === studentId);
         if (!student) return null;
 
-        // Check if payment already exists for this student and month
-        const existingPayment = contributions.find(c => 
-          c.studentId === studentId && 
-          c.month === currentMonth && 
-          c.year === currentYear
-        );
-
         const paymentData = {
           studentId,
           studentName: student.name,
@@ -384,29 +391,26 @@ export default function ContributionManagement() {
           year: currentYear,
           paymentMethod: 'cash',
           receiptNumber: '',
-          notes: '',
+          notes: 'Partial payment from list',
           recordedByUid: teacherId,
           recordedByName: String(t?.name ?? t?.username ?? 'Teacher'),
           paymentDate: new Date().toISOString(),
           status: 'paid'
         };
 
-        if (existingPayment) {
-          // Update existing payment
-          const response = await fetch(`/api/contributions/${existingPayment.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(paymentData)
-          });
-          return response.ok ? { type: 'updated', studentName: student.name, amount } : null;
+        // Always create a new payment record for partial payments from the list
+        // This ensures every amount entered is added to the total paid
+        const response = await fetch('/api/contributions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(paymentData)
+        });
+        
+        if (response.ok) {
+          return { type: 'created', studentName: student.name, amount };
         } else {
-          // Create new payment
-          const response = await fetch('/api/contributions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(paymentData)
-          });
-          return response.ok ? { type: 'created', studentName: student.name, amount } : null;
+          console.error(`Failed to save payment for ${student.name}:`, await response.text());
+          return null;
         }
       });
 
@@ -497,6 +501,18 @@ export default function ContributionManagement() {
       return;
     }
 
+    // Get remaining balance for validation
+    const quota = quotas.find(q => q.studentId === selectedStudentForDetails.id);
+    const remainingBalance = quota?.remainingBalance || 0;
+
+    if (paymentFormData.amount > remainingBalance) {
+      setMessage({ 
+        type: 'error', 
+        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+      });
+      return;
+    }
+
     setIsSaving(true);
     setMessage(null);
 
@@ -536,6 +552,13 @@ export default function ContributionManagement() {
       if (response.ok) {
         setMessage({ type: 'success', text: `Payment recorded successfully!` });
         
+        // Add this payment to unsavedPayments state so it syncs with the list
+        // This ensures the modal payment is included when clicking "Save Payment" on the list
+        setUnsavedPayments(prev => ({
+          ...prev,
+          [selectedStudentForDetails.id]: (prev[selectedStudentForDetails.id] || 0) + paymentFormData.amount
+        }));
+        
         // Reset payment form
         setPaymentFormData({
           month: new Date().toISOString().slice(0, 7),
@@ -570,6 +593,13 @@ export default function ContributionManagement() {
         setDerivedTotals({
           collected: Number(summaryJson?.totalCollected ?? 0),
           expected: Number(summaryJson?.totalExpected ?? 0),
+        });
+        
+        // Clear this student's unsaved payment since it's now saved
+        setUnsavedPayments(prev => {
+          const newState = { ...prev };
+          delete newState[selectedStudentForDetails.id];
+          return newState;
         });
       } else {
         setMessage({ type: 'error', text: 'Failed to record payment' });

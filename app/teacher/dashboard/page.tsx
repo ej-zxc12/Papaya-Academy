@@ -19,6 +19,29 @@ import {
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
 
+// Activity Skeleton Component
+const ActivitySkeleton = () => (
+  <div className="space-y-6">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div key={i} className="relative pl-6">
+        {i !== 5 && (
+          <div className="absolute left-[11px] top-8 bottom-[-24px] w-0.5 bg-gray-100" />
+        )}
+        <div className="flex items-start gap-4">
+          <div className="absolute left-0 w-6 h-6 rounded-full bg-gray-200 animate-pulse" />
+          <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex justify-between items-start mb-1">
+              <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse" />
+              <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+            </div>
+            <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 type ActivityItem = {
   id: string;
   kind: 'sf10' | 'contribution';
@@ -26,7 +49,7 @@ type ActivityItem = {
   description: string;
   timestamp: number;
   timestampLabel: string;
-  icon: typeof FileText;
+  icon: any;
   color: string;
   bg: string;
 };
@@ -52,8 +75,9 @@ export default function TeacherDashboard() {
 
   const [sf10Records, setSf10Records] = useState<SF10Record[]>([]);
   const [contributions, setContributions] = useState<MonthlyContribution[]>([]);
-  const [quotas, setQuotas] = useState<ContributionQuota[]>([]);
+  const [summary, setSummary] = useState<{ totalCollected: number; totalExpected: number; collectionRate: number } | null>(null);
   const [students, setStudents] = useState<any[]>([]);
+  const [isActivityLoading, setIsActivityLoading] = useState(true);
 
   const router = useRouter();
 
@@ -81,8 +105,8 @@ export default function TeacherDashboard() {
           return;
         }
 
-        // Real-time: Students scoped to teacher
-        const studentsQ = query(collection(db, 'students'), where('teacherId', '==', teacherId));
+        // Real-time: All students (school-wide scope for all teachers/principal)
+        const studentsQ = query(collection(db, 'students'));
         const unsubStudents = onSnapshot(
           studentsQ,
           (snap) => {
@@ -94,40 +118,39 @@ export default function TeacherDashboard() {
           }
         );
 
-        // Real-time: SF10 records scoped to teacher
-        // Assumes SF10 records are stored in Firestore with a teacherId field.
-        const sf10Q = query(collection(db, 'sf10'), where('teacherId', '==', teacherId));
-        const unsubSf10 = onSnapshot(
-          sf10Q,
-          (snap) => {
-            const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SF10Record[];
-            setSf10Records(Array.isArray(next) ? next : []);
-          },
-          () => {
-            setLoadError('Some dashboard data could not be loaded.');
-          }
-        );
-
-        // Keep only non-realtime parts via API for now
-        const [contributionsRes, quotasRes] = await Promise.all([
-          fetch(`/api/contributions?recordedByUid=${encodeURIComponent(teacherId)}`, {
+        // Fetch SF10 records from API (same as View SF10 page) and contributions summary
+        const [sf10Res, contributionsRes, summaryRes] = await Promise.all([
+          fetch('/api/teacher/sf10', {
             headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
           }),
-          fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}`, {
+          fetch('/api/contributions?scope=school', {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          }),
+          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}&scope=school`, {
             headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
           }),
         ]);
 
+        if (!sf10Res.ok) throw new Error('Failed to load SF10 records');
         if (!contributionsRes.ok) throw new Error('Failed to load contributions');
-        if (!quotasRes.ok) throw new Error('Failed to load contribution quotas');
+        if (!summaryRes.ok) throw new Error('Failed to load contribution summary');
 
-        const [contributionsJson, quotasJson] = await Promise.all([
+        const [sf10Json, contributionsJson, summaryJson] = await Promise.all([
+          sf10Res.json(),
           contributionsRes.json(),
-          quotasRes.json(),
+          summaryRes.json(),
         ]);
 
+        // SF10 API returns { sf10Records: [...] }
+        const sf10Data = sf10Json.sf10Records || [];
+        setSf10Records(sf10Data);
         setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
-        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+        setSummary({
+          totalCollected: Number(summaryJson?.totalCollected ?? 0),
+          totalExpected: Number(summaryJson?.totalExpected ?? 0),
+          collectionRate: Number(summaryJson?.collectionRate ?? 0),
+        });
+        setIsActivityLoading(false);
         setLoadError(null);
 
         // Stop blocking UI: layout renders immediately; data streams in.
@@ -135,7 +158,6 @@ export default function TeacherDashboard() {
 
         return () => {
           unsubStudents();
-          unsubSf10();
         };
       } catch {
         setLoadError('Some dashboard data could not be loaded.');
@@ -157,12 +179,15 @@ export default function TeacherDashboard() {
     const totalStudents = students.length;
     const totalSf10 = sf10Records.length;
 
-    const totalExpected = quotas.reduce((sum, q) => sum + (q.yearlyQuota || 0), 0);
-    const totalCollected = quotas.reduce((sum, q) => sum + (q.totalPaid || 0), 0);
-    const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+    // Use summary data from API (same as contributions page with scope=school)
+    const totalExpected = summary?.totalExpected || 0;
+    const totalCollected = summary?.totalCollected || 0;
+    const collectionRate = summary?.collectionRate 
+      ? Math.round(summary.collectionRate) 
+      : (totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0);
 
     return { totalStudents, totalSf10, totalExpected, totalCollected, collectionRate };
-  }, [students, sf10Records, quotas]);
+  }, [students, sf10Records, summary]);
 
   const recentActivities: ActivityItem[] = useMemo(() => {
     const sf10Items: ActivityItem[] = sf10Records.map((r) => {
@@ -189,7 +214,7 @@ export default function TeacherDashboard() {
         description: `Received ₱${c.amount} from ${c.studentName}`,
         timestamp: Number.isFinite(ts) ? ts : 0,
         timestampLabel: relativeTimeFromTimestamp(ts),
-        icon: DollarSign,
+        icon: () => <span className="text-[12px] font-extrabold text-green-600">₱</span>,
         color: 'text-green-500',
         bg: 'bg-green-50',
       };
@@ -214,68 +239,84 @@ export default function TeacherDashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
+        {/* Total Students Card */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 border-l-[6px] border-l-blue-500 p-6 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full scale-[2] group-hover:scale-[2.5] transition-transform duration-700 ease-out"></div>
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-100 rounded-full opacity-20 scale-[1.5] group-hover:opacity-30 group-hover:scale-[2] transition-all duration-500 delay-100"></div>
           <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">Total Students</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{metrics.totalStudents}</h3>
+              <p className="text-sm font-medium text-blue-600 mb-1 uppercase tracking-wider transition-colors">Total Students</p>
+              <h3 className="text-3xl font-extrabold text-gray-900 transition-transform origin-left">{metrics.totalStudents}</h3>
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <Users className="w-6 h-6 text-blue-600" />
+            <div className="p-0 bg-white rounded-lg shadow-sm border border-gray-50 hover:shadow-md transition-all duration-300 overflow-hidden">
+              <img src="/images/DashboardIcon/StudentIcon.jpg" alt="Students" className="w-12 h-12 object-cover rounded-lg" />
             </div>
           </div>
           <div className="relative z-10 mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 font-medium">Roster snapshot</span>
+            <div className="flex items-center bg-blue-50 px-2 py-1 rounded-full">
+              <TrendingUp className="w-4 h-4 text-blue-500 mr-1 group-hover:animate-pulse" />
+              <span className="text-blue-600 font-medium">Roster snapshot</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-orange-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
+        {/* SF10 Records Card */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 border-l-[6px] border-l-purple-500 p-6 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-50 rounded-full scale-[2] group-hover:scale-[2.5] transition-transform duration-700 ease-out"></div>
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-purple-100 rounded-full opacity-20 scale-[1.5] group-hover:opacity-30 group-hover:scale-[2] transition-all duration-500 delay-100"></div>
           <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">SF10 Records</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{metrics.totalSf10}</h3>
+              <p className="text-sm font-medium text-purple-600 mb-1 uppercase tracking-wider transition-colors">SF10 Records</p>
+              <h3 className="text-3xl font-extrabold text-gray-900 transition-transform origin-left">{metrics.totalSf10}</h3>
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <FileText className="w-6 h-6 text-orange-500" />
+            <div className="p-0 bg-white rounded-lg shadow-sm border border-gray-50 hover:shadow-md transition-all duration-300 overflow-hidden">
+              <img src="/images/DashboardIcon/SF10Icon.jpg" alt="SF10 Records" className="w-12 h-12 object-cover rounded-lg" />
             </div>
           </div>
           <div className="relative z-10 mt-4 flex items-center text-sm">
-            <span className="text-gray-500">Available in system</span>
+            <div className="flex items-center bg-purple-50 px-2 py-1 rounded-full">
+              <FileText className="w-4 h-4 text-purple-500 mr-1 group-hover:animate-pulse" />
+              <span className="text-purple-600 font-medium">Available in system</span>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-green-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
+        {/* Collection Rate Card */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 border-l-[6px] border-l-green-500 p-6 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-green-50 rounded-full scale-[2] group-hover:scale-[2.5] transition-transform duration-700 ease-out"></div>
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-green-100 rounded-full opacity-20 scale-[1.5] group-hover:opacity-30 group-hover:scale-[2] transition-all duration-500 delay-100"></div>
           <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">Collection Rate</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">{metrics.collectionRate}%</h3>
+              <p className="text-sm font-medium text-green-600 mb-1 uppercase tracking-wider transition-colors">Collection Rate</p>
+              <h3 className="text-3xl font-extrabold text-gray-900 transition-transform origin-left">{metrics.collectionRate}%</h3>
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <DollarSign className="w-6 h-6 text-green-600" />
+            <div className="p-0 bg-white rounded-lg shadow-sm border border-gray-50 hover:shadow-md transition-all duration-300 overflow-hidden">
+              <img src="/images/DashboardIcon/CollectionRateIcon.jpg" alt="Collection Rate" className="w-12 h-12 object-cover rounded-lg" />
             </div>
           </div>
-          <div className="relative z-10 mt-4 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-green-500 h-full rounded-full" style={{ width: `${metrics.collectionRate}%` }}></div>
+          <div className="relative z-10 mt-4 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-green-400 to-green-600 h-full rounded-full transition-all duration-1000 ease-out" 
+              style={{ width: `${metrics.collectionRate}%` }}
+            ></div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-yellow-50 rounded-full group-hover:scale-150 transition-transform duration-500 ease-in-out"></div>
+        {/* Collected Card */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 border-l-[6px] border-l-yellow-500 p-6 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden group cursor-pointer">
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-yellow-50 rounded-full scale-[2] group-hover:scale-[2.5] transition-transform duration-700 ease-out"></div>
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-yellow-100 rounded-full opacity-20 scale-[1.5] group-hover:opacity-30 group-hover:scale-[2] transition-all duration-500 delay-100"></div>
           <div className="relative z-10 flex justify-between items-start">
             <div>
-              <p className="text-sm font-medium text-gray-500 mb-1 uppercase tracking-wider">Collected</p>
-              <h3 className="text-3xl font-extrabold text-gray-900">₱{metrics.totalCollected.toLocaleString()}</h3>
+              <p className="text-sm font-medium text-yellow-600 mb-1 uppercase tracking-wider transition-colors">Collected</p>
+              <h3 className="text-2xl font-extrabold text-gray-900 transition-transform origin-left">₱{metrics.totalCollected.toLocaleString()}</h3>
             </div>
-            <div className="p-3 bg-white rounded-lg shadow-sm border border-gray-50">
-              <TrendingUp className="w-6 h-6 text-yellow-600" />
+            <div className="p-0 bg-white rounded-lg shadow-sm border border-gray-50 hover:shadow-md transition-all duration-300 overflow-hidden">
+              <img src="/images/DashboardIcon/GrowthIcon.jpg" alt="Collected" className="w-12 h-12 object-cover rounded-lg" />
             </div>
           </div>
           <div className="relative z-10 mt-4 flex items-center text-sm">
-            <span className="text-gray-500">Expected: ₱{metrics.totalExpected.toLocaleString()}</span>
+            <span className="text-yellow-600 font-medium">Expected: ₱{metrics.totalExpected.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -283,64 +324,68 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
-            <div className="px-6 py-4 bg-gradient-to-r from-[#1B3E2A] to-[#2d5a3f] text-white">
-              <h3 className="text-lg font-semibold">Quick Actions</h3>
+            <div className="px-6 py-4 bg-gradient-to-r from-[#1B3E2A] to-[#2d5a3f]">
+              <h3 className="text-lg font-semibold text-black">Quick Actions</h3>
             </div>
             <div className="p-4 space-y-3">
               <button
                 onClick={() => router.push('/teacher/grades/input')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
+                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-300 transition-all group relative overflow-hidden"
               >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <School className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                <div className="p-2 bg-white rounded-md shadow-sm mr-3 relative z-10">
+                  <School className="w-5 h-5 text-gray-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Input Grades</p>
+                <div className="text-left flex-1 relative z-10">
+                  <p className="font-semibold text-gray-900">Input Grades</p>
                   <p className="text-xs text-gray-500">Enter student grades</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all relative z-10" />
               </button>
 
               <button
                 onClick={() => router.push('/teacher/sf10/create')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
+                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-300 transition-all group relative overflow-hidden"
               >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <FilePlus className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                <div className="p-2 bg-white rounded-md shadow-sm mr-3 relative z-10">
+                  <FilePlus className="w-5 h-5 text-gray-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Generate SF10</p>
+                <div className="text-left flex-1 relative z-10">
+                  <p className="font-semibold text-gray-900">Generate SF10</p>
                   <p className="text-xs text-gray-500">Create a new record</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all relative z-10" />
               </button>
 
               <button
                 onClick={() => router.push('/teacher/sf10/list')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
+                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-300 transition-all group relative overflow-hidden"
               >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <FileText className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                <div className="p-2 bg-white rounded-md shadow-sm mr-3 relative z-10">
+                  <FileText className="w-5 h-5 text-gray-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">View SF10</p>
+                <div className="text-left flex-1 relative z-10">
+                  <p className="font-semibold text-gray-900">View SF10</p>
                   <p className="text-xs text-gray-500">Browse student forms</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all relative z-10" />
               </button>
 
               <button
                 onClick={() => router.push('/teacher/contributions')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
+                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-300 transition-all group relative overflow-hidden"
               >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <PlusCircle className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                <div className="p-2 bg-white rounded-md shadow-sm mr-3 relative z-10">
+                  <PlusCircle className="w-5 h-5 text-gray-600 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Record Payment</p>
+                <div className="text-left flex-1 relative z-10">
+                  <p className="font-semibold text-gray-900">Record Payment</p>
                   <p className="text-xs text-gray-500">Manage contributions</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transform group-hover:translate-x-1 transition-all relative z-10" />
               </button>
             </div>
           </div>
@@ -355,36 +400,44 @@ export default function TeacherDashboard() {
               </h3>
             </div>
             <div className="p-6">
-              <div className="space-y-6">
-                {recentActivities.length === 0 ? (
-                  <div className="text-center py-10 text-sm text-gray-500">
-                    No recent activity yet.
-                  </div>
-                ) : recentActivities.map((activity, index) => {
-                  const Icon = activity.icon;
-                  return (
-                    <div key={`${activity.kind}-${activity.id}`} className="relative pl-6">
-                      {index !== recentActivities.length - 1 && (
-                        <div className="absolute left-[11px] top-8 bottom-[-24px] w-0.5 bg-gray-100"></div>
-                      )}
-                      <div className="flex items-start gap-4">
-                        <div className={`absolute left-0 w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-white ${activity.bg}`}>
-                          <Icon className={`w-3 h-3 ${activity.color}`} />
-                        </div>
-                        <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-gray-200 transition-colors">
-                          <div className="flex justify-between items-start mb-1">
-                            <h4 className="text-sm font-bold text-gray-900">{activity.title}</h4>
-                            <span className="text-xs font-medium text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-100">
-                              {activity.timestampLabel}
-                            </span>
+              {isActivityLoading ? (
+                <ActivitySkeleton />
+              ) : (
+                <div className="space-y-6">
+                  {recentActivities.length === 0 ? (
+                    <div className="text-center py-10 text-sm text-gray-500">
+                      No recent activity yet.
+                    </div>
+                  ) : recentActivities.map((activity, index) => {
+                    const Icon = activity.icon;
+                    return (
+                      <div key={`${activity.kind}-${activity.id}`} className="relative pl-6">
+                        {index !== recentActivities.length - 1 && (
+                          <div className="absolute left-[11px] top-8 bottom-[-24px] w-0.5 bg-gray-100"></div>
+                        )}
+                        <div className="flex items-start gap-4">
+                          <div className={`absolute left-0 w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-white ${activity.bg}`}>
+                            {typeof activity.icon === 'function' ? (
+                              <activity.icon className={`w-3 h-3 ${activity.color}`} />
+                            ) : (
+                              activity.icon
+                            )}
                           </div>
-                          <p className="text-sm text-gray-600">{activity.description}</p>
+                          <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-gray-200 transition-colors">
+                            <div className="flex justify-between items-start mb-1">
+                              <h4 className="text-sm font-bold text-gray-900">{activity.title}</h4>
+                              <span className="text-xs font-medium text-gray-400 bg-white px-2 py-1 rounded-md border border-gray-100">
+                                {activity.timestampLabel}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">{activity.description}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

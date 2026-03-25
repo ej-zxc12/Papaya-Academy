@@ -11,7 +11,8 @@ import {
   LogOut,
   Shield,
   Users,
-  DollarSign
+  DollarSign,
+  User
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -45,6 +46,7 @@ export default function PrincipalLayout({ children, title, subtitle }: Principal
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [userImage, setUserImage] = useState<string | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -63,6 +65,23 @@ export default function PrincipalLayout({ children, title, subtitle }: Principal
 
       setPrincipal(sessionPrincipal);
       setIsLoading(false);
+
+      // Fetch user data from teachers_user collection
+      const targetUid = sessionPrincipal?.uid || sessionPrincipal?.id || sessionPrincipal?.userId;
+      if (targetUid) {
+        try {
+          const docRef = doc(db, 'teachers_user', targetUid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.imageUrl) {
+              setUserImage(data.imageUrl);
+            }
+          }
+        } catch (error) {
+          console.error("Firestore read error:", error);
+        }
+      }
     };
 
     initializeSessionAndFetch();
@@ -95,7 +114,7 @@ export default function PrincipalLayout({ children, title, subtitle }: Principal
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans flex">
+    <div className="min-h-screen bg-gray-50 font-sans flex overflow-hidden">
       
       <div className={`lg:hidden fixed top-6 left-6 z-50 transition-opacity duration-300 ${sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <button
@@ -155,11 +174,26 @@ export default function PrincipalLayout({ children, title, subtitle }: Principal
                     <SkeletonText className="h-5 w-32" />
                   </div>
                 ) : (
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
-                    <span className="text-[15px] font-bold text-purple-900 truncate mt-0.5 whitespace-nowrap">
-                      {principal?.name || 'Principal'}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+                      {userImage ? (
+                        <img 
+                          src={userImage} 
+                          alt={principal?.name || 'Principal'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                          <User size={20} className="text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
+                      <span className="text-[15px] font-bold text-purple-900 truncate mt-0.5 whitespace-nowrap">
+                        {principal?.name || 'Principal'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -246,7 +280,7 @@ export default function PrincipalLayout({ children, title, subtitle }: Principal
         />
       )}
       
-      <main className="flex-1 p-8 transition-all duration-300 overflow-y-auto h-screen">
+      <main className={`flex-1 overflow-y-auto h-screen p-8 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="h-10 lg:hidden"></div>
         
         {isLoading ? (

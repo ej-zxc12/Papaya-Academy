@@ -40,21 +40,38 @@ export default function SF10Create() {
   }, [dropdownRef]);
 
   useEffect(() => {
-    // Load mock data for demonstration
-    const loadMockData = () => {
-      const mockStudents: Student[] = [
-        { id: '1', name: 'Ana Santos', gradeLevel: 'Grade 7', teacherId: '' },
-        { id: '2', name: 'Ben Reyes', gradeLevel: 'Grade 7', teacherId: '' },
-        { id: '3', name: 'Cruz Martinez', gradeLevel: 'Grade 7', teacherId: '' },
-        { id: '4', name: 'Diana Lim', gradeLevel: 'Grade 7', teacherId: '' },
-        { id: '5', name: 'Eduardo Tan', gradeLevel: 'Grade 7', teacherId: '' },
-      ];
+    // Fetch real students from API with school-wide scope
+    const fetchStudents = async () => {
+      try {
+        const session = localStorage.getItem('teacherSession');
+        if (!session) {
+          setIsLoading(false);
+          return;
+        }
 
-      setStudents(mockStudents);
-      setIsLoading(false);
+        const parsed = JSON.parse(session);
+        const teacherData = parsed?.teacher ?? parsed;
+        const teacherId = teacherData?.uid || teacherData?.id;
+
+        const response = await fetch('/api/teacher/students?scope=school', {
+          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+        });
+
+        if (response.ok) {
+          const studentsData = await response.json();
+          setStudents(Array.isArray(studentsData) ? studentsData : []);
+        } else {
+          setStudents([]);
+        }
+      } catch (error) {
+        console.error('Error fetching students:', error);
+        setStudents([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    loadMockData();
+    fetchStudents();
   }, []);
 
   if (isLoading) {

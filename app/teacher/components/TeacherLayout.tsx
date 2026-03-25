@@ -14,7 +14,8 @@ import {
   X,
   LogOut,
   GraduationCap,
-  FileText
+  FileText,
+  User
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -50,6 +51,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const [firebaseUsername, setFirebaseUsername] = useState<string | null>(null);
+  const [userImage, setUserImage] = useState<string | null>(null);
 
   const displayName = firebaseUsername || teacher?.name || 'Teacher';
 
@@ -93,6 +95,10 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                 ? { ...parsedSession, teacher: updatedTeacher }
                 : updatedTeacher;
               localStorage.setItem('teacherSession', JSON.stringify(updatedSession));
+            }
+            // Fetch profile picture
+            if (data.imageUrl) {
+              setUserImage(data.imageUrl);
             }
           }
         } catch (error) {
@@ -155,7 +161,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans flex">
+    <div className="min-h-screen bg-gray-50 font-sans flex overflow-hidden">
       
       <div className={`lg:hidden fixed top-6 left-6 z-50 transition-opacity duration-300 ${sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <button
@@ -215,11 +221,26 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
                     <SkeletonText className="h-5 w-32" />
                   </div>
                 ) : (
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
-                    <span className="text-[15px] font-bold text-[#1B3E2A] truncate mt-0.5 whitespace-nowrap">
-                      {displayName}
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+                      {userImage ? (
+                        <img 
+                          src={userImage} 
+                          alt={displayName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                          <User size={20} className="text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Welcome back,</span>
+                      <span className="text-[15px] font-bold text-[#1B3E2A] truncate mt-0.5 whitespace-nowrap">
+                        {displayName}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -306,7 +327,7 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
         />
       )}
       
-      <main className={`flex-1 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'} min-h-screen`}>
+      <main className={`flex-1 overflow-y-auto h-screen transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <div className="p-8">
           <div className="h-10 lg:hidden"></div>
         

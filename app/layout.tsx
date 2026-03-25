@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Montserrat } from 'next/font/google';
 import './globals.css';
-import { Montserrat } from 'next/font/google'
 import LoadingScreen from '../components/ui/LoadingScreen';
+import BodyClassProvider from './components/BodyClassProvider';
 
-// Configure the font with the weights you need (Light, Regular, Bold)
 const montserrat = Montserrat({ 
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-montserrat', // Optional: for Tailwind config
-})
+  variable: '--font-montserrat',
+});
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,9 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <LoadingScreen>
-          {children}
-        </LoadingScreen>
+        <BodyClassProvider>
+          <LoadingScreen>
+            {children}
+          </LoadingScreen>
+        </BodyClassProvider>
       </body>
     </html>
   );

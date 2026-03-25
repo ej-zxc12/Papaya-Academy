@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
       .map((g) => g.trim())
       .filter(Boolean);
     const subjectId = searchParams.get('subjectId');
+    const scope = searchParams.get('scope'); // 'school' to get all students, 'teacher' for teacher-specific
 
     const studentsCollection = collection(db, 'students');
 
@@ -81,6 +82,85 @@ export async function GET(request: NextRequest) {
         { message: 'Unauthorized - Please login first' },
         { status: 401 }
       );
+    }
+
+    // If scope is 'school', return all students without teacherId filter
+    if (scope === 'school') {
+      const baseConstraints: QueryConstraint[] = [];
+      if (subjectId) {
+        // Query for old structure (single subjectId)
+        const oldConstraints: QueryConstraint[] = [where('subjectId', '==', subjectId)];
+        const oldQuery = query(studentsCollection, ...oldConstraints);
+        const oldSnapshot = await getDocs(oldQuery);
+        
+        // Query for new structure (subjectIds array)
+        const newConstraints: QueryConstraint[] = [where('subjectIds', 'array-contains', subjectId)];
+        const newQuery = query(studentsCollection, ...newConstraints);
+        const newSnapshot = await getDocs(newQuery);
+        
+        const oldResults = oldSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        const newResults = newSnapshot.docs.map((docSnap) => ({ id: docSnap.id, data: docSnap.data() }));
+        
+        // Combine and remove duplicates
+        const combined = [...oldResults, ...newResults];
+        const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+        
+        const students = unique.map(({ id, data }) => ({
+          id,
+          name: data?.name || '',
+          lrn: data?.lrn || '',
+          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
+          section: data?.section || data?.currentSection,
+          currentGradeLevel: data?.currentGradeLevel,
+          currentSection: data?.currentSection,
+          teacherId: data?.teacherId,
+          subjectId: data?.subjectId,
+          subjectIds: data?.subjectIds || [],
+          status: data?.status || 'enrolled',
+          createdAt: data?.createdAt,
+          updatedAt: data?.updatedAt
+        }));
+
+        return NextResponse.json(students);
+      } else if (gradeLevels.length > 0) {
+        if (gradeLevels.length > 10) {
+          return NextResponse.json(
+            { message: 'gradeLevels must contain at most 10 values' },
+            { status: 400 }
+          );
+        }
+        baseConstraints.push(where('gradeLevel', 'in', gradeLevels));
+      } else {
+        if (gradeLevel) {
+          baseConstraints.push(where('gradeLevel', '==', gradeLevel));
+        }
+        if (section) {
+          baseConstraints.push(where('section', '==', section));
+        }
+      }
+
+      const q = query(studentsCollection, ...baseConstraints);
+      const querySnapshot = await getDocs(q);
+      const students = querySnapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: data?.name || '',
+          lrn: data?.lrn || '',
+          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
+          section: data?.section || data?.currentSection,
+          currentGradeLevel: data?.currentGradeLevel,
+          currentSection: data?.currentSection,
+          teacherId: data?.teacherId,
+          subjectId: data?.subjectId,
+          subjectIds: data?.subjectIds || [],
+          status: data?.status || 'enrolled',
+          createdAt: data?.createdAt,
+          updatedAt: data?.updatedAt
+        };
+      });
+
+      return NextResponse.json(students);
     }
 
     // Add filters if provided

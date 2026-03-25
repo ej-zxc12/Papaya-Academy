@@ -109,10 +109,16 @@ export async function GET(request: NextRequest) {
       const studentId = String(s.id);
       const studentName = String(s.name ?? '');
       const gradeLevelValue = String(s.gradeLevel ?? '');
-      const totalPaid = paidByStudentId.get(studentId) ?? 0;
-      const remainingBalance = Math.max(0, TARGET_AMOUNT_PER_STUDENT - totalPaid);
+      const totalPaid = Math.round((paidByStudentId.get(studentId) ?? 0) * 100) / 100;
+      let remainingBalance = Math.round((TARGET_AMOUNT_PER_STUDENT - totalPaid) * 100) / 100;
+      
+      // Fix precision issues (e.g., 0.01 remaining when it should be 0)
+      if (remainingBalance > -0.1 && remainingBalance < 0.1) {
+        remainingBalance = 0;
+      }
+      
       const paymentStatus: ContributionQuota['paymentStatus'] =
-        totalPaid >= TARGET_AMOUNT_PER_STUDENT
+        totalPaid >= (TARGET_AMOUNT_PER_STUDENT - 0.1)
           ? 'fully_paid'
           : totalPaid > 0
             ? 'partially_paid'

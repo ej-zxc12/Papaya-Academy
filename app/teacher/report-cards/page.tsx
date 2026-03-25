@@ -97,7 +97,7 @@ export default function ReportCardsPage() {
     try {
       setIsLoading(true);
       
-      const studentsResponse = await fetch('/api/teacher/students', {
+      const studentsResponse = await fetch('/api/teacher/students?scope=school', {
         headers: { 'Authorization': `Bearer ${teacherId}` }
       });
 

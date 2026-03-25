@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X } from 'lucide-react';
+import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -25,6 +25,7 @@ interface WeeklyReport {
   authorId: string;
   authorName: string;
   authorRole: 'teacher' | 'principal';
+  authorImageUrl?: string | null;
   acknowledged: boolean;
   attachments: { name: string; url: string }[];
   createdAt: Timestamp | null;
@@ -36,6 +37,7 @@ interface Comment {
   authorId: string;
   authorName: string;
   authorRole: 'teacher' | 'principal';
+  authorImageUrl?: string | null;
   createdAt: Timestamp | null;
 }
 
@@ -57,6 +59,8 @@ export default function PrincipalWeeklyReportsPage() {
   const [commentInputs, setCommentInputs] = useState<{ [reportId: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showComments, setShowComments] = useState<{ [reportId: string]: boolean }>({});
+  const [userImages, setUserImages] = useState<{ [userId: string]: string | null }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate deadline (next Friday at 5 PM)
@@ -134,8 +138,10 @@ export default function PrincipalWeeklyReportsPage() {
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(reportsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(reportsQuery, async (snapshot) => {
       const reportsData: WeeklyReport[] = [];
+      const uniqueUserIds = new Set<string>();
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
         reportsData.push({
@@ -148,8 +154,35 @@ export default function PrincipalWeeklyReportsPage() {
           attachments: data.attachments || [],
           createdAt: data.createdAt || null
         });
+        if (data.authorId) {
+          uniqueUserIds.add(data.authorId);
+        }
       });
-      setReports(reportsData);
+      
+      // Fetch user images for all unique authors
+      const newImages: { [userId: string]: string | null } = {};
+      const userIdsArray = Array.from(uniqueUserIds);
+      for (const userId of userIdsArray) {
+        if (!userImages[userId]) {
+          const imageUrl = await fetchUserImage(userId);
+          if (imageUrl) {
+            newImages[userId] = imageUrl;
+          }
+        }
+      }
+      
+      if (Object.keys(newImages).length > 0) {
+        setUserImages(prev => ({ ...prev, ...newImages }));
+      }
+      
+      // Add imageUrl to each report using combined images (new + existing)
+      const combinedImages = { ...userImages, ...newImages };
+      const reportsWithImages = reportsData.map(report => ({
+        ...report,
+        authorImageUrl: combinedImages[report.authorId] || null
+      }));
+      
+      setReports(reportsWithImages);
     });
 
     return () => unsubscribe();
@@ -167,8 +200,10 @@ export default function PrincipalWeeklyReportsPage() {
         orderBy('createdAt', 'asc')
       );
 
-      const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+      const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
         const commentsData: Comment[] = [];
+        const uniqueUserIds = new Set<string>();
+        
         snapshot.forEach((doc) => {
           const data = doc.data();
           commentsData.push({
@@ -179,8 +214,34 @@ export default function PrincipalWeeklyReportsPage() {
             authorRole: data.authorRole || 'teacher',
             createdAt: data.createdAt || null
           });
+          if (data.authorId) {
+            uniqueUserIds.add(data.authorId);
+          }
         });
-        setComments((prev) => ({ ...prev, [report.id]: commentsData }));
+        
+        // Fetch user images for all unique authors
+        const newImages: { [userId: string]: string | null } = {};
+        const userIdsArray = Array.from(uniqueUserIds);
+        for (const userId of userIdsArray) {
+          if (!userImages[userId]) {
+            const imageUrl = await fetchUserImage(userId);
+            if (imageUrl) {
+              newImages[userId] = imageUrl;
+            }
+          }
+        }
+        
+        if (Object.keys(newImages).length > 0) {
+          setUserImages(prev => ({ ...prev, ...newImages }));
+        }
+        
+        // Add imageUrl to each comment
+        const commentsWithImages = commentsData.map(comment => ({
+          ...comment,
+          authorImageUrl: userImages[comment.authorId] || null
+        }));
+        
+        setComments((prev) => ({ ...prev, [report.id]: commentsWithImages }));
       });
 
       unsubscribes.push(unsubscribe);
@@ -279,6 +340,26 @@ export default function PrincipalWeeklyReportsPage() {
     } catch (error) {
       console.error('Error posting comment:', error);
     }
+  };
+
+  // Fetch user image from teachers_user collection
+  const fetchUserImage = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'teachers_user', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return userData.imageUrl || null;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching user image:', error);
+      return null;
+    }
+  };
+
+  // Toggle comments visibility
+  const toggleComments = (reportId: string) => {
+    setShowComments(prev => ({ ...prev, [reportId]: !prev[reportId] }));
   };
 
   const formatDate = (timestamp: Timestamp | null) => {
@@ -415,8 +496,18 @@ export default function PrincipalWeeklyReportsPage() {
                   {/* Report Header */}
                   <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
                     <div className="flex items-center space-x-3">
-                      <div className={`p-2.5 rounded-full ${report.authorRole === 'principal' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
-                        <User size={20} />
+                      <div className={`shrink-0 w-10 h-10 rounded-full overflow-hidden border ${report.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-green-100 border-green-200'}`}>
+                        {report.authorImageUrl ? (
+                          <img 
+                            src={report.authorImageUrl} 
+                            alt={report.authorName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center ${report.authorRole === 'principal' ? 'text-purple-700' : 'text-green-700'}`}>
+                            <User size={20} />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="text-base font-semibold text-gray-800">{report.authorName}</p>
@@ -470,51 +561,69 @@ export default function PrincipalWeeklyReportsPage() {
                       <span>{report.acknowledged ? 'You Read This' : 'Mark as Read'}</span>
                     </button>
                     
-                    <div className="flex items-center space-x-1.5 px-3 py-1.5 text-gray-600 text-sm font-medium">
+                    <button 
+                      onClick={() => toggleComments(report.id)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 text-sm font-medium rounded-md transition-colors"
+                    >
                       <MessageCircle size={18} />
                       <span>{(comments[report.id] || []).length} Comments</span>
-                    </div>
+                      {showComments[report.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
                   </div>
 
-                  {/* Comments Section */}
-                  <div className="border-t border-gray-100 bg-gray-50 p-5">
-                    {(comments[report.id] || []).length > 0 && (
-                      <div className="space-y-4 mb-5">
-                        {(comments[report.id] || []).map((comment) => (
-                          <div key={comment.id} className="flex space-x-3">
-                            <div className={`mt-0.5 p-2 rounded-full h-fit border ${comment.authorRole === 'principal' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-                              <User size={16} />
+                  {/* Comments Section - Collapsible with smooth transition */}
+                  <div 
+                    className={`border-t border-gray-100 bg-gray-50 overflow-hidden transition-all duration-300 ease-in-out ${showComments[report.id] ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
+                  >
+                    <div className="p-5">
+                      {(comments[report.id] || []).length > 0 && (
+                        <div className="space-y-4 mb-5">
+                          {(comments[report.id] || []).map((comment) => (
+                            <div key={comment.id} className="flex space-x-3">
+                              <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full overflow-hidden border ${comment.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-white border-gray-200'}`}>
+                                {comment.authorImageUrl ? (
+                                  <img 
+                                    src={comment.authorImageUrl} 
+                                    alt={comment.authorName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className={`w-full h-full flex items-center justify-center ${comment.authorRole === 'principal' ? 'text-purple-700' : 'text-gray-500'}`}>
+                                    <User size={14} />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="bg-white border border-gray-200 rounded-lg p-3 flex-1 shadow-sm">
+                                <p className="text-sm font-semibold text-gray-800">{comment.authorName}</p>
+                                <p className="text-sm text-gray-700 mt-1 leading-relaxed">{comment.text}</p>
+                                <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
+                              </div>
                             </div>
-                            <div className="bg-white border border-gray-200 rounded-lg p-3 flex-1 shadow-sm">
-                              <p className="text-sm font-semibold text-gray-800">{comment.authorName}</p>
-                              <p className="text-sm text-gray-700 mt-1 leading-relaxed">{comment.text}</p>
-                              <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
 
-                    {/* Add Comment Input */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mt-2">
-                      <label htmlFor={`comment-${report.id}`} className="sr-only">Add comment</label>
-                      <input
-                        id={`comment-${report.id}`}
-                        type="text"
-                        placeholder="Type a comment here..."
-                        className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 bg-white"
-                        value={commentInputs[report.id] || ''}
-                        onChange={(e) => setCommentInputs({ ...commentInputs, [report.id]: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && handlePostComment(report.id)}
-                      />
-                      <button 
-                        onClick={() => handlePostComment(report.id)}
-                        disabled={!commentInputs[report.id]?.trim()}
-                        className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors font-medium text-sm flex justify-center items-center gap-2"
-                      >
-                        <Send size={16} />
-                        Post
-                      </button>
+                      {/* Add Comment Input */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mt-2">
+                        <label htmlFor={`comment-${report.id}`} className="sr-only">Add comment</label>
+                        <input
+                          id={`comment-${report.id}`}
+                          type="text"
+                          placeholder="Type a comment here..."
+                          className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 bg-white"
+                          value={commentInputs[report.id] || ''}
+                          onChange={(e) => setCommentInputs({ ...commentInputs, [report.id]: e.target.value })}
+                          onKeyPress={(e) => e.key === 'Enter' && handlePostComment(report.id)}
+                        />
+                        <button 
+                          onClick={() => handlePostComment(report.id)}
+                          disabled={!commentInputs[report.id]?.trim()}
+                          className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-300 transition-colors font-medium text-sm flex justify-center items-center gap-2"
+                        >
+                          <Send size={16} />
+                          Post
+                        </button>
+                      </div>
                     </div>
                   </div>
 

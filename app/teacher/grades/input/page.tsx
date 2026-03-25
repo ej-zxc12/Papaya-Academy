@@ -651,14 +651,17 @@ export default function GradeInput() {
         }));
       }
 
-      const response = await fetch(`/api/teacher/grades?teacherId=${teacherId}&subjectId=${subjectId}&gradingPeriod=${gradingPeriod}`, {
-        headers: {
-          'Authorization': `Bearer ${teacherId}`
-        }
-      });
+      const [studentsRes, gradesRes] = await Promise.all([
+        fetch(`/api/teacher/students?scope=school${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, {
+          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+        }),
+        fetch(`/api/teacher/grades?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(subjectId)}&gradingPeriod=${encodeURIComponent(gradingPeriod)}`, {
+          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+        }),
+      ]);
       
-      if (response.ok) {
-        const existingGrades = await response.json();
+      if (gradesRes.ok) {
+        const existingGrades = await gradesRes.json();
         console.log('DEBUG: Loaded grades from API for', subjectId, gradingPeriod, ':', existingGrades);
         
         const gradesMap: { [key: string]: string } = {};
