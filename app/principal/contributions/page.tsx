@@ -266,8 +266,7 @@ export default function PrincipalContributionManagement() {
       totalPaid += contribution.amount;
     });
 
-    const monthsInYear = 12;
-    const totalRequired = TARGET_AMOUNT_PER_STUDENT * monthsInYear;
+    const totalRequired = TARGET_AMOUNT_PER_STUDENT;
     const remainingBalance = totalRequired - totalPaid;
 
     setStudentPaymentData({
@@ -687,10 +686,11 @@ export default function PrincipalContributionManagement() {
       const totalExpected = derivedTotals.expected;
       const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
-      const expectedPerStudentPerYear = TARGET_AMOUNT_PER_STUDENT * 12;
+      const expectedPerStudentPerYear = TARGET_AMOUNT_PER_STUDENT;
       const totalExpectedCollection = filteredQuotas.length * expectedPerStudentPerYear;
 
       const summaryData = [
+        { Metric: 'School Year', Value: selectedYear },
         { Metric: 'Total Students', Value: filteredQuotas.length },
         { Metric: 'Total Expected Collection', Value: `₱${totalExpectedCollection.toLocaleString()}` },
         { Metric: 'Total Collected', Value: `₱${filteredQuotas.reduce((sum, q) => sum + q.totalPaid, 0).toLocaleString()}` },
