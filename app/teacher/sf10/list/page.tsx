@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Eye, FileText, Search, Clock, BarChart3, Plus, Download, Edit, Trash2 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
+import SF10Form from '../SF10Form';
 
 interface SF10Record {
   student: {
@@ -322,149 +323,86 @@ export default function SF10List() {
 
       {/* SF10 View Modal */}
       {isViewModalOpen && selectedSF10 && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          backgroundColor: 'rgba(0,0,0,0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          zIndex: 50,
+          padding: '20px'
+        }}>
+          <div style={{ 
+            backgroundColor: 'white', 
+            borderRadius: '12px', 
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)', 
+            width: '100%', 
+            maxWidth: '900px', 
+            maxHeight: '90vh', 
+            overflow: 'auto'
+          }}>
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-gradient-to-r from-[#1B3E2A] to-[#2D4A3D] text-white rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Student SF10 Form</h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-white hover:text-gray-200 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+            <div style={{ 
+              padding: '16px 24px', 
+              background: 'linear-gradient(to right, #1B3E2A, #2D4A3D)', 
+              color: 'white', 
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Learner Permanent Academic Record (SF10-ES)</h2>
+              <button
+                onClick={handleCloseModal}
+                style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '24px' }}
+              >
+                ×
+              </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-6">
-              {/* Student Information */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Student Information</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm text-gray-500">Student Name:</span>
-                    <p className="font-medium">{selectedSF10.student.name}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">LRN:</span>
-                    <p className="font-medium">{selectedSF10.student.lrn}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Grade Level:</span>
-                    <p className="font-medium">{selectedSF10.student.gradeLevel}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Section:</span>
-                    <p className="font-medium">{selectedSF10.student.section}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">School Year:</span>
-                    <p className="font-medium">{selectedSF10.sf10.schoolYear}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">Status:</span>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedSF10.sf10.status)}`}>
-                      {selectedSF10.sf10.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <div style={{ padding: '16px', backgroundColor: '#f3f4f6' }}>
+              <SF10Form />
+            </div>
 
-              {/* Academic Performance */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Academic Performance</h3>
-                <div className="mb-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <span className="text-sm text-gray-500">General Average:</span>
-                      <p className="text-2xl font-bold text-[#1B3E2A]">{selectedSF10.sf10.generalAverage}</p>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <span className="text-sm text-gray-500">Adviser:</span>
-                      <p className="font-medium">{(selectedSF10.sf10 as any).adviserName || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Subjects Table */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">1st Grading</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">2nd Grading</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">3rd Grading</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">4th Grading</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Final Rating</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedSF10.sf10.subjects.map((subject, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                            {subject.subjectName || subject.subjectCode}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-900">{subject.firstGrading}</td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-900">{subject.secondGrading}</td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-900">{subject.thirdGrading}</td>
-                          <td className="px-4 py-3 text-sm text-center text-gray-900">{subject.fourthGrading}</td>
-                          <td className="px-4 py-3 text-sm text-center font-semibold text-gray-900">{subject.finalRating}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{subject.remarks || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Completion Status */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Completion Status</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className={`text-center p-3 rounded-lg ${selectedSF10.completionStatus.firstGrading ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                    <p className="text-sm font-medium">1st Grading</p>
-                    <p className="text-xs">{selectedSF10.completionStatus.firstGrading ? 'Complete' : 'Incomplete'}</p>
-                  </div>
-                  <div className={`text-center p-3 rounded-lg ${selectedSF10.completionStatus.secondGrading ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                    <p className="text-sm font-medium">2nd Grading</p>
-                    <p className="text-xs">{selectedSF10.completionStatus.secondGrading ? 'Complete' : 'Incomplete'}</p>
-                  </div>
-                  <div className={`text-center p-3 rounded-lg ${selectedSF10.completionStatus.thirdGrading ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                    <p className="text-sm font-medium">3rd Grading</p>
-                    <p className="text-xs">{selectedSF10.completionStatus.thirdGrading ? 'Complete' : 'Incomplete'}</p>
-                  </div>
-                  <div className={`text-center p-3 rounded-lg ${selectedSF10.completionStatus.fourthGrading ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                    <p className="text-sm font-medium">4th Grading</p>
-                    <p className="text-xs">{selectedSF10.completionStatus.fourthGrading ? 'Complete' : 'Incomplete'}</p>
-                  </div>
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-500">
-                    {selectedSF10.completionStatus.completedSubjects} of {selectedSF10.completionStatus.totalSubjects} subjects completed
-                  </p>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  className="px-4 py-2 bg-[#1B3E2A] text-white rounded-md hover:bg-[#2D4A3D] transition-colors"
-                >
-                  Download PDF
-                </button>
-              </div>
+            {/* Modal Footer */}
+            <div style={{ 
+              padding: '16px 24px', 
+              borderTop: '1px solid #e5e7eb', 
+              backgroundColor: 'white', 
+              borderRadius: '0 0 12px 12px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button
+                onClick={handleCloseModal}
+                style={{ 
+                  padding: '8px 16px', 
+                  color: '#4b5563', 
+                  background: 'none', 
+                  border: 'none', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Close
+              </button>
+              <button
+                style={{ 
+                  padding: '8px 16px', 
+                  backgroundColor: '#1B3E2A', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '6px', 
+                  cursor: 'pointer' 
+                }}
+              >
+                Download PDF
+              </button>
             </div>
           </div>
         </div>

@@ -378,17 +378,23 @@ export interface Attendance {
 export interface SF10 {
   id: string;
   studentId: string;
-  schoolYear: string;
+  lrn: string;
+  studentName: string;
   gradeLevel: string;
   section: string;
+  schoolYear: string;
+  semester: string;
   subjects: SF10Subject[];
   generalAverage: number;
-  attendance: {
+  status: 'promoted' | 'retained' | 'dropped';
+  adviserName: string;
+  dateCompleted: string;
+  attendance?: {
     daysPresent: number;
     daysAbsent: number;
     daysTardy: number;
   };
-  generatedAt: string;
+  generatedAt?: string;
 }
 
 // Legacy interfaces for backward compatibility during migration

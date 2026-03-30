@@ -23,11 +23,17 @@ export class SF10NormalizedGenerator {
       const sf10Record: SF10 = {
         id: `sf10-${studentId}-${schoolYear}`,
         studentId,
+        lrn: student.lrn || '',
+        studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || `Student ${studentId}`,
         schoolYear,
         gradeLevel: student.currentGradeLevel || 'Unknown',
         section: student.currentSection || 'Default',
+        semester: 'First Semester', // Default value
         subjects,
         generalAverage,
+        status: generalAverage >= 75 ? 'promoted' : 'retained',
+        adviserName: 'Not Assigned', // This should come from teacher data
+        dateCompleted: new Date().toISOString().split('T')[0],
         attendance,
         generatedAt: new Date().toISOString()
       };

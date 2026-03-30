@@ -1,0 +1,304 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.2;
+    color: black;
+    background: white;
+}
+
+.form-container {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 15mm;
+    background: white;
+    box-shadow: none;
+}
+
+/* Header Styles */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid black;
+    padding-bottom: 10px;
+}
+
+.header-left {
+    flex: 1;
+}
+
+.republic-text {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.department-text {
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.header-right {
+    width: 60px;
+    height: 60px;
+}
+
+.logo-placeholder {
+    width: 100%;
+    height: 100%;
+    border: 1px solid black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo {
+    width: 50px;
+    height: 50px;
+}
+
+/* Form Title */
+.form-title {
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: bold;
+    line-height: 1.3;
+}
+
+.form-title {
+    font-size: 16px;
+}
+
+.subtitle {
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* Section Styles */
+.section-box {
+    border: 2px solid black;
+    margin-bottom: 20px;
+    padding: 10px;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    text-align: center;
+    border-bottom: 1px solid black;
+    padding-bottom: 5px;
+}
+
+/* Information Grid */
+.info-grid {
+    width: 100%;
+}
+
+.info-row {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.field-group {
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+    margin-bottom: 5px;
+}
+
+.label-small {
+    font-size: 10px;
+    margin-right: 5px;
+    white-space: nowrap;
+}
+
+.line {
+    width: 150px;
+    height: 1px;
+    border-bottom: 1px solid black;
+    margin: 0 5px;
+}
+
+.line-small {
+    width: 60px;
+    height: 1px;
+    border-bottom: 1px solid black;
+    margin: 0 5px;
+}
+
+/* Name Fields */
+.name-fields {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.name-fields .label-small {
+    margin-right: 3px;
+}
+
+/* Date Fields */
+.date-fields {
+    display: flex;
+    align-items: center;
+}
+
+/* Address Fields */
+.address-fields {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.address-fields .field-group {
+    width: 100%;
+    margin-right: 0;
+}
+
+/* Checkbox Styles */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+    margin-right: 3px;
+}
+
+.checkbox-group label {
+    font-size: 10px;
+    margin-right: 10px;
+}
+
+/* Scholastic Table */
+.scholastic-table {
+    margin: 15px 0;
+    overflow-x: auto;
+}
+
+.scholastic-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+}
+
+.scholastic-table th,
+.scholastic-table td {
+    border: 1px solid black;
+    padding: 4px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.scholastic-table th {
+    font-weight: bold;
+    background: white;
+}
+
+.learning-areas {
+    width: 25%;
+    text-align: center;
+}
+
+.scholastic-table td.subject {
+    text-align: left;
+    padding-left: 8px;
+    font-size: 9px;
+}
+
+.scholastic-table td {
+    height: 20px;
+}
+
+/* Promotion Status */
+.promotion-status {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+}
+
+/* Attendance Grid */
+.attendance-grid {
+    width: 100%;
+}
+
+/* Signature Section */
+.signature-section {
+    margin-top: 30px;
+    margin-bottom: 20px;
+}
+
+.signature-grid {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.signature-box {
+    width: 48%;
+    text-align: center;
+}
+
+.signature-line {
+    width: 100%;
+    height: 1px;
+    border-bottom: 1px solid black;
+    margin-bottom: 5px;
+}
+
+.signature-label {
+    font-size: 10px;
+    text-align: center;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .form-container {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
+        padding: 15mm;
+        box-shadow: none;
+        page-break-after: always;
+    }
+    
+    .section-box {
+        page-break-inside: avoid;
+    }
+    
+    .scholastic-table {
+        page-break-inside: avoid;
+    }
+}
+
+/* Responsive adjustments for screen */
+@media screen {
+    .form-container {
+        max-width: 210mm;
+        margin: 20px auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+}
