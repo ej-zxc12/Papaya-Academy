@@ -113,45 +113,86 @@ export default function TeacherDashboard() {
             const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
             setStudents(Array.isArray(next) ? next : []);
           },
-          () => {
-            setLoadError('Some dashboard data could not be loaded.');
+          (err) => {
+            console.error('[Dashboard] Students fetch error:', err);
+            setLoadError('Students data could not be loaded.');
           }
         );
 
-        // Fetch SF10 records from API (same as View SF10 page) and contributions summary
-        const [sf10Res, contributionsRes, summaryRes] = await Promise.all([
-          fetch('/api/teacher/sf10', {
-            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
-          }),
-          fetch('/api/contributions?scope=school', {
-            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
-          }),
-          fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}&scope=school`, {
-            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
-          }),
-        ]);
+        // Fetch each API separately to handle partial failures
+        const errors: string[] = [];
 
-        if (!sf10Res.ok) throw new Error('Failed to load SF10 records');
-        if (!contributionsRes.ok) throw new Error('Failed to load contributions');
-        if (!summaryRes.ok) throw new Error('Failed to load contribution summary');
-
-        const [sf10Json, contributionsJson, summaryJson] = await Promise.all([
-          sf10Res.json(),
-          contributionsRes.json(),
-          summaryRes.json(),
-        ]);
-
-        // SF10 API returns { sf10Records: [...] }
-        const sf10Data = sf10Json.sf10Records || [];
+        // Fetch SF10 records
+        let sf10Data: any[] = [];
+        try {
+          const sf10Res = await fetch('/api/teacher/sf10', {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          });
+          if (sf10Res.ok) {
+            const sf10Json = await sf10Res.json();
+            sf10Data = sf10Json.sf10Records || [];
+          } else {
+            const err = await sf10Res.text();
+            console.error('[Dashboard] SF10 API error:', sf10Res.status, err);
+            errors.push('SF10 records');
+          }
+        } catch (err) {
+          console.error('[Dashboard] SF10 fetch error:', err);
+          errors.push('SF10 records');
+        }
         setSf10Records(sf10Data);
-        setContributions(Array.isArray(contributionsJson) ? contributionsJson : []);
-        setSummary({
-          totalCollected: Number(summaryJson?.totalCollected ?? 0),
-          totalExpected: Number(summaryJson?.totalExpected ?? 0),
-          collectionRate: Number(summaryJson?.collectionRate ?? 0),
-        });
+
+        // Fetch contributions
+        let contributionsData: any[] = [];
+        try {
+          const contributionsRes = await fetch('/api/contributions?scope=school', {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          });
+          if (contributionsRes.ok) {
+            const json = await contributionsRes.json();
+            contributionsData = Array.isArray(json) ? json : [];
+          } else {
+            const err = await contributionsRes.text();
+            console.error('[Dashboard] Contributions API error:', contributionsRes.status, err);
+            errors.push('Contributions');
+          }
+        } catch (err) {
+          console.error('[Dashboard] Contributions fetch error:', err);
+          errors.push('Contributions');
+        }
+        setContributions(contributionsData);
+
+        // Fetch summary
+        let summaryData = { totalCollected: 0, totalExpected: 0, collectionRate: 0 };
+        try {
+          const summaryRes = await fetch(`/api/contributions/summary?year=${encodeURIComponent(year)}&scope=school`, {
+            headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+          });
+          if (summaryRes.ok) {
+            const json = await summaryRes.json();
+            summaryData = {
+              totalCollected: Number(json?.totalCollected ?? 0),
+              totalExpected: Number(json?.totalExpected ?? 0),
+              collectionRate: Number(json?.collectionRate ?? 0),
+            };
+          } else {
+            const err = await summaryRes.text();
+            console.error('[Dashboard] Summary API error:', summaryRes.status, err);
+            errors.push('Collection summary');
+          }
+        } catch (err) {
+          console.error('[Dashboard] Summary fetch error:', err);
+          errors.push('Collection summary');
+        }
+        setSummary(summaryData);
+
         setIsActivityLoading(false);
-        setLoadError(null);
+        
+        if (errors.length > 0) {
+          setLoadError(`${errors.join(', ')} could not be loaded.`);
+        } else {
+          setLoadError(null);
+        }
 
         // Stop blocking UI: layout renders immediately; data streams in.
         setIsLoading(false);
@@ -159,10 +200,12 @@ export default function TeacherDashboard() {
         return () => {
           unsubStudents();
         };
-      } catch {
-        setLoadError('Some dashboard data could not be loaded.');
+      } catch (err) {
+        console.error('[Dashboard] Fatal error:', err);
+        setLoadError('Dashboard could not be loaded. Please try again.');
       } finally {
         setIsLoading(false);
+        setIsActivityLoading(false);
       }
     };
 
