@@ -302,20 +302,6 @@ export default function TeacherDashboard() {
               </button>
 
               <button
-                onClick={() => router.push('/teacher/sf10/create')}
-                className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
-              >
-                <div className="p-2 bg-white rounded-md shadow-sm mr-3">
-                  <FilePlus className="w-5 h-5 text-gray-600 group-hover:text-[#1B3E2A]" />
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-900 group-hover:text-[#1B3E2A]">Generate SF10</p>
-                  <p className="text-xs text-gray-500">Create a new record</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-[#1B3E2A] transform group-hover:translate-x-1 transition-all" />
-              </button>
-
-              <button
                 onClick={() => router.push('/teacher/sf10/list')}
                 className="w-full flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-[#F2C94C] hover:bg-[#fef9e7] transition-all group"
               >

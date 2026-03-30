@@ -6,7 +6,6 @@ import { Teacher } from '@/types';
 import { 
   Home,
   School,
-  FilePlus,
   Eye,
   Table,
   DollarSign,
@@ -143,7 +142,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
     { icon: FileText, label: 'Weekly Reports', href: '/teacher/weekly-reports' },
     { icon: School, label: 'Input Grades', href: '/teacher/grades/input' },
     { icon: FileText, label: 'Report Cards', href: '/teacher/report-cards' },
-    { icon: FilePlus, label: 'Create SF10', href: '/teacher/sf10/create' },
     { icon: Eye, label: 'View SF10', href: '/teacher/sf10/list' },
     { icon: Table, label: 'Class Records', href: '/teacher/grades/view' },
     { icon: DollarSign, label: 'Contributions', href: '/teacher/contributions' },
