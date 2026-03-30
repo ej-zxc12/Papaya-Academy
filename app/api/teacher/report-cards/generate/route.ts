@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
-import { getSubjectsForGrade } from '@/lib/grade-subjects-config';
 
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -68,19 +67,20 @@ export async function POST(request: NextRequest) {
       subjectIds = [student.subjectId];
     }
 
-    // Get all configured subjects for this grade level
-    const configuredSubjects = getSubjectsForGrade(gradeLevel);
+    if (subjectIds.length === 0) {
+      return NextResponse.json(
+        { message: 'No subjects found for this student' },
+        { status: 404 }
+      );
+    }
 
-    // Get subject details from teacher's subjects collection
+    // Get subject details
     const subjectsCollection = collection(db, 'teacherSubjects');
     const subjectsQuery = query(subjectsCollection, where('teacherId', '==', teacherId));
     const subjectsSnapshot = await getDocs(subjectsQuery);
     
     const availableSubjects = subjectsSnapshot.docs
-      .map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      } as { id: string; code?: string; name?: string }))
+      .map(doc => ({ id: doc.id, ...doc.data() }))
       .filter(subject => subjectIds.includes(subject.id));
 
     // Get existing grades for all grading periods
@@ -94,53 +94,37 @@ export async function POST(request: NextRequest) {
     
     const existingGrades = gradesSnapshot.docs.map(doc => doc.data());
 
-    // Organize grades by subject code/name and grading period
-    const gradesBySubjectCode: { [subjectCode: string]: { [period: string]: number } } = {};
+    // Organize grades by subject and grading period
+    const gradesBySubject: { [subjectId: string]: { [period: string]: number } } = {};
     
     existingGrades.forEach(grade => {
-      // Find which configured subject this grade belongs to
-      const subject = availableSubjects.find(s => s.id === grade.subjectId);
-      if (subject) {
-        const matchedConfig = configuredSubjects.find(cs => 
-          cs.name.toLowerCase() === (subject.name || '').toLowerCase()
-        );
-        const subjectCode = subject.code || matchedConfig?.code || subject.name || 'unknown';
-        
-        if (!gradesBySubjectCode[subjectCode]) {
-          gradesBySubjectCode[subjectCode] = {};
-        }
-        // Handle both gradingPeriod and quarter fields for backward compatibility
-        const period = grade.gradingPeriod || grade.quarter;
-        if (period) {
-          // Normalize period names to match expected format
-          const normalizedPeriod = period === 'Q1' ? 'first' : 
-                                  period === 'Q2' ? 'second' : 
-                                  period === 'Q3' ? 'third' : 
-                                  period === 'Q4' ? 'fourth' : period;
-          gradesBySubjectCode[subjectCode][normalizedPeriod] = grade.grade;
-        }
+      if (!gradesBySubject[grade.subjectId]) {
+        gradesBySubject[grade.subjectId] = {};
+      }
+      // Handle both gradingPeriod and quarter fields for backward compatibility
+      const period = grade.gradingPeriod || grade.quarter;
+      if (period) {
+        // Normalize period names to match expected format
+        const normalizedPeriod = period === 'Q1' ? 'first' : 
+                                period === 'Q2' ? 'second' : 
+                                period === 'Q3' ? 'third' : 
+                                period === 'Q4' ? 'fourth' : period;
+        gradesBySubject[grade.subjectId][normalizedPeriod] = grade.grade;
       }
     });
 
-    // Build report card subjects array using ALL configured subjects for the grade
-    const reportCardSubjects = configuredSubjects.map(configuredSubject => {
-      // Try to find matching grades by subject code
-      const subjectGrades = gradesBySubjectCode[configuredSubject.code] || {};
-      
-      // Also try to match by name if no code match
-      const nameMatch = Object.entries(gradesBySubjectCode).find(([code, _]) => 
-        code.toLowerCase() === configuredSubject.name.toLowerCase()
-      );
-      const finalGrades = nameMatch ? nameMatch[1] : subjectGrades;
+    // Build report card subjects array
+    const reportCardSubjects = availableSubjects.map((subject: any) => {
+      const subjectGrades = gradesBySubject[subject.id] || {};
       
       return {
-        subjectId: configuredSubject.code,
-        subjectName: configuredSubject.name,
-        subjectCode: configuredSubject.code,
-        firstGrading: finalGrades['first'] || 0,
-        secondGrading: finalGrades['second'] || 0,
-        thirdGrading: finalGrades['third'] || 0,
-        fourthGrading: finalGrades['fourth'] || 0,
+        subjectId: subject.id,
+        subjectName: subject.name || 'Unknown Subject',
+        subjectCode: subject.code || (subject.name ? subject.name.substring(0, 3).toUpperCase() : 'SUB'),
+        firstGrading: subjectGrades['first'] || 0,
+        secondGrading: subjectGrades['second'] || 0,
+        thirdGrading: subjectGrades['third'] || 0,
+        fourthGrading: subjectGrades['fourth'] || 0,
         finalRating: 0, // Will be calculated
         remarks: '',
         teacherId: teacherId,

@@ -187,46 +187,12 @@ const SF10Form: React.FC = () => {
           emptyRows={6}
         />
 
-        {/* Block 4: Grade 3 - with pre-filled values */}
-        <div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
-            <span>School:</span>
-            <span style={{ fontWeight: 'bold' }}>PAPAYA ACADEMY INC.</span>
-            <span>School ID:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '30px', height: '11px' }}></span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
-            <span>District:</span>
-            <span style={{ fontWeight: 'bold' }}>RODRIGUEZ</span>
-            <span>Division:</span>
-            <span style={{ fontWeight: 'bold' }}>RIZAL</span>
-            <span>Region:</span>
-            <span style={{ fontWeight: 'bold' }}>IV-A</span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
-            <span>Classified as Grade:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '20px', height: '11px' }}></span>
-            <span>Section:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
-            <span>School Year:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '2px' }}>
-            <span>Name of Adviser/Teacher:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px' }}></span>
-            <span>Signature:</span>
-            <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
-          </div>
-          
-          <GradeTable 
-            subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-            emptyRows={2}
-            hasMapehSub={true}
-            showZero={true}
-          />
-          
-          <RemedialTable />
-        </div>
+        {/* Block 4: Grade 3 */}
+        <GradeBlock 
+          grade="Grade 3"
+          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+          emptyRows={2}
+        />
 
       </div>
 

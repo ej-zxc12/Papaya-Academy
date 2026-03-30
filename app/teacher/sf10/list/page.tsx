@@ -76,6 +76,24 @@ export default function SF10List() {
       
       const data = await response.json();
       
+      // DEBUG: Log the API response
+      console.log('SF10 API Response:', data);
+      console.log('Total records:', data.totalRecords);
+      console.log('SF10 Records:', data.sf10Records);
+      
+      // DEBUG: Log debug info from API
+      if (data.debug) {
+        console.log('=== DEBUG INFO ===');
+        console.log('Source:', data.debug.source);
+        console.log('Report cards checked:', data.debug.reportCardsChecked);
+        if (data.debug.logs) {
+          console.log('Logs:');
+          data.debug.logs.forEach((log: string, i: number) => {
+            console.log(`  ${i + 1}. ${log}`);
+          });
+        }
+      }
+      
       if (data.sf10Records) {
         setSF10Records(data.sf10Records);
       } else {
@@ -249,15 +267,21 @@ export default function SF10List() {
                       <div className="text-sm text-gray-500">{record.student.section}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {record.sf10.schoolYear}
+                      {record.sf10 ? record.sf10.schoolYear : 'Not generated'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(record.sf10.status)}`}>
-                        {record.sf10.status}
-                      </span>
+                      {record.sf10 ? (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(record.sf10.status)}`}>
+                          {record.sf10.status}
+                        </span>
+                      ) : (
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Not Generated
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(record.sf10.dateCompleted).toLocaleDateString()}
+                      {record.sf10 ? new Date(record.sf10.dateCompleted).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div className="flex items-center gap-2">
@@ -307,13 +331,13 @@ export default function SF10List() {
             </div>
             <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
               <div className="text-4xl font-bold text-green-600 mb-2">
-                {sf10Records.filter(r => r.sf10.status === 'promoted').length}
+                {sf10Records.filter(r => r.sf10?.status === 'promoted').length}
               </div>
               <div className="text-sm font-medium text-green-700 uppercase tracking-wider">Promoted</div>
             </div>
             <div className="text-center p-6 bg-red-50 rounded-xl border border-red-100">
               <div className="text-4xl font-bold text-red-600 mb-2">
-                {sf10Records.filter(r => r.sf10.status === 'retained').length}
+                {sf10Records.filter(r => r.sf10?.status === 'retained').length}
               </div>
               <div className="text-sm font-medium text-red-700 uppercase tracking-wider">Retained</div>
             </div>
