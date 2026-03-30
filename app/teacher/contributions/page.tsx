@@ -1851,209 +1851,227 @@ export default function ContributionManagement() {
                         </div>
                       </div>
 
-                      {/* Add Payment Form */}
-                      <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                        <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Add New Payment</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Month
-                            </label>
-                            <input
-                              type="month"
-                              value={paymentFormData.month}
-                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, month: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Amount
-                            </label>
-                            <input
-                              type="number"
-                              value={paymentFormData.amount || ''}
-                              onChange={(e) => {
-                                const amount = parseFloat(e.target.value) || 0;
-                                
-                                // Get remaining balance for selected student
-                                const quota = quotas.find(q => q.studentId === selectedStudentForDetails?.id);
-                                const remainingBalance = quota?.remainingBalance || 0;
-                                
-                                // Validate: amount cannot exceed remaining balance
-                                if (amount > remainingBalance && remainingBalance > 0) {
-                                  setMessage({ 
-                                    type: 'error', 
-                                    text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
-                                  });
-                                  return;
-                                }
-                                
-                                setPaymentFormData(prev => ({ ...prev, amount }));
-                              }}
-                              onFocus={(e) => { if(e.target.value === '0') e.target.value = ''; }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] transition-all"
-                              min="0"
-                              step="0.01"
-                              placeholder="0"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Remaining Balance: ₱{quotas.find(q => q.studentId === selectedStudentForDetails?.id)?.remainingBalance.toLocaleString() || 0}
-                            </p>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Receipt Number (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              value={paymentFormData.receiptNumber}
-                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                              placeholder="Enter receipt number"
-                            />
-                          </div>
-
-                          <div className="relative" ref={paymentMethodDropdownRef}>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Payment Method
-                            </label>
-                            <div className="relative">
-                              <button
-                                onClick={() => setIsPaymentMethodDropdownOpen(!isPaymentMethodDropdownOpen)}
-                                className="w-full h-10 flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all hover:border-[#1B3E2A] active:scale-[0.98]"
-                              >
-                                <span className="flex items-center gap-2">
-                                  {paymentFormData.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-[#1B3E2A]" />}
-                                  {paymentFormData.paymentMethod === 'online' && <CreditCard className="w-4 h-4 text-[#1B3E2A]" />}
-                                  <span className="text-sm text-gray-900 capitalize">
-                                    {paymentFormData.paymentMethod === 'cash' ? 'Cash' : 'Online Payment'}
-                                  </span>
-                                </span>
-                                <ChevronDown 
-                                  className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isPaymentMethodDropdownOpen ? 'rotate-180' : ''}`}
-                                />
-                              </button>
-                              
-                              {isPaymentMethodDropdownOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 dropdown-enter">
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() => {
-                                        setPaymentFormData(prev => ({ ...prev, paymentMethod: 'cash' }));
-                                        setIsPaymentMethodDropdownOpen(false);
-                                      }}
-                                      className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
-                                        paymentFormData.paymentMethod === 'cash' 
-                                          ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
-                                          : 'text-gray-700 hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      <Banknote className="w-4 h-4 text-[#1B3E2A]" />
-                                      <span className="text-sm">Cash</span>
-                                      {paymentFormData.paymentMethod === 'cash' && (
-                                        <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setPaymentFormData(prev => ({ ...prev, paymentMethod: 'online' }));
-                                        setIsPaymentMethodDropdownOpen(false);
-                                      }}
-                                      className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
-                                        paymentFormData.paymentMethod === 'online' 
-                                          ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
-                                          : 'text-gray-700 hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      <CreditCard className="w-4 h-4 text-[#1B3E2A]" />
-                                      <span className="text-sm">Online Payment</span>
-                                      {paymentFormData.paymentMethod === 'online' && (
-                                        <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
-                                      )}
-                                    </button>
-                                  </div>
+                      {/* Add Payment Form - Only show if student has remaining balance */}
+                      {(() => {
+                        const remainingBalance = quotas.find(q => q.studentId === selectedStudentForDetails?.id)?.remainingBalance || 0;
+                        if (remainingBalance === 0) {
+                          return (
+                            <div className="bg-green-50 rounded-lg p-6 mb-6 border-2 border-green-200">
+                              <div className="flex items-center justify-center gap-3">
+                                <CheckCircle className="w-8 h-8 text-green-600" />
+                                <div>
+                                  <h3 className="text-lg font-semibold text-green-800">Fully Paid</h3>
+                                  <p className="text-sm text-green-600">This student has completed all payments for the year.</p>
                                 </div>
-                              )}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                            <h3 className="text-lg font-semibold text-[#1B3E2A] mb-4">Add New Payment</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Month
+                                </label>
+                                <input
+                                  type="month"
+                                  value={paymentFormData.month}
+                                  onChange={(e) => setPaymentFormData(prev => ({ ...prev, month: e.target.value }))}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Amount
+                                </label>
+                                <input
+                                  type="number"
+                                  value={paymentFormData.amount || ''}
+                                  onChange={(e) => {
+                                    const amount = parseFloat(e.target.value) || 0;
+                                    
+                                    // Get remaining balance for selected student
+                                    const quota = quotas.find(q => q.studentId === selectedStudentForDetails?.id);
+                                    const remainingBalance = quota?.remainingBalance || 0;
+                                    
+                                    // Validate: amount cannot exceed remaining balance
+                                    if (amount > remainingBalance && remainingBalance > 0) {
+                                      setMessage({ 
+                                        type: 'error', 
+                                        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+                                      });
+                                      return;
+                                    }
+                                    
+                                    setPaymentFormData(prev => ({ ...prev, amount }));
+                                  }}
+                                  onFocus={(e) => { if(e.target.value === '0') e.target.value = ''; }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] transition-all"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Remaining Balance: ₱{quotas.find(q => q.studentId === selectedStudentForDetails?.id)?.remainingBalance.toLocaleString() || 0}
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Receipt Number (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={paymentFormData.receiptNumber}
+                                  onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                                  placeholder="Enter receipt number"
+                                />
+                              </div>
+
+                              <div className="relative" ref={paymentMethodDropdownRef}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Payment Method
+                                </label>
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setIsPaymentMethodDropdownOpen(!isPaymentMethodDropdownOpen)}
+                                    className="w-full h-10 flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all hover:border-[#1B3E2A] active:scale-[0.98]"
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      {paymentFormData.paymentMethod === 'cash' && <Banknote className="w-4 h-4 text-[#1B3E2A]" />}
+                                      {paymentFormData.paymentMethod === 'online' && <CreditCard className="w-4 h-4 text-[#1B3E2A]" />}
+                                      <span className="text-sm text-gray-900 capitalize">
+                                        {paymentFormData.paymentMethod === 'cash' ? 'Cash' : 'Online Payment'}
+                                      </span>
+                                    </span>
+                                    <ChevronDown 
+                                      className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isPaymentMethodDropdownOpen ? 'rotate-180' : ''}`}
+                                    />
+                                  </button>
+                                  
+                                  {isPaymentMethodDropdownOpen && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50 dropdown-enter">
+                                      <div className="py-1">
+                                        <button
+                                          onClick={() => {
+                                            setPaymentFormData(prev => ({ ...prev, paymentMethod: 'cash' }));
+                                            setIsPaymentMethodDropdownOpen(false);
+                                          }}
+                                          className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                                            paymentFormData.paymentMethod === 'cash' 
+                                              ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                                              : 'text-gray-700 hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          <Banknote className="w-4 h-4 text-[#1B3E2A]" />
+                                          <span className="text-sm">Cash</span>
+                                          {paymentFormData.paymentMethod === 'cash' && (
+                                            <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setPaymentFormData(prev => ({ ...prev, paymentMethod: 'online' }));
+                                            setIsPaymentMethodDropdownOpen(false);
+                                          }}
+                                          className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-all active:scale-[0.98] ${
+                                            paymentFormData.paymentMethod === 'online' 
+                                              ? 'bg-[#f0f7f3] text-[#1B3E2A] font-medium' 
+                                              : 'text-gray-700 hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          <CreditCard className="w-4 h-4 text-[#1B3E2A]" />
+                                          <span className="text-sm">Online Payment</span>
+                                          {paymentFormData.paymentMethod === 'online' && (
+                                            <Check className="w-4 h-4 text-[#1B3E2A] ml-auto" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Receipt Number (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={paymentFormData.receiptNumber}
+                                  onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                                  placeholder="Enter receipt number"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Notes (Optional)
+                              </label>
+                              <textarea
+                                value={paymentFormData.notes}
+                                onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                                placeholder="Add any notes..."
+                              />
+                            </div>
+                            <div className="flex gap-3 mt-4">
+                              <button
+                                onClick={handleStudentDetailPayment}
+                                disabled={isSaving || !paymentFormData.amount}
+                                className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                  backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
+                                  backgroundSize: '100% 200%',
+                                  backgroundPosition: 'bottom',
+                                  color: '#F2C94C',
+                                  borderColor: '#1B3E2A',
+                                  boxShadow: '0 4px 12px rgba(27, 62, 42, 0.3)',
+                                }}
+                              >
+                                {isSaving ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F2C94C]"></div>
+                                    Processing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-2xl font-bold text-[#1B3E2A]">₱</span>
+                                    Record Payment
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setPaymentFormData({
+                                  month: new Date().toISOString().slice(0, 7),
+                                  amount: 0,
+                                  paymentMethod: 'cash',
+                                  receiptNumber: '',
+                                  notes: ''
+                                })}
+                                className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-gray-400 border-b-2 shadow-sm transition-all duration-300"
+                                style={{
+                                  backgroundImage: 'linear-gradient(to top, #9CA3AF 50%, transparent 50%)',
+                                  backgroundSize: '100% 200%',
+                                  backgroundPosition: 'bottom',
+                                  color: '#374151',
+                                  borderColor: '#9CA3AF',
+                                  boxShadow: '0 4px 12px rgba(156, 163, 175, 0.3)',
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Clear
+                              </button>
                             </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Receipt Number (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              value={paymentFormData.receiptNumber}
-                              onChange={(e) => setPaymentFormData(prev => ({ ...prev, receiptNumber: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                              placeholder="Enter receipt number"
-                            />
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Notes (Optional)
-                          </label>
-                          <textarea
-                            value={paymentFormData.notes}
-                            onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                            placeholder="Add any notes..."
-                          />
-                        </div>
-                        <div className="flex gap-3 mt-4">
-                          <button
-                            onClick={handleStudentDetailPayment}
-                            disabled={isSaving || !paymentFormData.amount}
-                            className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              backgroundImage: 'linear-gradient(to top, #1B3E2A 50%, transparent 50%)',
-                              backgroundSize: '100% 200%',
-                              backgroundPosition: 'bottom',
-                              color: '#F2C94C',
-                              borderColor: '#1B3E2A',
-                              boxShadow: '0 4px 12px rgba(27, 62, 42, 0.3)',
-                            }}
-                          >
-                            {isSaving ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F2C94C]"></div>
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-2xl font-bold text-[#1B3E2A]">₱</span>
-                                Record Payment
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setPaymentFormData({
-                              month: new Date().toISOString().slice(0, 7),
-                              amount: 0,
-                              paymentMethod: 'cash',
-                              receiptNumber: '',
-                              notes: ''
-                            })}
-                            className="flex items-center justify-center gap-2 px-5 h-11 rounded-md font-semibold text-xs tracking-normal border border-gray-400 border-b-2 shadow-sm transition-all duration-300"
-                            style={{
-                              backgroundImage: 'linear-gradient(to top, #9CA3AF 50%, transparent 50%)',
-                              backgroundSize: '100% 200%',
-                              backgroundPosition: 'bottom',
-                              color: '#374151',
-                              borderColor: '#9CA3AF',
-                              boxShadow: '0 4px 12px rgba(156, 163, 175, 0.3)',
-                            }}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Clear
-                          </button>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Payment History */}
                       <div>
