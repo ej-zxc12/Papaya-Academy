@@ -195,11 +195,16 @@ export async function GET(request: NextRequest) {
         const studentGrades = allGrades.filter(g => g.studentId === studentId);
         const quarters = studentGrades.map(g => g.quarter);
         
+        // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
+        const studentName = (student.firstName || student.lastName) 
+          ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+          : (student as any).name || `Student ${studentId}`;
+        
         studentsWithGrades.set(studentId, {
           student: {
             id: studentId,
             lrn: student.lrn || '',
-            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || `Student ${studentId}`,
+            name: studentName,
             gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
             section: yearRecord.section || student.currentSection
           },

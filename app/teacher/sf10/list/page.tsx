@@ -5,14 +5,32 @@ import { Eye, FileText, Search, Clock, BarChart3, Plus, Download, Edit, Trash2 }
 import TeacherLayout from '../../components/TeacherLayout';
 import SF10Form from '../SF10Form';
 
+interface SF10Subject {
+  subjectCode: string;
+  subjectName: string;
+  firstGrading: number;
+  secondGrading: number;
+  thirdGrading: number;
+  fourthGrading: number;
+  finalRating: number;
+  remarks: string;
+}
+
+interface StudentInfo {
+  id: string;
+  lrn: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  birthdate?: string;
+  sex?: string;
+  gradeLevel: string;
+  section: string;
+}
+
 interface SF10Record {
-  student: {
-    id: string;
-    lrn: string;
-    name: string;
-    gradeLevel: string;
-    section: string;
-  };
+  student: StudentInfo;
   sf10: {
     id: string;
     studentId: string;
@@ -23,16 +41,8 @@ interface SF10Record {
     generalAverage: number;
     status: string;
     dateCompleted: string;
-    subjects: Array<{
-      subjectCode: string;
-      subjectName: string;
-      firstGrading: number;
-      secondGrading: number;
-      thirdGrading: number;
-      fourthGrading: number;
-      finalRating: number;
-      remarks: string;
-    }>;
+    subjects: SF10Subject[];
+    adviserName?: string;
   };
   completionStatus: {
     firstGrading: boolean;
@@ -52,6 +62,15 @@ export default function SF10List() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSF10, setSelectedSF10] = useState<SF10Record | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewStudentGrades, setViewStudentGrades] = useState<SF10Subject[]>([]);
+  const [isLoadingGrades, setIsLoadingGrades] = useState(false);
+  
+  // Edit Mode States
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editableStudent, setEditableStudent] = useState<any>(null);
+  const [editableSubjects, setEditableSubjects] = useState<SF10Subject[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   // UI Interaction States
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -126,14 +145,242 @@ export default function SF10List() {
     }
   };
 
-  const handleViewSF10 = (record: SF10Record) => {
+  const handleViewSF10 = async (record: SF10Record) => {
     setSelectedSF10(record);
     setIsViewModalOpen(true);
+    
+    // Fetch grades for this student
+    await fetchStudentGrades(record.student.id, record.sf10?.schoolYear || '2024-2025');
+  };
+
+  const handleGenerateSF10 = async () => {
+    if (!selectedSF10) return;
+    
+    try {
+      setIsGenerating(true);
+      
+      const session = localStorage.getItem('teacherSession');
+      const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
+      
+      const response = await fetch('/api/teacher/sf10/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${teacherId}`
+        },
+        body: JSON.stringify({
+          studentId: selectedSF10.student.id,
+          schoolYear: '2024-2025'
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to generate SF10');
+      }
+      
+      const result = await response.json();
+      console.log('SF10 generated:', result);
+      
+      // Refresh the records list
+      await fetchSF10Records();
+      
+      // Update the selected SF10 with the newly generated data
+      setSelectedSF10(prev => prev ? {
+        ...prev,
+        sf10: result.sf10
+      } : null);
+      
+      alert('SF10 generated successfully!');
+    } catch (err) {
+      console.error('Error generating SF10:', err);
+      alert(err instanceof Error ? err.message : 'Failed to generate SF10');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const fetchStudentGrades = async (studentId: string, schoolYear: string) => {
+    try {
+      setIsLoadingGrades(true);
+      
+      const session = localStorage.getItem('teacherSession');
+      const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
+      
+      // Fetch ALL grades for this student (regardless of which teacher entered them)
+      const response = await fetch(`/api/teacher/grades/student?studentId=${studentId}&schoolYear=${schoolYear}`, {
+        headers: { Authorization: `Bearer ${teacherId}` },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch grades');
+      }
+      
+      const studentGrades = await response.json();
+      console.log('Raw student grades from API:', studentGrades);
+      
+      // Group grades by subject
+      const subjectMap = new Map<string, SF10Subject>();
+      
+      studentGrades.forEach((grade: any) => {
+        const subjectName = grade.subjectName || grade.subjectId;
+        console.log('Processing grade:', { subjectName, subjectId: grade.subjectId, quarter: grade.quarter, grade: grade.grade });
+        
+        if (!subjectMap.has(subjectName)) {
+          subjectMap.set(subjectName, {
+            subjectCode: grade.subjectId,
+            subjectName: subjectName,
+            firstGrading: 0,
+            secondGrading: 0,
+            thirdGrading: 0,
+            fourthGrading: 0,
+            finalRating: 0,
+            remarks: ''
+          });
+        }
+        
+        const subject = subjectMap.get(subjectName)!;
+        
+        // Map quarter to grading period
+        if (grade.quarter === 'Q1' || grade.quarter === '1') {
+          subject.firstGrading = grade.grade;
+        } else if (grade.quarter === 'Q2' || grade.quarter === '2') {
+          subject.secondGrading = grade.grade;
+        } else if (grade.quarter === 'Q3' || grade.quarter === '3') {
+          subject.thirdGrading = grade.grade;
+        } else if (grade.quarter === 'Q4' || grade.quarter === '4') {
+          subject.fourthGrading = grade.grade;
+        }
+      });
+      
+      // Calculate final ratings
+      const subjects = Array.from(subjectMap.values()).map(subject => {
+        const grades = [subject.firstGrading, subject.secondGrading, subject.thirdGrading, subject.fourthGrading].filter(g => g > 0);
+        if (grades.length > 0) {
+          subject.finalRating = Math.round(grades.reduce((a, b) => a + b, 0) / grades.length);
+          subject.remarks = subject.finalRating >= 75 ? 'Passed' : 'Failed';
+        }
+        return subject;
+      });
+      
+      console.log('Processed subjects for SF10:', subjects);
+      setViewStudentGrades(subjects);
+    } catch (err) {
+      console.error('Error fetching student grades:', err);
+      setViewStudentGrades([]);
+    } finally {
+      setIsLoadingGrades(false);
+    }
   };
 
   const handleCloseModal = () => {
     setIsViewModalOpen(false);
     setSelectedSF10(null);
+    setViewStudentGrades([]);
+    setIsEditMode(false);
+    setEditableStudent(null);
+    setEditableSubjects([]);
+  };
+
+  const handleEditClick = () => {
+    // Initialize editable data with current values
+    if (selectedSF10) {
+      setEditableStudent({
+        id: selectedSF10.student.id,
+        lrn: selectedSF10.student.lrn,
+        name: selectedSF10.student.name,
+        firstName: selectedSF10.student.name.split(' ')[0],
+        lastName: selectedSF10.student.name.split(' ').slice(-1)[0],
+        middleName: selectedSF10.student.name.split(' ').slice(1, -1).join(' '),
+        gradeLevel: selectedSF10.student.gradeLevel,
+        section: selectedSF10.student.section,
+        schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
+        adviserName: selectedSF10.sf10?.adviserName || 'Teacher'
+      });
+      setEditableSubjects(viewStudentGrades.length > 0 
+        ? viewStudentGrades.map(s => ({...s})) 
+        : (selectedSF10.sf10?.subjects || []).map((s: any) => ({...s}))
+      );
+    }
+    setIsEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditableStudent(null);
+    setEditableSubjects([]);
+  };
+
+  const handleSaveSF10 = async () => {
+    if (!selectedSF10 || !editableStudent) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // Update student info
+      const studentResponse = await fetch(`/api/teacher/students/${selectedSF10.student.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('teacherSession')}`
+        },
+        body: JSON.stringify({
+          lrn: editableStudent.lrn,
+          name: `${editableStudent.firstName} ${editableStudent.middleName} ${editableStudent.lastName}`.trim(),
+          firstName: editableStudent.firstName,
+          lastName: editableStudent.lastName,
+          middleName: editableStudent.middleName,
+          gradeLevel: editableStudent.gradeLevel,
+          section: editableStudent.section,
+        })
+      });
+      
+      if (!studentResponse.ok) {
+        throw new Error('Failed to update student info');
+      }
+      
+      // Refresh the SF10 records
+      await fetchSF10Records();
+      
+      // Exit edit mode
+      setIsEditMode(false);
+      setEditableStudent(null);
+      
+      alert('SF10 updated successfully!');
+    } catch (err) {
+      console.error('Error saving SF10:', err);
+      alert('Failed to save SF10. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStudentFieldChange = (field: string, value: string) => {
+    setEditableStudent((prev: any) => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleSubjectGradeChange = (index: number, field: keyof SF10Subject, value: number) => {
+    setEditableSubjects(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      
+      // Recalculate final rating if quarter grades changed
+      if (field === 'firstGrading' || field === 'secondGrading' || field === 'thirdGrading' || field === 'fourthGrading') {
+        const grades = [
+          updated[index].firstGrading,
+          updated[index].secondGrading,
+          updated[index].thirdGrading,
+          updated[index].fourthGrading
+        ].filter(g => g > 0);
+        
+        if (grades.length > 0) {
+          updated[index].finalRating = Math.round(grades.reduce((a, b) => a + b, 0) / grades.length);
+          updated[index].remarks = updated[index].finalRating >= 75 ? 'Passed' : 'Failed';
+        }
+      }
+      
+      return updated;
+    });
   };
 
   if (isLoading) {
@@ -390,7 +637,33 @@ export default function SF10List() {
 
             {/* Modal Content */}
             <div style={{ padding: '16px', backgroundColor: '#f3f4f6' }}>
-              <SF10Form />
+              {isLoadingGrades ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A]"></div>
+                  <span className="ml-3 text-gray-600">Loading grades...</span>
+                </div>
+              ) : (
+                <SF10Form 
+                  student={isEditMode && editableStudent ? editableStudent : selectedSF10?.student ? {
+                    id: selectedSF10.student.id,
+                    lrn: selectedSF10.student.lrn,
+                    name: selectedSF10.student.name,
+                    firstName: selectedSF10.student.name.split(' ')[0],
+                    lastName: selectedSF10.student.name.split(' ').slice(-1)[0],
+                    middleName: selectedSF10.student.name.split(' ').slice(1, -1).join(' '),
+                    gradeLevel: selectedSF10.student.gradeLevel,
+                    section: selectedSF10.student.section,
+                    schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
+                    adviserName: selectedSF10.sf10?.adviserName || 'Teacher'
+                  } : undefined}
+                  subjects={isEditMode ? editableSubjects : (viewStudentGrades.length > 0 ? viewStudentGrades : selectedSF10?.sf10?.subjects || [])}
+                  generalAverage={selectedSF10?.sf10?.generalAverage || 0}
+                  status={(selectedSF10?.sf10?.status as any) || 'promoted'}
+                  isEditMode={isEditMode}
+                  onStudentFieldChange={handleStudentFieldChange}
+                  onSubjectGradeChange={handleSubjectGradeChange}
+                />
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -415,6 +688,80 @@ export default function SF10List() {
               >
                 Close
               </button>
+              
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    style={{ 
+                      padding: '8px 16px', 
+                      color: '#4b5563', 
+                      background: '#f3f4f6', 
+                      border: 'none', 
+                      borderRadius: '6px',
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
+                      opacity: isSaving ? 0.6 : 1
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveSF10}
+                    disabled={isSaving}
+                    style={{ 
+                      padding: '8px 16px', 
+                      backgroundColor: '#1B3E2A', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '6px', 
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
+                      opacity: isSaving ? 0.6 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {isSaving && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </>
+              ) : selectedSF10?.sf10 ? (
+                <button
+                  onClick={handleEditClick}
+                  style={{ 
+                    padding: '8px 16px', 
+                    backgroundColor: '#2563EB', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  Edit SF10
+                </button>
+              ) : (
+                <button
+                  onClick={handleGenerateSF10}
+                  disabled={isGenerating}
+                  style={{ 
+                    padding: '8px 16px', 
+                    backgroundColor: '#10B981', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px', 
+                    cursor: isGenerating ? 'not-allowed' : 'pointer',
+                    opacity: isGenerating ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {isGenerating && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                  {isGenerating ? 'Generating...' : 'Generate SF10'}
+                </button>
+              )}
+              
               <button
                 style={{ 
                   padding: '8px 16px', 

@@ -1,4 +1,4 @@
-import { getSubjectsForGrade, isSubjectValidForGrade, getSubjectName } from './grade-subjects-config';
+import { getSubjectsForGrade, isSubjectValidForGrade, getSubjectName, getSubjectOrderForGrade, grades4To6SubjectOrder } from './grade-subjects-config';
 
 // Utility functions for subject management across the application
 
@@ -93,7 +93,7 @@ export const getDefaultSubjectsForGrade = (gradeLevel: string): string[] => {
   if (usesNewSubjectStructure(gradeLevel)) {
     return getSubjectsForGrade(gradeLevel).map(subject => subject.name);
   }
-  
+
   // Default subjects for higher grades (4-6 and above)
   return [
     'Filipino',
@@ -108,3 +108,69 @@ export const getDefaultSubjectsForGrade = (gradeLevel: string): string[] => {
     'Physical Education & Health'
   ];
 };
+
+/**
+ * Official DepEd subject order for Grades 4-6 report cards (re-exported from grade-subjects-config)
+ */
+export const officialSubjectOrder = grades4To6SubjectOrder;
+
+/**
+ * Helper to get the index of a subject in the order array
+ * Uses flexible matching to handle variations like "GMRC" vs "GMRC (Good Manners and Right Conduct)"
+ */
+function getSubjectIndexInOrder(subjectName: string, orderArray: string[]): number {
+  const normalizedName = subjectName.toLowerCase().trim();
+
+  // First try exact match
+  const exactIndex = orderArray.findIndex(
+    s => s.toLowerCase() === normalizedName
+  );
+  if (exactIndex !== -1) return exactIndex;
+
+  // Try partial match - check if the official subject contains the input or vice versa
+  for (let i = 0; i < orderArray.length; i++) {
+    const official = orderArray[i].toLowerCase();
+    // Check if official contains the subject name (e.g., "GMRC" matches "GMRC (Good Manners...)")
+    if (official.includes(normalizedName) || normalizedName.includes(official)) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+/**
+ * Sorts subjects according to the official DepEd order for report cards
+ * Supports grade-specific ordering for Grades 1-3 and 4-6
+ * @param subjects Array of subject objects with a name or learningArea property
+ * @param gradeLevel Optional grade level for grade-specific sorting (e.g., 'Grade 1', 'Grade 4')
+ * @returns Sorted array
+ */
+export function sortSubjectsByOrder<T extends { name?: string; learningArea?: string }>(
+  subjects: T[],
+  gradeLevel?: string
+): T[] {
+  // Get the appropriate subject order for the grade level
+  const subjectOrder = gradeLevel ? getSubjectOrderForGrade(gradeLevel) : grades4To6SubjectOrder;
+  const orderArray = subjectOrder || grades4To6SubjectOrder;
+
+  return [...subjects].sort((a, b) => {
+    const nameA = a.learningArea || a.name || '';
+    const nameB = b.learningArea || b.name || '';
+
+    const indexA = getSubjectIndexInOrder(nameA, orderArray);
+    const indexB = getSubjectIndexInOrder(nameB, orderArray);
+
+    // If both subjects are in the official order, sort by their index
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB;
+    }
+
+    // If only one is in the official order, it comes first
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+
+    // If neither is in the official order, sort alphabetically
+    return nameA.localeCompare(nameB);
+  });
+}

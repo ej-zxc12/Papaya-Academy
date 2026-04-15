@@ -1,6 +1,50 @@
 import React from 'react';
 
-const SF10Form: React.FC = () => {
+interface SF10SubjectData {
+  subjectCode: string;
+  subjectName: string;
+  firstGrading: number;
+  secondGrading: number;
+  thirdGrading: number;
+  fourthGrading: number;
+  finalRating: number;
+  remarks: string;
+}
+
+interface StudentData {
+  id: string;
+  lrn: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  birthdate?: string;
+  sex?: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
+  adviserName?: string;
+}
+
+interface SF10FormProps {
+  student?: StudentData;
+  subjects?: SF10SubjectData[];
+  generalAverage?: number;
+  status?: 'promoted' | 'retained' | 'transferred' | 'dropped';
+  isEditMode?: boolean;
+  onStudentFieldChange?: (field: string, value: string) => void;
+  onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+}
+
+const SF10Form: React.FC<SF10FormProps> = ({ 
+  student, 
+  subjects = [], 
+  generalAverage = 0,
+  status = 'promoted',
+  isEditMode = false,
+  onStudentFieldChange,
+  onSubjectGradeChange
+}) => {
   return (
     <div>
       {/* PAGE 1 */}
@@ -52,11 +96,33 @@ const SF10Form: React.FC = () => {
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '2px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>LAST NAME:</span>
-          <div style={{ borderBottom: '1px solid #000', width: '70px', height: '12px' }}></div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={student?.lastName || ''}
+              onChange={(e) => onStudentFieldChange?.('lastName', e.target.value)}
+              style={{ fontSize: '7pt', fontWeight: 'bold', minWidth: '70px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            />
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '70px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt', fontWeight: 'bold' }}>{student?.lastName || ''}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>FIRST NAME:</span>
-          <div style={{ borderBottom: '1px solid #000', width: '70px', height: '12px' }}></div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={student?.firstName || student?.name?.split(' ')[0] || ''}
+              onChange={(e) => onStudentFieldChange?.('firstName', e.target.value)}
+              style={{ fontSize: '7pt', fontWeight: 'bold', minWidth: '70px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            />
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '70px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt', fontWeight: 'bold' }}>{student?.firstName || student?.name?.split(' ')[0] || ''}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>NAME EXTN. (Jr,I,II)</span>
@@ -64,22 +130,69 @@ const SF10Form: React.FC = () => {
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>MIDDLE NAME:</span>
-          <div style={{ borderBottom: '1px solid #000', width: '70px', height: '12px' }}></div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={student?.middleName || ''}
+              onChange={(e) => onStudentFieldChange?.('middleName', e.target.value)}
+              style={{ fontSize: '7pt', minWidth: '70px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            />
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '70px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt' }}>{student?.middleName || ''}</span>
+            </div>
+          )}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '3px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>Learner Reference Number (LRN):</span>
-          <div style={{ borderBottom: '1px solid #000', width: '80px', height: '12px' }}></div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={student?.lrn || ''}
+              onChange={(e) => onStudentFieldChange?.('lrn', e.target.value)}
+              style={{ fontSize: '7pt', fontWeight: 'bold', minWidth: '80px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            />
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '80px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt', fontWeight: 'bold' }}>{student?.lrn || ''}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>Birthdate (mm/dd/yyyy):</span>
-          <div style={{ borderBottom: '1px solid #000', width: '60px', height: '12px' }}></div>
+          {isEditMode ? (
+            <input
+              type="text"
+              value={student?.birthdate || ''}
+              onChange={(e) => onStudentFieldChange?.('birthdate', e.target.value)}
+              style={{ fontSize: '7pt', minWidth: '60px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            />
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '60px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt' }}>{student?.birthdate || ''}</span>
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px' }}>
           <span style={{ fontSize: '6.5pt', whiteSpace: 'nowrap' }}>Sex:</span>
-          <div style={{ borderBottom: '1px solid #000', width: '35px', height: '12px' }}></div>
+          {isEditMode ? (
+            <select
+              value={student?.sex || ''}
+              onChange={(e) => onStudentFieldChange?.('sex', e.target.value)}
+              style={{ fontSize: '7pt', minWidth: '50px', height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+            >
+              <option value="">Select</option>
+              <option value="M">M</option>
+              <option value="F">F</option>
+            </select>
+          ) : (
+            <div style={{ borderBottom: '1px solid #000', minWidth: '35px', height: '12px', padding: '0 4px' }}>
+              <span style={{ fontSize: '7pt' }}>{student?.sex || ''}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -164,34 +277,60 @@ const SF10Form: React.FC = () => {
       </div>
 
       {/* GRADE BLOCKS - 2x2 Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+      {/* ROW 1: Grade 1 | Grade 2 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '4px' }}>
         
-        {/* Block 1: Kinder */}
-        <GradeBlock 
-          grade="Kinder"
-          subjects={['Language', 'Reading and Literacy', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
-          emptyRows={7}
-        />
-
-        {/* Block 2: Grade 1 */}
+        {/* Grade 1 */}
         <GradeBlock 
           grade="Grade 1"
           subjects={['Filipino', 'English', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
           emptyRows={7}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 1'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
         />
 
-        {/* Block 3: Grade 2 */}
+        {/* Grade 2 */}
         <GradeBlock 
           grade="Grade 2"
           subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
           emptyRows={6}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 2'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
         />
 
-        {/* Block 4: Grade 3 */}
+      </div>
+
+      {/* ROW 2: Grade 3 | Grade 4 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+        
+        {/* Grade 3 */}
         <GradeBlock 
           grade="Grade 3"
           subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
           emptyRows={2}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 3'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
+        />
+
+        {/* Grade 4 */}
+        <GradeBlock 
+          grade="Grade 4"
+          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+          emptyRows={2}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 4'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
         />
 
       </div>
@@ -205,18 +344,108 @@ const SF10Form: React.FC = () => {
     <div style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '1px' }}></div>
 
     {/* PAGE 2 */}
-    <Page2 />
+    <Page2 student={student} subjects={subjects} isEditMode={isEditMode} onSubjectGradeChange={onSubjectGradeChange} />
     </div>
   );
 };
 
 // Reusable Grade Block Component
-const GradeBlock: React.FC<{ grade: string; subjects: string[]; emptyRows: number }> = ({ grade, subjects, emptyRows }) => {
+interface GradeBlockProps {
+  grade: string;
+  subjects: string[];
+  emptyRows: number;
+  studentData?: StudentData;
+  subjectGrades?: SF10SubjectData[];
+  isActive?: boolean;
+  isEditMode?: boolean;
+  onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+}
+
+// Helper to normalize grade level for comparison
+const normalizeGradeLevel = (gradeLevel: string | undefined): string => {
+  if (!gradeLevel) return '';
+  // Handle formats like "Grade 6", "6", "Grade6", "G6"
+  const normalized = gradeLevel.toLowerCase().replace(/\s/g, '');
+  if (normalized.startsWith('grade')) return normalized; // grade6
+  if (normalized.startsWith('g')) return 'grade' + normalized.slice(1); // g6 -> grade6
+  if (/^\d+$/.test(normalized)) return 'grade' + normalized; // 6 -> grade6
+  if (normalized === 'kinder' || normalized === 'kindergarten' || normalized === 'k') return 'kinder';
+  return normalized;
+};
+
+const GradeBlock: React.FC<GradeBlockProps> = ({ grade, subjects, emptyRows, studentData, subjectGrades = [], isActive = false, isEditMode = false, onSubjectGradeChange }) => {
+  // Filter grades for subjects in this grade level
+  const gradesMap = new Map<string, SF10SubjectData>();
+  subjectGrades.forEach(sg => {
+    gradesMap.set(sg.subjectName.toLowerCase(), sg);
+    gradesMap.set(sg.subjectCode.toLowerCase(), sg);
+  });
+
+  const getGradeForSubject = (subjectName: string) => {
+    const lowerName = subjectName.toLowerCase();
+    
+    // Try exact match first
+    const exactMatch = gradesMap.get(lowerName);
+    if (exactMatch) return exactMatch;
+    
+    // Try matching without spaces
+    const noSpaces = lowerName.replace(/\s/g, '');
+    const noSpacesMatch = gradesMap.get(noSpaces);
+    if (noSpacesMatch) return noSpacesMatch;
+    
+    // Try matching without parentheses content (e.g., "GMRC (Good Manners...)" -> "gmrc")
+    const withoutParens = lowerName.replace(/\s*\([^)]*\)/g, '').trim();
+    const noParensMatch = gradesMap.get(withoutParens);
+    if (noParensMatch) return noParensMatch;
+    
+    // Try matching with just the content inside parentheses
+    const parensMatch = lowerName.match(/\(([^)]+)\)/);
+    if (parensMatch) {
+      const insideParens = parensMatch[1].trim();
+      const insideMatch = gradesMap.get(insideParens);
+      if (insideMatch) return insideMatch;
+    }
+    
+    // Try partial/fuzzy matching - check if any key contains parts of the subject name
+    const entries = Array.from(gradesMap.entries());
+    
+    // Special handling for GMRC - expanded matching
+    if (lowerName.includes('gmrc')) {
+      const gmrcVariations = ['gmrc', 'good', 'manners', 'right', 'conduct', 'g.m.r.c'];
+      for (let i = 0; i < entries.length; i++) {
+        const [key, value] = entries[i];
+        // Check if key contains any GMRC-related term
+        if (gmrcVariations.some(v => key.includes(v))) {
+          return value;
+        }
+      }
+    }
+    
+    // General fuzzy matching for other subjects
+    const subjectWords = lowerName.replace(/[()]/g, '').split(/\s+/).filter(w => w.length > 3);
+    for (let i = 0; i < entries.length; i++) {
+      const [key, value] = entries[i];
+      // Check if key contains any significant word from the subject name
+      if (subjectWords.some(word => key.includes(word))) {
+        return value;
+      }
+    }
+    
+    return null;
+  };
+
+  // Check if this block is active based on normalized grade levels
+  const blockGrade = normalizeGradeLevel(grade);
+  const studentGrade = normalizeGradeLevel(studentData?.gradeLevel);
+  const isBlockActive = isActive || blockGrade === studentGrade;
+
   return (
-    <div>
+    <div style={{ opacity: isBlockActive ? 1 : 0.7 }}>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
         <span>School:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? 'PAPAYA ACADEMY INC.' : ''}
+        </span>
         <span>School ID:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '30px', height: '11px' }}></span>
       </div>
@@ -224,38 +453,115 @@ const GradeBlock: React.FC<{ grade: string; subjects: string[]; emptyRows: numbe
         <span>District:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
         <span>Division:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? 'Division of Rizal' : ''}
+        </span>
         <span>Region:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '25px', height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '25px', height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? 'IV-A' : ''}
+        </span>
       </div>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
         <span>Classified as Grade:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '20px', height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '20px', height: '11px', padding: '0 2px', textAlign: 'center' }}>
+          {isBlockActive ? studentData?.gradeLevel?.replace('Grade ', '') : ''}
+        </span>
         <span>Section:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? studentData?.section : ''}
+        </span>
         <span>School Year:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '50px', height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? studentData?.schoolYear : ''}
+        </span>
       </div>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '2px' }}>
         <span>Name of Adviser/Teacher:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? studentData?.adviserName : ''}
+        </span>
         <span>Signature:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
       </div>
       
-      <GradeTable subjects={subjects} emptyRows={emptyRows} />
+      <GradeTable subjects={subjects} emptyRows={emptyRows} subjectGrades={subjectGrades} isActive={isBlockActive} isEditMode={isEditMode} onSubjectGradeChange={onSubjectGradeChange} />
       <RemedialTable />
     </div>
   );
 };
 
 // Grade Table Component
-const GradeTable: React.FC<{ 
-  subjects: string[]; 
+interface GradeTableProps {
+  subjects: string[];
   emptyRows: number;
   hasMapehSub?: boolean;
   showZero?: boolean;
-}> = ({ subjects, emptyRows, hasMapehSub, showZero }) => {
+  subjectGrades?: SF10SubjectData[];
+  isActive?: boolean;
+  isEditMode?: boolean;
+  onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+}
+
+const GradeTable: React.FC<GradeTableProps> = ({ subjects, emptyRows, hasMapehSub, showZero, subjectGrades = [], isActive = false, isEditMode = false, onSubjectGradeChange }) => {
+  // Debug: Log all available subjects once
+  if (isActive && subjectGrades.length > 0) {
+    console.log('Available subjects in SF10:', subjectGrades.map(sg => ({ name: sg.subjectName, code: sg.subjectCode })));
+  }
+  
+  // Create a map for quick lookup
+  const gradesMap = new Map<string, SF10SubjectData>();
+  subjectGrades.forEach(sg => {
+    gradesMap.set(sg.subjectName.toLowerCase(), sg);
+    gradesMap.set(sg.subjectCode.toLowerCase(), sg);
+  });
+
+  // Debug logging
+  if (isActive) {
+    console.log('GradeTable - subjects prop:', subjects);
+    console.log('GradeTable - subjectGrades prop:', subjectGrades);
+    console.log('GradeTable - gradesMap:', Array.from(gradesMap.entries()));
+  }
+
+  const getGradeForSubject = (subjectName: string): SF10SubjectData | null => {
+    const lowerName = subjectName.toLowerCase();
+    let result = gradesMap.get(lowerName) || null;
+    
+    // If not found, try matching without closing parenthesis (handles truncated keys)
+    if (!result && lowerName.includes('(')) {
+      const withoutClosingParen = lowerName.replace(/\)/g, '');
+      result = gradesMap.get(withoutClosingParen) || null;
+    }
+    
+    // If still not found, try partial key matching
+    if (!result) {
+      const keys = Array.from(gradesMap.keys());
+      // Find key that starts with our search term (handles truncated keys)
+      const partialMatch = keys.find(key => key.startsWith(lowerName) || lowerName.startsWith(key));
+      if (partialMatch) {
+        result = gradesMap.get(partialMatch) || null;
+      }
+    }
+    
+    if (isActive) {
+      console.log(`Looking for subject "${subjectName}" (lowercase: "${lowerName}")`, result);
+    }
+    return result;
+  };
+
+  const formatGrade = (grade: number): string => {
+    if (!isActive || grade === 0 || grade === null || grade === undefined) return '';
+    return grade.toString();
+  };
+
+  // Calculate general average from available grades
+  const calculateGeneralAvg = (): string => {
+    if (!isActive) return '';
+    const allFinalRatings = subjects.map(s => getGradeForSubject(s)?.finalRating || 0).filter(g => g > 0);
+    if (allFinalRatings.length === 0) return '';
+    const avg = Math.round(allFinalRatings.reduce((a, b) => a + b, 0) / allFinalRatings.length);
+    return avg.toString();
+  };
+
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '6.5pt', tableLayout: 'fixed' }}>
       <thead>
@@ -297,23 +603,75 @@ const GradeTable: React.FC<{
         </tr>
       </thead>
       <tbody>
-        {subjects.map((subject, i) => (
-          <tr key={i}>
-            <td style={{ 
-              border: '1px solid #000', 
-              textAlign: 'left', 
-              paddingLeft: '3px',
-              fontSize: '6.5pt',
-              height: '12px'
-            }}>{subject}</td>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000' }}></td>
-            <td style={{ border: '1px solid #000' }}></td>
-          </tr>
-        ))}
+        {subjects.map((subject, i) => {
+          const gradeData = getGradeForSubject(subject);
+          // Find the index in subjectGrades array for this subject
+          const subjectIndex = subjectGrades.findIndex(sg => 
+            sg.subjectName.toLowerCase() === subject.toLowerCase() ||
+            sg.subjectCode.toLowerCase() === subject.toLowerCase()
+          );
+          return (
+            <tr key={i}>
+              <td style={{ 
+                border: '1px solid #000', 
+                textAlign: 'left', 
+                paddingLeft: '3px',
+                fontSize: '6.5pt',
+                height: '12px'
+              }}>{subject}</td>
+              <td style={{ border: '1px solid #000', textAlign: 'center' }}>
+                {isEditMode && isActive && subjectIndex >= 0 ? (
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={gradeData?.firstGrading || ''}
+                    onChange={(e) => onSubjectGradeChange?.(subjectIndex, 'firstGrading', parseFloat(e.target.value) || 0)}
+                    style={{ width: '90%', fontSize: '6.5pt', textAlign: 'center', border: '1px solid #2563EB', height: '14px' }}
+                  />
+                ) : formatGrade(gradeData?.firstGrading || 0)}
+              </td>
+              <td style={{ border: '1px solid #000', textAlign: 'center' }}>
+                {isEditMode && isActive && subjectIndex >= 0 ? (
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={gradeData?.secondGrading || ''}
+                    onChange={(e) => onSubjectGradeChange?.(subjectIndex, 'secondGrading', parseFloat(e.target.value) || 0)}
+                    style={{ width: '90%', fontSize: '6.5pt', textAlign: 'center', border: '1px solid #2563EB', height: '14px' }}
+                  />
+                ) : formatGrade(gradeData?.secondGrading || 0)}
+              </td>
+              <td style={{ border: '1px solid #000', textAlign: 'center' }}>
+                {isEditMode && isActive && subjectIndex >= 0 ? (
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={gradeData?.thirdGrading || ''}
+                    onChange={(e) => onSubjectGradeChange?.(subjectIndex, 'thirdGrading', parseFloat(e.target.value) || 0)}
+                    style={{ width: '90%', fontSize: '6.5pt', textAlign: 'center', border: '1px solid #2563EB', height: '14px' }}
+                  />
+                ) : formatGrade(gradeData?.thirdGrading || 0)}
+              </td>
+              <td style={{ border: '1px solid #000', textAlign: 'center' }}>
+                {isEditMode && isActive && subjectIndex >= 0 ? (
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={gradeData?.fourthGrading || ''}
+                    onChange={(e) => onSubjectGradeChange?.(subjectIndex, 'fourthGrading', parseFloat(e.target.value) || 0)}
+                    style={{ width: '90%', fontSize: '6.5pt', textAlign: 'center', border: '1px solid #2563EB', height: '14px' }}
+                  />
+                ) : formatGrade(gradeData?.fourthGrading || 0)}
+              </td>
+              <td style={{ border: '1px solid #000', textAlign: 'center', fontWeight: 'bold' }}>{formatGrade(gradeData?.finalRating || 0)}</td>
+              <td style={{ border: '1px solid #000', textAlign: 'center', fontSize: '6pt' }}>{isActive && gradeData?.finalRating ? (gradeData.finalRating >= 75 ? 'Passed' : 'Failed') : ''}</td>
+            </tr>
+          );
+        })}
         {Array.from({ length: emptyRows }).map((_, i) => (
           <tr key={`empty-${i}`}>
             <td style={{ border: '1px solid #000', height: '12px' }}></td>
@@ -355,7 +713,7 @@ const GradeTable: React.FC<{
           <td style={{ border: '1px solid #000' }}></td>
           <td style={{ border: '1px solid #000' }}></td>
           <td style={{ border: '1px solid #000' }}></td>
-          <td style={{ border: '1px solid #000', textAlign: 'center' }}>{showZero ? '0' : ''}</td>
+          <td style={{ border: '1px solid #000', textAlign: 'center', fontWeight: 'bold' }}>{calculateGeneralAvg()}</td>
           <td style={{ border: '1px solid #000' }}></td>
         </tr>
       </tbody>
@@ -410,7 +768,14 @@ const RemedialTable: React.FC = () => {
 };
 
 // PAGE 2 Component
-const Page2: React.FC = () => {
+interface Page2Props {
+  student?: StudentData;
+  subjects?: SF10SubjectData[];
+  isEditMode?: boolean;
+  onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+}
+
+const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = false, onSubjectGradeChange }) => {
   return (
     <div style={{ 
       width: '215mm', 
@@ -445,22 +810,40 @@ const Page2: React.FC = () => {
         SCHOLASTIC RECORD
       </div>
 
-      {/* ROW 1: Grade 4 (left) | Grade 5 (right) */}
+      {/* ROW 1: Grade 5 (left) | Grade 6 (right) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 6px', marginBottom: '4px' }}>
         
-        {/* Grade 4 */}
-        <Grade4Block />
-
         {/* Grade 5 */}
-        <Grade5Block />
+        <GradeBlock 
+          grade="Grade 5"
+          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+          emptyRows={2}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 5'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
+        />
+
+        {/* Grade 6 */}
+        <GradeBlock 
+          grade="Grade 6"
+          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+          emptyRows={2}
+          studentData={student}
+          subjectGrades={subjects}
+          isActive={student?.gradeLevel === 'Grade 6'}
+          isEditMode={isEditMode}
+          onSubjectGradeChange={onSubjectGradeChange}
+        />
 
       </div>
 
-      {/* ROW 2: Grade 6/blank (left) | Blank (right) */}
+      {/* ROW 2: Blank (left) | Blank (right) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 6px', marginBottom: '4px' }}>
         
-        {/* Grade 6 / blank */}
-        <Grade6Block />
+        {/* Blank left */}
+        <BlankGradeBlock />
 
         {/* Blank right */}
         <BlankGradeBlock />

@@ -7,6 +7,7 @@ import { ArrowLeft, Printer, Download, Loader2 } from 'lucide-react';
 import TeacherLayout from '../../components/TeacherLayout';
 import ReportCard from '@/components/ReportCard';
 import { toPng } from 'html-to-image';
+import { sortSubjectsByOrder } from '@/lib/subject-utils';
 
 // Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
@@ -186,12 +187,14 @@ export default function ReportCardViewerPage() {
 
   const subjects = useMemo(() => {
     if (!student) return [];
-    return Object.entries(student.grades).map(([subject, data]) => ({
+    const subjectsArray = Object.entries(student.grades).map(([subject, data]) => ({
       learningArea: subject,
       quarters: data.quarters,
       finalGrade: data.finalGrade,
       remarks: data.remarks,
     }));
+    // Sort subjects according to official DepEd order (grade-specific)
+    return sortSubjectsByOrder(subjectsArray, student.gradeLevel);
   }, [student]);
 
   const handlePrint = () => {
