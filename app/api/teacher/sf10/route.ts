@@ -96,69 +96,144 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get all students with SF10 records
-    const studentsSnapshot = await getDocs(collection(db, 'students'));
-    const sf10Records: Array<{
-      student: any;
-      sf10: SF10Record;
-      completionStatus: any;
-    }> = [];
+    const debugLogs: string[] = [];
+    
+    // Get teacher's subjects first (like the grades/all API does)
+    const subjectsQuery = query(
+      collection(db, 'subjects'),
+      where('teacherId', '==', teacherId),
+      where('schoolYear', '==', schoolYear)
+    );
+    
+    const teacherSubjectsQuery = query(
+      collection(db, 'teacherSubjects'),
+      where('teacherId', '==', teacherId),
+      where('schoolYear', '==', schoolYear)
+    );
+    
+    const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
+      getDocs(subjectsQuery),
+      getDocs(teacherSubjectsQuery)
+    ]);
+    
+    const subjects = subjectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      subjectId: doc.id,
+      ...doc.data()
+    }));
+    
+    const teacherSubjects = teacherSubjectsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
 
-    for (const studentDoc of studentsSnapshot.docs) {
-      const student = studentDoc.data() as StudentDocument;
-      
-      // Skip if no academic record for this school year
-      if (!student.academicRecords[schoolYear]) {
-        continue;
-      }
-
-      const yearRecord = student.academicRecords[schoolYear];
-      const sf10Record = yearRecord.sf10;
-
-      // Skip if no SF10 record
-      if (!sf10Record) {
-        continue;
-      }
-
-      // Apply filters
-      if (gradeLevel && yearRecord.gradeLevel !== gradeLevel) {
-        continue;
-      }
-
-      if (section && yearRecord.section !== section) {
-        continue;
-      }
-
-      // Only include students this teacher has grades for
-      // For testing, show all SF10 records regardless of teacher
-      const hasTeacherGrades = true; // Show all for now
-      
-      if (!hasTeacherGrades) {
-        continue;
-      }
-
-      sf10Records.push({
-        student: {
-          id: student.id,
-          lrn: student.lrn,
-          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-                `Student ${student.id}`,
-          gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
-          section: yearRecord.section || student.currentSection
-        },
-        sf10: sf10Record,
-        completionStatus: {
-          firstGrading: yearRecord?.grades?.first ? true : false,
-          secondGrading: yearRecord?.grades?.second ? true : false,
-          thirdGrading: yearRecord?.grades?.third ? true : false,
-          fourthGrading: yearRecord?.grades?.fourth ? true : false,
-          overall: yearRecord?.grades?.first && 
-                    yearRecord?.grades?.second && 
-                    yearRecord?.grades?.third && 
-                    yearRecord?.grades?.fourth
+    // Combine both collections and remove duplicates
+    const allTeacherSubjects = [...subjects, ...teacherSubjects];
+    const uniqueSubjects = Array.from(new Map(allTeacherSubjects.map(item => [
+      (item as any).subjectId || (item as any).id, 
+      item
+    ])).values());
+    
+    debugLogs.push(`Found ${uniqueSubjects.length} subjects for teacher ${teacherId}`);
+    
+    if (uniqueSubjects.length === 0) {
+      return NextResponse.json({
+        sf10Records: [],
+        totalRecords: 0,
+        schoolYear,
+        filters: { gradeLevel, section },
+        debug: {
+          source: 'grades',
+          logs: debugLogs
         }
       });
     }
+
+    // Get all grades for the teacher's assigned subjects
+    const gradesPromises = uniqueSubjects.map(async (ts: any) => {
+      const subjectId = ts.subjectId || ts.id;
+      const gradesQuery = query(
+        collection(db, 'grades'),
+        where('teacherId', '==', teacherId),
+        where('subjectId', '==', subjectId),
+        where('schoolYear', '==', schoolYear)
+      );
+      
+      const gradesSnapshot = await getDocs(gradesQuery);
+      return gradesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          studentId: data.studentId,
+          quarter: data.quarter,
+          ...data
+        };
+      });
+    });
+
+    const gradesArrays = await Promise.all(gradesPromises);
+    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = gradesArrays.flat();
+    
+    debugLogs.push(`Found ${allGrades.length} total grades`);
+    
+    // Create a map of students with grades
+    const studentsWithGrades = new Map();
+    
+    for (const grade of allGrades) {
+      const studentId = grade.studentId;
+      if (!studentId) continue;
+      
+      if (!studentsWithGrades.has(studentId)) {
+        // Get student details
+        const studentDoc = await getDoc(doc(db, 'students', studentId));
+        if (!studentDoc.exists()) continue;
+        
+        const student = studentDoc.data() as StudentDocument;
+        const yearRecord = student.academicRecords?.[schoolYear] || {};
+        
+        // Get all grades for this student to determine completion status
+        const studentGrades = allGrades.filter(g => g.studentId === studentId);
+        const quarters = studentGrades.map(g => g.quarter);
+        
+        // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
+        const studentName = (student.firstName || student.lastName) 
+          ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+          : (student as any).name || `Student ${studentId}`;
+        
+        studentsWithGrades.set(studentId, {
+          student: {
+            id: studentId,
+            lrn: student.lrn || '',
+            name: studentName,
+            gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
+            section: yearRecord.section || student.currentSection
+          },
+          sf10: yearRecord.sf10 || null,
+          completionStatus: {
+            firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
+            secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
+            thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
+            fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
+            overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
+          },
+          hasGrades: true
+        });
+        debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
+      }
+    }
+    
+    // Convert map to array and apply filters
+    let sf10Records = Array.from(studentsWithGrades.values());
+    
+    // Apply filters
+    if (gradeLevel) {
+      sf10Records = sf10Records.filter(r => r.student.gradeLevel === gradeLevel);
+    }
+    if (section) {
+      sf10Records = sf10Records.filter(r => r.student.section === section);
+    }
+    
+    debugLogs.push(`Final: ${sf10Records.length} students after filtering`);
 
     // Sort by student name
     sf10Records.sort((a, b) => a.student.name.localeCompare(b.student.name));
@@ -167,13 +242,20 @@ export async function GET(request: NextRequest) {
       sf10Records,
       totalRecords: sf10Records.length,
       schoolYear,
-      filters: { gradeLevel, section }
+      filters: { gradeLevel, section },
+      debug: {
+        source: 'grades',
+        gradesChecked: allGrades.length,
+        logs: debugLogs
+      }
     });
 
   } catch (error) {
     console.error('Error fetching SF10 records:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -221,8 +303,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if teacher has grades for this student
-    const hasTeacherGrades = Object.values(yearRecord.grades).some(periodGrades =>
-      Object.values(periodGrades).some(grade => grade.teacherId === teacherId)
+    const hasTeacherGrades = yearRecord.grades && Object.values(yearRecord.grades).some(periodGrades =>
+      periodGrades && Object.values(periodGrades).some(grade => grade.teacherId === teacherId)
     );
 
     if (!hasTeacherGrades) {
@@ -252,8 +334,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error generating SF10:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -295,8 +378,8 @@ export async function PATCH(request: NextRequest) {
       if (!yearRecord) continue;
 
       // Only count students this teacher has grades for
-      const hasTeacherGrades = Object.values(yearRecord.grades).some(periodGrades =>
-        Object.values(periodGrades).some(grade => grade.teacherId === teacherId)
+      const hasTeacherGrades = yearRecord.grades && Object.values(yearRecord.grades).some(periodGrades =>
+        periodGrades && Object.values(periodGrades).some(grade => grade.teacherId === teacherId)
       );
 
       if (!hasTeacherGrades) continue;

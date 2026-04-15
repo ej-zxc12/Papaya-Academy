@@ -33,9 +33,9 @@ export const gradeSubjectsConfig: GradeSubjects[] = [
     subjects: [
       { name: 'Language', code: 'LANG3' },
       { name: 'Filipino', code: 'FIL3' },
+      { name: 'Science', code: 'SCI3' },
       { name: 'Mathematics', code: 'MATH3' },
       { name: 'GMRC (Good Manners and Right Conduct)', code: 'GMRC3' },
-      { name: 'Science', code: 'SCI3' },
       { name: 'Makabansa', code: 'MAKAB3' }
     ]
   }
@@ -63,4 +63,63 @@ export const getAvailableGradeLevels = (): string[] => {
 export const isSubjectValidForGrade = (gradeLevel: string, subjectCode: string): boolean => {
   const subjects = getSubjectsForGrade(gradeLevel);
   return subjects.some(s => s.code === subjectCode);
+};
+
+// Grade-specific subject orders for report cards
+export const gradeSpecificSubjectOrders: Record<string, string[]> = {
+  'Grade 1': [
+    'Language',
+    'Reading and Literacy',
+    'Mathematics',
+    'GMRC (Good Manners and Right Conduct)',
+    'Makabansa'
+  ],
+  'Grade 2': [
+    'Language',
+    'Filipino',
+    'Mathematics',
+    'GMRC (Good Manners and Right Conduct)',
+    'Makabansa'
+  ],
+  'Grade 3': [
+    'Language',
+    'Filipino',
+    'Science',
+    'Mathematics',
+    'GMRC (Good Manners and Right Conduct)',
+    'Makabansa'
+  ]
+};
+
+// Official DepEd subject order for Grades 4-6
+export const grades4To6SubjectOrder = [
+  'Filipino',
+  'English',
+  'Mathematics',
+  'Science',
+  'GMRC (Good Manners and Right Conduct)',
+  'Araling Panlipunan',
+  'EPP',
+  'MAPEH',
+  'Music & Arts',
+  'Physical Education & Health'
+];
+
+/**
+ * Get the subject order for a specific grade level
+ * @param gradeLevel The grade level (e.g., 'Grade 1', 'Grade 4')
+ * @returns Array of subject names in order, or null if no specific order defined
+ */
+export const getSubjectOrderForGrade = (gradeLevel: string): string[] | null => {
+  // Check for grades 1-3 specific order
+  if (gradeSpecificSubjectOrders[gradeLevel]) {
+    return gradeSpecificSubjectOrders[gradeLevel];
+  }
+  
+  // For grades 4-6, use the standard order
+  if (['Grade 4', 'Grade 5', 'Grade 6'].includes(gradeLevel)) {
+    return grades4To6SubjectOrder;
+  }
+  
+  return null;
 };

@@ -28,7 +28,7 @@ const Footer = () => {
   return (
     <footer className="py-16 bg-papaya-green text-white overflow-hidden">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           
           {/* COLUMN 1: PAGES (Waterfall Animation) */}
           <div>
@@ -94,9 +94,28 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* COLUMN 2: NEWS (Waterfall Animation) */}
+          {/* COLUMN 2: BANKING DETAILS */}
           <div>
             <ScrollReveal animation="fade-down" delay={200}>
+              <h3 className="text-xl font-bold text-papaya-yellow mb-6">Banking Details</h3>
+            </ScrollReveal>
+            
+            <div className="space-y-3 text-white">
+              <ScrollReveal animation="fade-up" delay={300}>
+                <div className="text-white space-y-2">
+                  <p><span className="text-papaya-yellow font-medium">BANK NAME:</span> ChinaBank</p>
+                  <p><span className="text-papaya-yellow font-medium">ACCOUNT NAME:</span> Papaya Academy Inc.</p>
+                  <p><span className="text-papaya-yellow font-medium">ACCOUNT NUMBER:</span> 2390058618</p>
+                  <p><span className="text-papaya-yellow font-medium">SWIFT CODE:</span> CHBKPHMM</p>
+                  <p><span className="text-papaya-yellow font-medium">BRANCH:</span> 1139 Don Antonio Branch</p>
+                </div>
+              </ScrollReveal>
+            </div>
+          </div>
+
+          {/* COLUMN 3: NEWS (Waterfall Animation) */}
+          <div>
+            <ScrollReveal animation="fade-down" delay={400}>
               <h3 className="text-xl font-bold text-papaya-yellow mb-6">News</h3>
             </ScrollReveal>
             <ul className="space-y-3">
@@ -106,7 +125,7 @@ const Footer = () => {
                   <ScrollReveal 
                     key={`loading-${index}`} 
                     animation="slide-right" 
-                    delay={(index * 100) + 200}
+                    delay={(index * 100) + 400}
                   >
                     <li>
                       <div className="flex items-center text-white opacity-60">
@@ -122,7 +141,7 @@ const Footer = () => {
                   <ScrollReveal 
                     key={article.id} 
                     animation="slide-right" 
-                    delay={(index * 100) + 200}
+                    delay={(index * 100) + 400}
                   >
                     <li>
                       <Link 
@@ -137,7 +156,7 @@ const Footer = () => {
                 ))
               ) : (
                 // No news available
-                <ScrollReveal animation="slide-right" delay={200}>
+                <ScrollReveal animation="slide-right" delay={400}>
                   <li>
                     <div className="flex items-center text-white opacity-60">
                       <ArrowRight className="w-4 h-4 mr-2 text-papaya-yellow flex-shrink-0" />
@@ -149,18 +168,18 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* COLUMN 3: CONTACT (Sequential Fade Up) */}
+          {/* COLUMN 4: CONTACT (Sequential Fade Up) */}
           <div>
-            <ScrollReveal animation="fade-down" delay={400}>
+            <ScrollReveal animation="fade-down" delay={500}>
               <h3 className="text-xl font-bold text-papaya-yellow mb-6">Contact Us</h3>
             </ScrollReveal>
             
             <div className="space-y-3 text-white">
-              <ScrollReveal animation="fade-up" delay={500}>
+              <ScrollReveal animation="fade-up" delay={600}>
                 <p className="font-medium text-lg">Papaya Academy, Inc.</p>
               </ScrollReveal>
 
-              <ScrollReveal animation="fade-up" delay={600}>
+              <ScrollReveal animation="fade-up" delay={700}>
                 <a 
                   href="https://www.google.com/maps/place/14.7468083,121.134323" 
                   target="_blank" 
@@ -177,7 +196,7 @@ const Footer = () => {
                 </a>
               </ScrollReveal>
 
-              <ScrollReveal animation="fade-up" delay={700}>
+              <ScrollReveal animation="fade-up" delay={800}>
                 <p className="flex items-center">
                   <svg className="w-5 h-5 text-papaya-yellow mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -186,7 +205,7 @@ const Footer = () => {
                 </p>
               </ScrollReveal>
 
-              <ScrollReveal animation="fade-up" delay={800}>
+              <ScrollReveal animation="fade-up" delay={900}>
                 <p className="flex items-center">
                   <svg className="w-5 h-5 text-papaya-yellow mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -195,7 +214,7 @@ const Footer = () => {
                 </p>
               </ScrollReveal>
 
-              <ScrollReveal animation="fade-up" delay={900}>
+              <ScrollReveal animation="fade-up" delay={1000}>
                 <div className="pt-4">
                   <p className="text-sm font-medium text-papaya-yellow mb-2">Follow Us</p>
                   <div className="flex space-x-4">
@@ -236,7 +255,7 @@ const Footer = () => {
         {/* COPYRIGHT */}
         <ScrollReveal animation="fade-up" delay={1000}>
           <div className="mt-12 pt-8 border-t border-white border-opacity-20 text-center text-white text-opacity-80 text-sm">
-            <p>© {new Date().getFullYear()} Kalinga Foundation. All rights reserved.</p>
+            <p>  Kalinga Foundation. All rights reserved.</p>
           </div>
         </ScrollReveal>
       </div>

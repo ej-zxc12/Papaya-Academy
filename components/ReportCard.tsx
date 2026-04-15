@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { sortSubjectsByOrder } from '@/lib/subject-utils';
 
 interface ReportCardProps {
   // Student Information
@@ -494,6 +495,9 @@ export function formatStudentForReportCard(
     remarks: data.remarks,
   }));
 
+  // Sort subjects according to official DepEd order (grade-specific)
+  const sortedSubjects = sortSubjectsByOrder(subjects, student.gradeLevel);
+
   return {
     studentName: student.name,
     age: student.age?.toString() || '',
@@ -503,6 +507,6 @@ export function formatStudentForReportCard(
     lrn: student.lrn || student.id,
     schoolYear,
     trackStrand: '',
-    subjects,
+    subjects: sortedSubjects,
   };
 }

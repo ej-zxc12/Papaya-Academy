@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import GradeService from '@/lib/grade-service';
+import SF10NormalizedGenerator from '@/lib/sf10-normalized-generator';
 
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -106,9 +107,42 @@ export async function POST(request: NextRequest) {
 
     const results = await GradeService.saveGrades(gradeData);
 
+    // Auto-generate/update SF10 for affected students
+    const affectedStudents = new Set<string>();
+    gradeData.forEach(grade => affectedStudents.add(grade.studentId));
+    
+    const sf10Results: { studentId: string; success: boolean; error?: string }[] = [];
+    
+    // Generate SF10 for each affected student (async but don't block response)
+    for (const studentId of Array.from(affectedStudents)) {
+      try {
+        // Check if student exists and has academic record
+        const studentDoc = await getDoc(doc(db, 'students', studentId));
+        if (studentDoc.exists()) {
+          // Try to generate/update SF10
+          await SF10NormalizedGenerator.generateSF10(studentId, schoolYear);
+          sf10Results.push({ studentId, success: true });
+          console.log(`Auto-generated SF10 for student ${studentId}`);
+        }
+      } catch (sf10Error) {
+        console.error(`Failed to auto-generate SF10 for student ${studentId}:`, sf10Error);
+        sf10Results.push({ 
+          studentId, 
+          success: false, 
+          error: sf10Error instanceof Error ? sf10Error.message : 'Unknown error' 
+        });
+        // Don't fail the entire request if SF10 generation fails
+      }
+    }
+
     return NextResponse.json({
       message: 'Grades processed successfully',
-      results
+      results,
+      sf10Update: {
+        generated: sf10Results.filter(r => r.success).length,
+        failed: sf10Results.filter(r => !r.success).length,
+        details: sf10Results
+      }
     });
 
   } catch (error) {
