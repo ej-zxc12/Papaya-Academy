@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Xendit } from 'xendit-node';
+import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
+import { isValidEmail } from '@/lib/mailer';
 
 const xendit = new Xendit({ secretKey: process.env.XENDIT_SECRET_KEY! });
 
@@ -45,6 +48,11 @@ export async function POST(request: NextRequest) {
     // Input sanitization
     const sanitizedName = name ? name.trim().slice(0, 100) : '';
     const sanitizedEmail = email ? email.trim().toLowerCase().slice(0, 100) : '';
+    const emailIsValid = sanitizedEmail ? isValidEmail(sanitizedEmail) : false;
+
+    // Create donation doc ID upfront so we can use it as Xendit externalId
+    const donationRef = db.collection('donations').doc();
+    const donationId = donationRef.id;
     
     // Fetch real-time EUR to PHP rate (only needed for EUR donations)
     let eurToPhpRate = DEFAULT_EUR_TO_PHP_RATE;
@@ -68,13 +76,18 @@ export async function POST(request: NextRequest) {
     // USD: Process directly in USD (no conversion)
     // PHP: Process directly in PHP (no conversion)
     
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+      return NextResponse.json({ error: 'Server misconfigured: NEXT_PUBLIC_BASE_URL is missing' }, { status: 500 });
+    }
+
     invoiceData = {
       amount: finalAmount,
-      externalId: `papaya-${Date.now()}`,
+      externalId: donationId,
       currency: finalCurrency,
       description,
-      successRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/donate/success`,
-      failureRedirectUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/donate`,
+      successRedirectUrl: `${baseUrl}/donate/success?donationId=${encodeURIComponent(donationId)}`,
+      failureRedirectUrl: `${baseUrl}/donate`,
     };
 
     // Configure payment methods based on currency
@@ -119,16 +132,46 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    if (sanitizedEmail && sanitizedEmail.includes('@')) {
+    if (emailIsValid) {
       invoiceData.payerEmail = sanitizedEmail;
     }
+
+    // Store pending donation in Firestore (for analytics + fulfillment)
+    await donationRef.set({
+      status: 'pending',
+      donorName: sanitizedName,
+      donorEmail: sanitizedEmail,
+      donorEmailValid: emailIsValid,
+      requestedAmount: Number(amount),
+      requestedCurrency: String(currency),
+      payableAmount: Number(finalAmount),
+      payableCurrency: String(finalCurrency),
+      exchangeRateUsed: currency === 'EUR' ? Number(eurToPhpRate) : null,
+      xendit: {
+        externalId: donationId,
+        paymentMethods: invoiceData.paymentMethods ?? null,
+        metadata: invoiceData.metadata ?? null,
+      },
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     console.log('[Xendit] Creating invoice with data:', JSON.stringify(invoiceData, null, 2));
     
     const response = await Invoice.createInvoice({ data: invoiceData });
     console.log('[Xendit] Invoice created:', response);
+
+    await donationRef.update({
+      xendit: {
+        ...(invoiceData.xendit ?? {}),
+        externalId: donationId,
+        invoiceId: response?.id ?? null,
+        invoiceUrl: response?.invoiceUrl ?? null,
+      },
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
     
-    return NextResponse.json({ invoiceUrl: response.invoiceUrl });
+    return NextResponse.json({ invoiceUrl: response.invoiceUrl, donationId });
     
   } catch (error: any) {
     console.error('[Xendit] Error:', error?.message || error);

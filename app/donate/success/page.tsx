@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Heart, ArrowLeft, Download, Receipt } from 'lucide-react';
@@ -15,11 +15,48 @@ const montserrat = Montserrat({
 
 export default function DonationSuccessPage() {
   const searchParams = useSearchParams();
-  const amount = searchParams.get('amount') || '0';
-  const currency = searchParams.get('currency') || 'PHP';
-  const transactionId = searchParams.get('transactionId') || '';
+  const donationId = searchParams.get('donationId') || '';
 
-  const currencySymbol = currency === 'PHP' ? '₱' : currency === 'USD' ? '$' : '€';
+  const [status, setStatus] = useState<'paid' | 'pending' | 'unknown' | 'not_found'>('unknown');
+  const [paidAmount, setPaidAmount] = useState<number | null>(null);
+  const [paidCurrency, setPaidCurrency] = useState<'PHP' | 'USD' | 'EUR' | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchStatus = async () => {
+      if (!donationId) return;
+      try {
+        const res = await fetch(`/api/donate/status?donationId=${encodeURIComponent(donationId)}`);
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setStatus('unknown');
+          return;
+        }
+
+        setStatus((data.status as any) ?? 'unknown');
+        setPaidAmount(typeof data.paidAmount === 'number' ? data.paidAmount : null);
+        setPaidCurrency((data.paidCurrency as any) ?? null);
+      } catch {
+        if (cancelled) return;
+        setStatus('unknown');
+      }
+    };
+
+    fetchStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [donationId]);
+
+  const currencySymbol = useMemo(() => {
+    const c = paidCurrency ?? 'PHP';
+    return c === 'PHP' ? '₱' : c === 'USD' ? '$' : '€';
+  }, [paidCurrency]);
+
+  const amountDisplay = paidAmount !== null ? String(paidAmount) : '—';
 
   return (
     <main className={`min-h-screen flex flex-col bg-gray-50 ${montserrat.className}`}>
@@ -52,25 +89,37 @@ export default function DonationSuccessPage() {
               <div className="text-center mb-4">
                 <p className="text-sm text-slate-500 uppercase tracking-wider mb-1">Donation Amount</p>
                 <p className="text-4xl font-bold text-slate-800">
-                  {currencySymbol}{amount}
+                  {currencySymbol}{amountDisplay}
                 </p>
               </div>
               
               <div className="border-t border-slate-200 pt-4 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Transaction ID</span>
-                  <span className="text-slate-700 font-medium">{transactionId || 'N/A'}</span>
+                  <span className="text-slate-500">Donation ID</span>
+                  <span className="text-slate-700 font-medium">{donationId || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Currency</span>
-                  <span className="text-slate-700 font-medium">{currency}</span>
+                  <span className="text-slate-700 font-medium">{paidCurrency ?? 'PHP'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Status</span>
-                  <span className="text-emerald-600 font-medium flex items-center gap-1">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    Completed
-                  </span>
+                  {status === 'paid' ? (
+                    <span className="text-emerald-600 font-medium flex items-center gap-1">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                      Completed
+                    </span>
+                  ) : status === 'pending' ? (
+                    <span className="text-amber-600 font-medium flex items-center gap-1">
+                      <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                      Pending
+                    </span>
+                  ) : (
+                    <span className="text-slate-600 font-medium flex items-center gap-1">
+                      <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+                      Verifying
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
