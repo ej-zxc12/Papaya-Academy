@@ -159,6 +159,9 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Normalize section for duplicate check (treat null, undefined, and empty string as equivalent)
+        const normalizedSection = (section || '').trim();
+
         // Check if student already exists
         let existingStudent = null;
         for (const teacherIdToTry of teacherIdsToTry) {
@@ -167,13 +170,19 @@ export async function POST(request: NextRequest) {
             where('teacherId', '==', teacherIdToTry),
             where('name', '==', name.trim()),
             where('lrn', '==', lrn.trim()),
-            where('gradeLevel', '==', gradeLevel.trim()),
-            where('section', '==', section.trim())
+            where('gradeLevel', '==', gradeLevel.trim())
           );
           
           const existingSnapshot = await getDocs(existingQuery);
-          if (!existingSnapshot.empty) {
-            existingStudent = existingSnapshot.docs[0];
+          // Filter results to match section (treating null/undefined/empty as equivalent)
+          const matchingDoc = existingSnapshot.docs.find(doc => {
+            const data = doc.data();
+            const docSection = data.section || '';
+            return docSection === normalizedSection;
+          });
+          
+          if (matchingDoc) {
+            existingStudent = matchingDoc;
             break;
           }
         }

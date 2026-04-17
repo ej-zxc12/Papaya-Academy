@@ -286,22 +286,31 @@ export async function POST(request: NextRequest) {
 
     const studentsCollection = collection(db, 'students');
 
-    // Check if student already exists with same name, LRN, grade level, and section
+    // Normalize section for duplicate check (treat null, undefined, and empty string as equivalent)
+    const normalizedSection = section || '';
+
+    // Check if student already exists with same name, LRN, grade level
     // Look across ALL teachers to prevent duplicates
+    // Firestore 'in' query can have at most 10 values, so we use empty string to match null/undefined/empty
     const existingStudentQuery = query(
       studentsCollection,
       where('name', '==', name),
       where('lrn', '==', lrn),
-      where('gradeLevel', '==', gradeLevel),
-      where('section', '==', section)
+      where('gradeLevel', '==', gradeLevel)
     );
     
     const existingStudentSnapshot = await getDocs(existingStudentQuery);
     
-    if (!existingStudentSnapshot.empty) {
+    // Filter results to match section (treating null/undefined/empty as equivalent)
+    const matchingStudent = existingStudentSnapshot.docs.find(doc => {
+      const data = doc.data();
+      const docSection = data.section || '';
+      return docSection === normalizedSection;
+    });
+    
+    if (matchingStudent) {
       // Student exists (created by any teacher), update their subjects
-      const existingStudentDoc = existingStudentSnapshot.docs[0];
-      const existingStudentData = existingStudentDoc.data();
+      const existingStudentData = matchingStudent.data();
       const existingSubjectIds = existingStudentData.subjectIds || [];
       
       // Merge new subject IDs with existing ones (avoid duplicates)
@@ -314,7 +323,7 @@ export async function POST(request: NextRequest) {
         : [...existingTeachers, teacherId];
       
       await import('firebase/firestore').then(({ updateDoc, doc }) => {
-        return updateDoc(doc(db, 'students', existingStudentDoc.id), {
+        return updateDoc(doc(db, 'students', matchingStudent.id), {
           subjectIds: mergedSubjectIds,
           teacherIds: updatedTeachers,
           updatedAt: Timestamp.now()
@@ -322,7 +331,7 @@ export async function POST(request: NextRequest) {
       });
       
       const updatedStudent = {
-        id: existingStudentDoc.id,
+        id: matchingStudent.id,
         ...existingStudentData,
         subjectIds: mergedSubjectIds,
         teacherIds: updatedTeachers,
