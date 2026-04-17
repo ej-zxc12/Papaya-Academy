@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { WeeklyReport, Principal, ContributionSummary, ContributionQuota } from '@/types';
 import PrincipalLayout from '../components/PrincipalLayout';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { 
   FileText,
   MessageSquare,
@@ -32,6 +34,7 @@ export default function PrincipalDashboard() {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const router = useRouter();
 
+  // Subscribe to real reports from Firestore
   useEffect(() => {
     const session = localStorage.getItem('principalSession');
     if (!session) {
@@ -41,31 +44,60 @@ export default function PrincipalDashboard() {
 
     const principalData = JSON.parse(session);
     setPrincipal(principalData.principal);
-    loadReports();
-  }, [router]);
 
-  const loadReports = async () => {
-    try {
-      const [reportsRes, contributionsRes] = await Promise.all([
-        fetch('/api/principal/reports'),
-        fetch('/api/contributions/summary?year=2024')
-      ]);
+    // Subscribe to weekly reports from Firestore
+    const reportsQuery = query(
+      collection(db, 'weekly_reports'),
+      orderBy('createdAt', 'desc')
+    );
 
-      if (reportsRes.ok) {
-        const data = await reportsRes.json();
-        setReports(data);
-      }
-
-      if (contributionsRes.ok) {
-        const data = await contributionsRes.json();
-        setContributionSummary(data);
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    } finally {
+    const unsubscribe = onSnapshot(reportsQuery, (snapshot) => {
+      const reportsData: WeeklyReport[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const createdAt = data.createdAt?.toDate?.() ? data.createdAt.toDate() : new Date();
+        
+        // Calculate week period (Monday to Friday) from created date
+        const dayOfWeek = createdAt.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Days to subtract to get to Monday
+        const weekStart = new Date(createdAt);
+        weekStart.setDate(createdAt.getDate() + diffToMonday);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 4); // Friday
+        
+        reportsData.push({
+          id: doc.id,
+          teacherId: data.authorId || '',
+          teacherName: data.authorName || 'Unknown',
+          teacherDepartment: data.authorRole || '',
+          title: data.title || 'Weekly Report',
+          content: data.text || '',
+          weekStartDate: weekStart.toISOString().split('T')[0],
+          weekEndDate: weekEnd.toISOString().split('T')[0],
+          submittedAt: createdAt.toISOString(),
+          status: data.acknowledged ? 'reviewed' : 'pending',
+          attachments: data.attachments || [],
+          principalComments: data.comments || [],
+        } as WeeklyReport);
+      });
+      
+      setReports(reportsData);
       setIsLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error('Error fetching reports:', error);
+      setIsLoading(false);
+    });
+
+    // Load contributions summary for current year
+    const currentYear = new Date().getFullYear();
+    fetch(`/api/contributions/summary?year=${currentYear}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setContributionSummary(data))
+      .catch(err => console.error('Failed to load contributions:', err));
+
+    return () => unsubscribe();
+  }, [router]);
 
   const handleViewReport = (report: WeeklyReport) => {
     setSelectedReport(report);
@@ -160,50 +192,58 @@ export default function PrincipalDashboard() {
   return (
     <PrincipalLayout title="Dashboard" subtitle="Overview of weekly reports and contributions">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{reports.length}</p>
+                <p className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-2">Total Reports</p>
+                <p className="text-3xl font-bold text-gray-900">{reports.length}</p>
               </div>
-              <FileText className="w-8 h-8 text-purple-500" />
+              <div className="w-14 h-14 bg-purple-50 rounded-xl flex items-center justify-center">
+                <FileText className="w-7 h-7 text-purple-500" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-semibold text-yellow-600 uppercase tracking-wide mb-2">Pending</p>
+                <p className="text-3xl font-bold text-gray-900">
                   {reports.filter(r => r.status === 'pending').length}
                 </p>
               </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
+              <div className="w-14 h-14 bg-yellow-50 rounded-xl flex items-center justify-center">
+                <Clock className="w-7 h-7 text-yellow-500" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Contributions</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-semibold text-green-600 uppercase tracking-wide mb-2">Contributions</p>
+                <p className="text-3xl font-bold text-gray-900">
                   ₱{contributionSummary?.totalCollected?.toLocaleString() || '0'}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
+              <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center">
+                <DollarSign className="w-7 h-7 text-green-500" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Collection Rate</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide mb-2">Collection Rate</p>
+                <p className="text-3xl font-bold text-gray-900">
                   {contributionSummary?.collectionRate?.toFixed(1) || '0'}%
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-blue-500" />
+              <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-7 h-7 text-blue-500" />
+              </div>
             </div>
           </div>
         </div>
@@ -251,7 +291,7 @@ export default function PrincipalDashboard() {
                     Teacher
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Week Period
+                    Day
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Submitted
@@ -283,7 +323,7 @@ export default function PrincipalDashboard() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {new Date(report.weekStartDate).toLocaleDateString()} - {new Date(report.weekEndDate).toLocaleDateString()}
+                        {new Date(report.submittedAt).toLocaleDateString('en-US', { weekday: 'long' })}
                       </div>
                     </td>
                     <td className="px-6 py-4">

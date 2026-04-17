@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const teacherIdFromQuery = searchParams.get('teacherId');
     const teacherUidFromQuery = searchParams.get('teacherUid');
+    const scope = searchParams.get('scope'); // 'school' to get all subjects
     const teacherUid = getTeacherUid(request) || teacherUidFromQuery || teacherIdFromQuery;
 
     if (!teacherUid) {
@@ -125,6 +126,37 @@ export async function GET(request: NextRequest) {
     const subjectsCollection = collection(db, 'subjects');
     const teacherSubjectsCollection = collection(db, 'teacherSubjects');
     
+    // If scope is 'school', fetch ALL subjects (from all teachers)
+    if (scope === 'school') {
+      const [allSubjectsSnap, allTeacherSubjectsSnap] = await Promise.all([
+        getDocs(subjectsCollection),
+        getDocs(teacherSubjectsCollection),
+      ]);
+
+      const subjects = allSubjectsSnap.docs.map((docSnap) => {
+        const data = docSnap.data() as any;
+        const gradeLevels = Array.isArray(data.gradeLevels)
+          ? data.gradeLevels
+          : (typeof data.gradeLevel === 'string' && data.gradeLevel ? [data.gradeLevel] : []);
+        return {
+          id: docSnap.id,
+          ...data,
+          gradeLevels,
+          gradeLevel: gradeLevels[0] || data.gradeLevel,
+        } as Subject;
+      });
+
+      const teacherSubjects = allTeacherSubjectsSnap.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+        };
+      });
+
+      return NextResponse.json([...subjects, ...teacherSubjects]);
+    }
+
     // Prefer the canonical key teacherUid; fall back to teacherId for older data.
     const [byUidSnap, byIdSnap, teacherSubjectsByIdSnap, teacherSubjectsByUidSnap] = await Promise.all([
       getDocs(query(subjectsCollection, where('teacherUid', '==', teacherUid))),

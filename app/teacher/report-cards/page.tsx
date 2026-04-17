@@ -14,6 +14,8 @@ import {
   Filter
 } from 'lucide-react';
 import TeacherLayout from '../components/TeacherLayout';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 // Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
@@ -93,6 +95,28 @@ export default function ReportCardsPage() {
     setFilteredStudents(filtered);
   }, [searchTerm, selectedGradeLevel, selectedSection, students]);
 
+  // Real-time listener for ALL grades - updates when any teacher adds/updates grades
+  useEffect(() => {
+    if (!teacherData) return;
+    const teacherId = teacherData?.uid || teacherData?.id;
+    if (!teacherId || !schoolYear) return;
+
+    const gradesQuery = query(
+      collection(db, 'grades'),
+      where('schoolYear', '==', schoolYear)
+    );
+
+    const unsubscribe = onSnapshot(gradesQuery, async () => {
+      // Reload all student data when any grade changes
+      await loadStudents(teacherId);
+    }, (error) => {
+      console.error('Error listening to grades:', error);
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacherData, schoolYear]);
+
   const loadStudents = async (teacherId: string) => {
     try {
       setIsLoading(true);
@@ -107,7 +131,9 @@ export default function ReportCardsPage() {
 
       const studentsData: Student[] = await studentsResponse.json();
 
-      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}&schoolYear=${schoolYear}`, {
+      // Fetch ALL grades for ALL students in the school (from all teachers)
+      // This allows seeing grades entered by other teachers
+      const gradesResponse = await fetch(`/api/teacher/grades/student?studentId=all&schoolYear=${schoolYear}`, {
         headers: { 'Authorization': `Bearer ${teacherId}` }
       });
 
@@ -135,8 +161,8 @@ export default function ReportCardsPage() {
         });
       });
 
-      // Fetch subjects to get subject names
-      const subjectsResponse = await fetch('/api/teacher/subjects', {
+      // Fetch ALL subjects from ALL teachers to properly resolve subject names
+      const subjectsResponse = await fetch('/api/teacher/subjects?scope=school', {
         headers: { 'Authorization': `Bearer ${teacherId}` }
       });
       
