@@ -141,24 +141,49 @@ export async function GET(request: NextRequest) {
 
       const q = query(studentsCollection, ...baseConstraints);
       const querySnapshot = await getDocs(q);
-      const students = querySnapshot.docs.map((docSnap) => {
+      const studentMap = new Map<string, any>();
+      
+      querySnapshot.docs.forEach((docSnap) => {
         const data = docSnap.data();
-        return {
+        const student = {
           id: docSnap.id,
           name: data?.name || '',
           lrn: data?.lrn || '',
           gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-          section: data?.section || data?.currentSection,
+          section: data?.section || data?.currentSection || '',
           currentGradeLevel: data?.currentGradeLevel,
           currentSection: data?.currentSection,
           teacherId: data?.teacherId,
+          teacherIds: data?.teacherIds || [],
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
         };
+        
+        // Create a key for deduplication: LRN + name + gradeLevel + normalizedSection
+        const normalizedSection = student.section || '';
+        const dedupKey = `${student.lrn}|${student.name}|${student.gradeLevel}|${normalizedSection}`;
+        
+        if (studentMap.has(dedupKey)) {
+          // Merge with existing student - combine subjectIds and use the first (oldest) student ID
+          const existing = studentMap.get(dedupKey);
+          const mergedSubjectIds = Array.from(new Set([...existing.subjectIds, ...student.subjectIds]));
+          const mergedTeacherIds = Array.from(new Set([...existing.teacherIds, ...(student.teacherIds || [student.teacherId]).filter(Boolean)]));
+          
+          studentMap.set(dedupKey, {
+            ...existing,
+            subjectIds: mergedSubjectIds,
+            teacherIds: mergedTeacherIds,
+            // Keep the original ID and data
+          });
+        } else {
+          studentMap.set(dedupKey, student);
+        }
       });
+      
+      const students = Array.from(studentMap.values());
 
       return NextResponse.json(students);
     }
