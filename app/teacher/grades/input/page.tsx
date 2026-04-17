@@ -301,8 +301,8 @@ export default function GradeInput() {
     const loadSelectionData = async () => {
       if (!teacherId || !subjects || subjects.length === 0) return;
       try {
-        // For student management, load all students (not filtered by selected subject)
-        const studentsResponse = await fetch('/api/teacher/students', {
+        // For student management, load all students from ALL teachers in the school
+        const studentsResponse = await fetch('/api/teacher/students?scope=school', {
           headers: {
             'Authorization': `Bearer ${teacherId}`
           }
@@ -955,8 +955,8 @@ export default function GradeInput() {
       if (response.ok) {
         const result = await response.json();
         const studentsUrl = allowedGradeLevels.length > 0
-          ? `/api/teacher/students?${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
-          : '/api/teacher/students';
+          ? `/api/teacher/students?scope=school&${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
+          : '/api/teacher/students?scope=school';
 
         const refreshedStudentsResponse = await fetch(studentsUrl, {
           headers: {
@@ -1329,8 +1329,8 @@ export default function GradeInput() {
           : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
 
         const studentsUrl = allowedGradeLevels.length > 0
-          ? `/api/teacher/students?${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
-          : '/api/teacher/students';
+          ? `/api/teacher/students?scope=school&${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
+          : '/api/teacher/students?scope=school';
 
         const refreshedStudentsResponse = await fetch(studentsUrl, {
           headers: {

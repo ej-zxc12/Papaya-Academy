@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get('studentId');
     const schoolYear = searchParams.get('schoolYear') || '2024-2025';
 
+    // If studentId is 'all', fetch ALL grades for the school year (from all teachers)
+    // Otherwise, fetch grades for a specific student
+    let gradesQuery;
+    
     if (!studentId) {
       return NextResponse.json(
         { message: 'studentId is required' },
@@ -42,13 +46,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get ALL grades for this student - not just current teacher's subjects
-    // This is needed for SF10 which should show all grades regardless of who entered them
-    const gradesQuery = query(
-      collection(db, 'grades'),
-      where('studentId', '==', studentId),
-      where('schoolYear', '==', schoolYear)
-    );
+    if (studentId === 'all') {
+      // Get ALL grades for the school year - needed for report cards to show all teacher grades
+      gradesQuery = query(
+        collection(db, 'grades'),
+        where('schoolYear', '==', schoolYear)
+      );
+    } else {
+      // Get ALL grades for this specific student - not just current teacher's subjects
+      // This is needed for SF10 which should show all grades regardless of who entered them
+      gradesQuery = query(
+        collection(db, 'grades'),
+        where('studentId', '==', studentId),
+        where('schoolYear', '==', schoolYear)
+      );
+    }
     
     const gradesSnapshot = await getDocs(gradesQuery);
     const grades: any[] = gradesSnapshot.docs.map(doc => ({

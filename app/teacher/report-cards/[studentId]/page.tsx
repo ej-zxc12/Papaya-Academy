@@ -8,6 +8,8 @@ import TeacherLayout from '../../components/TeacherLayout';
 import ReportCard from '@/components/ReportCard';
 import { toPng } from 'html-to-image';
 import { sortSubjectsByOrder } from '@/lib/subject-utils';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
 // Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
@@ -84,11 +86,39 @@ export default function ReportCardViewerPage() {
     }
   }, [schoolYearFromQuery, schoolYear]);
 
+  // Real-time listener for grades - updates report card when any teacher adds/updates grades
+  useEffect(() => {
+    if (!studentId || !schoolYear) return;
+
+    const gradesQuery = query(
+      collection(db, 'grades'),
+      where('studentId', '==', studentId),
+      where('schoolYear', '==', schoolYear)
+    );
+
+    const unsubscribe = onSnapshot(gradesQuery, async (snapshot) => {
+      // When grades change, reload the student data
+      const session = localStorage.getItem('teacherSession');
+      if (session) {
+        const parsed = JSON.parse(session);
+        const teacherId = parsed.teacher?.uid || parsed.teacher?.id || parsed.uid || parsed.id;
+        if (teacherId) {
+          await loadStudent(teacherId);
+        }
+      }
+    }, (error) => {
+      console.error('Error listening to grades:', error);
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId, schoolYear]);
+
   const loadStudent = async (teacherId: string) => {
     try {
       setIsLoading(true);
 
-      const studentsResponse = await fetch('/api/teacher/students', {
+      const studentsResponse = await fetch('/api/teacher/students?scope=school', {
         headers: { Authorization: `Bearer ${teacherId}` },
       });
 
@@ -104,7 +134,8 @@ export default function ReportCardViewerPage() {
         return;
       }
 
-      const gradesResponse = await fetch(`/api/teacher/grades/all?teacherId=${teacherId}&schoolYear=${schoolYear}`, {
+      // Fetch ALL grades for this student from ALL teachers (not just current teacher)
+      const gradesResponse = await fetch(`/api/teacher/grades/student?studentId=${studentId}&schoolYear=${schoolYear}`, {
         headers: { Authorization: `Bearer ${teacherId}` },
       });
 
@@ -113,8 +144,8 @@ export default function ReportCardViewerPage() {
         gradesData = await gradesResponse.json();
       }
 
-      // Fetch subjects to get subject names
-      const subjectsResponse = await fetch('/api/teacher/subjects', {
+      // Fetch ALL subjects from ALL teachers to properly resolve subject names
+      const subjectsResponse = await fetch('/api/teacher/subjects?scope=school', {
         headers: { Authorization: `Bearer ${teacherId}` }
       });
       

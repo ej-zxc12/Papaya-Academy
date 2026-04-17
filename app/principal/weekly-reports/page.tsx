@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp, Trash2, AlertTriangle } from 'lucide-react';
 import { 
   collection, 
   query, 
@@ -62,6 +62,14 @@ export default function PrincipalWeeklyReportsPage() {
   const [showComments, setShowComments] = useState<{ [reportId: string]: boolean }>({});
   const [userImages, setUserImages] = useState<{ [userId: string]: string | null }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Batch delete state
+  const [batchDeleteYear, setBatchDeleteYear] = useState<string>(new Date().getFullYear().toString());
+  const [isBatchDeleteAvailable, setIsBatchDeleteAvailable] = useState(false);
+  const [batchDeleteAvailableDate, setBatchDeleteAvailableDate] = useState<string>('');
+  const [nextAvailableWindow, setNextAvailableWindow] = useState<{ start: string; end: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Calculate deadline (next Friday at 5 PM)
   const getNextDeadline = () => {
@@ -128,6 +136,39 @@ export default function PrincipalWeeklyReportsPage() {
 
     detectUser();
   }, [router]);
+
+  // Check batch delete availability
+  useEffect(() => {
+    const checkBatchDeleteAvailability = async () => {
+      const session = localStorage.getItem('principalSession');
+      if (!session) return;
+
+      const parsedSession = JSON.parse(session);
+      const principalData = parsedSession?.principal ?? parsedSession;
+      const principalId = principalData?.uid || principalData?.id;
+
+      try {
+        const response = await fetch('/api/principal/reports/batch-delete', {
+          headers: {
+            Authorization: `Bearer ${encodeURIComponent(principalId)}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsBatchDeleteAvailable(data.isAvailable);
+          setNextAvailableWindow(data.nextAvailableWindow);
+          if (data.isAvailable) {
+            setBatchDeleteAvailableDate(data.availableWindow || 'May 29 - June 30');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking batch delete availability:', error);
+      }
+    };
+
+    checkBatchDeleteAvailability();
+  }, []);
 
   // Subscribe to reports
   useEffect(() => {
@@ -357,6 +398,48 @@ export default function PrincipalWeeklyReportsPage() {
     }
   };
 
+  // Handle batch delete reports
+  const handleBatchDelete = async () => {
+    if (!isBatchDeleteAvailable || !batchDeleteYear) return;
+
+    setIsDeleting(true);
+    try {
+      const session = localStorage.getItem('principalSession');
+      if (!session) {
+        router.push('/principal/login');
+        return;
+      }
+
+      const parsedSession = JSON.parse(session);
+      const principalData = parsedSession?.principal ?? parsedSession;
+      const principalId = principalData?.uid || principalData?.id;
+
+      const response = await fetch('/api/principal/reports/batch-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${encodeURIComponent(principalId)}`,
+        },
+        body: JSON.stringify({ year: batchDeleteYear }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`Successfully deleted ${data.deleteCount} reports for year ${data.year}`);
+        setShowDeleteConfirm(false);
+      } else {
+        console.error('Batch delete error:', data);
+        alert(`Error: ${data.message || 'Failed to delete reports'}`);
+      }
+    } catch (error) {
+      console.error('Error batch deleting reports:', error);
+      alert('Failed to delete reports. Please check console for details.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Toggle comments visibility
   const toggleComments = (reportId: string) => {
     setShowComments(prev => ({ ...prev, [reportId]: !prev[reportId] }));
@@ -469,6 +552,106 @@ export default function PrincipalWeeklyReportsPage() {
               Click &quot;Mark as Read&quot; to acknowledge teacher reports. Teachers will see the acknowledgment status on their dashboard.
             </p>
           </div>
+
+          {/* Batch Delete Card - Only visible when available */}
+          {isBatchDeleteAvailable && (
+            <div className="bg-white rounded-xl shadow-sm border border-red-200 p-5">
+              <h2 className="text-sm font-semibold text-red-600 uppercase tracking-wider mb-4 border-b border-red-100 pb-3 flex items-center gap-2">
+                <Trash2 size={18} />
+                Batch Delete Reports
+              </h2>
+              <p className="text-sm text-gray-600 leading-relaxed bg-red-50 p-3 rounded-lg border border-red-100 mb-4">
+                <AlertTriangle size={16} className="inline mr-1 text-red-600" />
+                <strong>Warning:</strong> This will permanently delete all reports for the selected year. This action cannot be undone.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Year to Delete
+                  </label>
+                  <select
+                    value={batchDeleteYear}
+                    onChange={(e) => setBatchDeleteYear(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                  >
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const year = (new Date().getFullYear() - i).toString();
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex justify-center items-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Delete All Reports for {batchDeleteYear}
+                </button>
+              </div>
+
+              {/* Delete Confirmation Modal */}
+              {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-red-100 rounded-full">
+                        <AlertTriangle size={24} className="text-red-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Confirm Delete</h3>
+                    </div>
+                    <p className="text-gray-600 mb-6">
+                      Are you sure you want to delete <strong>all reports for {batchDeleteYear}</strong>? This action will permanently remove all reports and their comments for the entire year. This cannot be undone.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={isDeleting}
+                        className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleBatchDelete}
+                        disabled={isDeleting}
+                        className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm flex justify-center items-center gap-2 disabled:opacity-50"
+                      >
+                        {isDeleting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                            Deleting...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 size={16} />
+                            Yes, Delete All
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Batch Delete Not Available Notice */}
+          {!isBatchDeleteAvailable && nextAvailableWindow && (
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-200 pb-3 flex items-center gap-2">
+                <Trash2 size={18} />
+                Batch Delete Reports
+              </h2>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Batch delete is available annually from <strong>May 29 to June 30</strong>.
+                <br />
+                Next available window: <strong>{nextAvailableWindow.start} - {nextAvailableWindow.end}</strong>.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Reports Feed */}

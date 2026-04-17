@@ -287,9 +287,9 @@ export async function POST(request: NextRequest) {
     const studentsCollection = collection(db, 'students');
 
     // Check if student already exists with same name, LRN, grade level, and section
+    // Look across ALL teachers to prevent duplicates
     const existingStudentQuery = query(
       studentsCollection,
-      where('teacherId', '==', teacherId),
       where('name', '==', name),
       where('lrn', '==', lrn),
       where('gradeLevel', '==', gradeLevel),
@@ -299,7 +299,7 @@ export async function POST(request: NextRequest) {
     const existingStudentSnapshot = await getDocs(existingStudentQuery);
     
     if (!existingStudentSnapshot.empty) {
-      // Student exists, update their subjects
+      // Student exists (created by any teacher), update their subjects
       const existingStudentDoc = existingStudentSnapshot.docs[0];
       const existingStudentData = existingStudentDoc.data();
       const existingSubjectIds = existingStudentData.subjectIds || [];
@@ -307,10 +307,16 @@ export async function POST(request: NextRequest) {
       // Merge new subject IDs with existing ones (avoid duplicates)
       const mergedSubjectIds = Array.from(new Set([...existingSubjectIds, ...subjectIds]));
       
-      // Update the existing student
+      // Update the existing student - add the new teacher's ID to a teachers array if not present
+      const existingTeachers = existingStudentData.teacherIds || [existingStudentData.teacherId].filter(Boolean);
+      const updatedTeachers = existingTeachers.includes(teacherId) 
+        ? existingTeachers 
+        : [...existingTeachers, teacherId];
+      
       await import('firebase/firestore').then(({ updateDoc, doc }) => {
         return updateDoc(doc(db, 'students', existingStudentDoc.id), {
           subjectIds: mergedSubjectIds,
+          teacherIds: updatedTeachers,
           updatedAt: Timestamp.now()
         });
       });
@@ -319,6 +325,7 @@ export async function POST(request: NextRequest) {
         id: existingStudentDoc.id,
         ...existingStudentData,
         subjectIds: mergedSubjectIds,
+        teacherIds: updatedTeachers,
         updatedAt: new Date().toISOString()
       };
 
@@ -338,6 +345,7 @@ export async function POST(request: NextRequest) {
       currentGradeLevel: gradeLevel,
       currentSection: section,
       teacherId,
+      teacherIds: [teacherId], // Array of all teachers who have access to this student
       subjectIds, // Store all subject IDs in an array
       status: 'enrolled',
       createdAt: Timestamp.now(),

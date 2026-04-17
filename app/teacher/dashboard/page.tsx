@@ -105,8 +105,8 @@ export default function TeacherDashboard() {
           return;
         }
 
-        // Real-time: All students (school-wide scope for all teachers/principal)
-        const studentsQ = query(collection(db, 'students'));
+        // Real-time: Only students belonging to this teacher
+        const studentsQ = query(collection(db, 'students'), where('teacherId', '==', teacherId));
         const unsubStudents = onSnapshot(
           studentsQ,
           (snap) => {
