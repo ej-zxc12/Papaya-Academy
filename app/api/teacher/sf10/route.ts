@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     const schoolYear = searchParams.get('schoolYear') || '2024-2025';
     const gradeLevel = searchParams.get('gradeLevel');
     const section = searchParams.get('section');
+    const view = searchParams.get('view'); // 'cumulative' or 'single' (default)
 
     // Get teacher info to verify permissions
     const teacherDoc = await getDoc(doc(db, 'teachers', teacherId));
@@ -55,45 +56,106 @@ export async function GET(request: NextRequest) {
 
     // If specific student requested
     if (studentId) {
-      const studentDoc = await getDoc(doc(db, 'students', studentId));
-      if (!studentDoc.exists()) {
-        return NextResponse.json(
-          { message: 'Student not found' },
-          { status: 404 }
-        );
-      }
-
-      const student = studentDoc.data() as StudentDocument;
-      const sf10Record = student.academicRecords[schoolYear]?.sf10;
-
-      if (!sf10Record) {
-        return NextResponse.json(
-          { message: 'SF10 record not found for this school year' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        student: {
-          id: student.id,
-          lrn: student.lrn,
-          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-                `Student ${student.id}`,
-          gradeLevel: student.academicRecords[schoolYear]?.gradeLevel || student.currentGradeLevel,
-          section: student.academicRecords[schoolYear]?.section || student.currentSection
-        },
-        sf10: sf10Record,
-        completionStatus: {
-          firstGrading: student.academicRecords[schoolYear]?.grades?.first ? true : false,
-          secondGrading: student.academicRecords[schoolYear]?.grades?.second ? true : false,
-          thirdGrading: student.academicRecords[schoolYear]?.grades?.third ? true : false,
-          fourthGrading: student.academicRecords[schoolYear]?.grades?.fourth ? true : false,
-          overall: student.academicRecords[schoolYear]?.grades?.first && 
-                    student.academicRecords[schoolYear]?.grades?.second && 
-                    student.academicRecords[schoolYear]?.grades?.third && 
-                    student.academicRecords[schoolYear]?.grades?.fourth
+      try {
+        const studentDoc = await getDoc(doc(db, 'students', studentId));
+        if (!studentDoc.exists()) {
+          return NextResponse.json(
+            { message: 'Student not found' },
+            { status: 404 }
+          );
         }
-      });
+
+        const student = studentDoc.data() as StudentDocument;
+        
+        // If byYear view requested, return data grouped by school year for two-column layout
+        if (view === 'byYear') {
+          try {
+            const yearData = await SF10NormalizedGenerator.generateSF10ByYear(studentId);
+            
+            return NextResponse.json({
+              student: {
+                id: student.id || studentId,
+                lrn: student.lrn || '',
+                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                      `Student ${studentId}`,
+                gradeLevel: student.currentGradeLevel || 'Unknown',
+                section: student.currentSection || 'Default'
+              },
+              yearData,
+              view: 'byYear',
+              schoolYears: yearData.map(y => y.schoolYear)
+            });
+          } catch (byYearError) {
+            console.error('Error generating SF10 by year:', byYearError);
+            // Fall back to single year view if byYear fails
+          }
+        }
+        
+        // If cumulative view requested, generate merged SF10 from all years
+        if (view === 'cumulative') {
+          try {
+            const cumulativeSF10 = await SF10NormalizedGenerator.generateCumulativeSF10(studentId);
+            
+            return NextResponse.json({
+              student: {
+                id: student.id || studentId,
+                lrn: student.lrn || '',
+                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                      `Student ${studentId}`,
+                gradeLevel: student.currentGradeLevel || 'Unknown',
+                section: student.currentSection || 'Default'
+              },
+              sf10: cumulativeSF10,
+              view: 'cumulative',
+              schoolYears: cumulativeSF10.schoolYears
+            });
+          } catch (cumulativeError) {
+            console.error('Error generating cumulative SF10:', cumulativeError);
+            // Fall back to single year view if cumulative fails
+          }
+        }
+        
+        // Safely access academic records for single year view
+        const academicRecords = student.academicRecords || {};
+        const yearRecord = academicRecords[schoolYear] || {};
+        const sf10Record = yearRecord.sf10;
+
+        if (!sf10Record) {
+          return NextResponse.json(
+            { message: 'SF10 record not found for this school year' },
+            { status: 404 }
+          );
+        }
+
+        return NextResponse.json({
+          student: {
+            id: student.id || studentId,
+            lrn: student.lrn || '',
+            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                  `Student ${studentId}`,
+            gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel || 'Unknown',
+            section: yearRecord.section || student.currentSection || 'Default'
+          },
+          sf10: sf10Record,
+          view: 'single',
+          completionStatus: {
+            firstGrading: yearRecord.grades?.first ? true : false,
+            secondGrading: yearRecord.grades?.second ? true : false,
+            thirdGrading: yearRecord.grades?.third ? true : false,
+            fourthGrading: yearRecord.grades?.fourth ? true : false,
+            overall: yearRecord.grades?.first && 
+                      yearRecord.grades?.second && 
+                      yearRecord.grades?.third && 
+                      yearRecord.grades?.fourth
+          }
+        });
+      } catch (studentError) {
+        console.error('Error fetching student SF10:', studentError);
+        return NextResponse.json(
+          { message: 'Error fetching student record', error: studentError instanceof Error ? studentError.message : String(studentError) },
+          { status: 500 }
+        );
+      }
     }
 
     const debugLogs: string[] = [];

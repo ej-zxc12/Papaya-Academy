@@ -135,6 +135,9 @@ export interface GradeInput {
   remarks?: string;
   teacherId: string;
   dateInput: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
 }
 
 export interface ReportCardGrade {

@@ -26,6 +26,14 @@ interface StudentData {
   adviserName?: string;
 }
 
+interface YearData {
+  schoolYear: string;
+  gradeLevel: string;
+  section: string;
+  subjects: SF10SubjectData[];
+  generalAverage: number;
+}
+
 interface SF10FormProps {
   student?: StudentData;
   subjects?: SF10SubjectData[];
@@ -34,6 +42,9 @@ interface SF10FormProps {
   isEditMode?: boolean;
   onStudentFieldChange?: (field: string, value: string) => void;
   onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+  // New props for byYear view
+  yearData?: YearData[];
+  viewMode?: 'single' | 'byYear';
 }
 
 const SF10Form: React.FC<SF10FormProps> = ({ 
@@ -43,7 +54,9 @@ const SF10Form: React.FC<SF10FormProps> = ({
   status = 'promoted',
   isEditMode = false,
   onStudentFieldChange,
-  onSubjectGradeChange
+  onSubjectGradeChange,
+  yearData = [],
+  viewMode = 'single'
 }) => {
   return (
     <div>
@@ -276,64 +289,138 @@ const SF10Form: React.FC<SF10FormProps> = ({
         SCHOLASTIC RECORD
       </div>
 
-      {/* GRADE BLOCKS - 2x2 Grid */}
-      {/* ROW 1: Grade 1 | Grade 2 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '4px' }}>
-        
-        {/* Grade 1 */}
-        <GradeBlock 
-          grade="Grade 1"
-          subjects={['Filipino', 'English', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
-          emptyRows={7}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 1'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+      {/* GRADE BLOCKS - Render dynamically based on viewMode */}
+      {viewMode === 'byYear' && yearData.length > 0 ? (
+        // Render from yearData in 2x2 grid like Page 2 format
+        <>
+          {/* ROW 1: First two years (Grade 1 | Grade 2) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '4px' }}>
+            {yearData[0] && (
+              <GradeBlock 
+                grade={yearData[0].gradeLevel}
+                schoolYear={yearData[0].schoolYear}
+                section={yearData[0].section}
+                subjects={yearData[0].subjects.map(s => s.subjectName)}
+                emptyRows={Math.max(0, 12 - yearData[0].subjects.length)}
+                studentData={student}
+                subjectGrades={yearData[0].subjects}
+                forceActive={true}
+                isEditMode={isEditMode}
+                onSubjectGradeChange={onSubjectGradeChange}
+              />
+            )}
+            {yearData[1] && (
+              <GradeBlock 
+                grade={yearData[1].gradeLevel}
+                schoolYear={yearData[1].schoolYear}
+                section={yearData[1].section}
+                subjects={yearData[1].subjects.map(s => s.subjectName)}
+                emptyRows={Math.max(0, 12 - yearData[1].subjects.length)}
+                studentData={student}
+                subjectGrades={yearData[1].subjects}
+                forceActive={true}
+                isEditMode={isEditMode}
+                onSubjectGradeChange={onSubjectGradeChange}
+              />
+            )}
+          </div>
 
-        {/* Grade 2 */}
-        <GradeBlock 
-          grade="Grade 2"
-          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
-          emptyRows={6}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 2'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+          {/* ROW 2: Next two years (Grade 3 | Grade 4) */}
+          {yearData.length > 2 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+              {yearData[2] && (
+                <GradeBlock 
+                  grade={yearData[2].gradeLevel}
+                  schoolYear={yearData[2].schoolYear}
+                  section={yearData[2].section}
+                  subjects={yearData[2].subjects.map(s => s.subjectName)}
+                  emptyRows={Math.max(0, 12 - yearData[2].subjects.length)}
+                  studentData={student}
+                  subjectGrades={yearData[2].subjects}
+                  forceActive={true}
+                  isEditMode={isEditMode}
+                  onSubjectGradeChange={onSubjectGradeChange}
+                />
+              )}
+              {yearData[3] && (
+                <GradeBlock 
+                  grade={yearData[3].gradeLevel}
+                  schoolYear={yearData[3].schoolYear}
+                  section={yearData[3].section}
+                  subjects={yearData[3].subjects.map(s => s.subjectName)}
+                  emptyRows={Math.max(0, 12 - yearData[3].subjects.length)}
+                  studentData={student}
+                  subjectGrades={yearData[3].subjects}
+                  forceActive={true}
+                  isEditMode={isEditMode}
+                  onSubjectGradeChange={onSubjectGradeChange}
+                />
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        // Default: Render hardcoded grade blocks
+        <>
+          {/* ROW 1: Grade 1 | Grade 2 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', marginBottom: '4px' }}>
+            
+            {/* Grade 1 */}
+            <GradeBlock 
+              grade="Grade 1"
+              subjects={['Filipino', 'English', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+              emptyRows={7}
+              studentData={student}
+              subjectGrades={subjects}
+              isActive={student?.gradeLevel === 'Grade 1'}
+              isEditMode={isEditMode}
+              onSubjectGradeChange={onSubjectGradeChange}
+            />
 
-      </div>
+            {/* Grade 2 */}
+            <GradeBlock 
+              grade="Grade 2"
+              subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+              emptyRows={6}
+              studentData={student}
+              subjectGrades={subjects}
+              isActive={student?.gradeLevel === 'Grade 2'}
+              isEditMode={isEditMode}
+              onSubjectGradeChange={onSubjectGradeChange}
+            />
 
-      {/* ROW 2: Grade 3 | Grade 4 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
-        
-        {/* Grade 3 */}
-        <GradeBlock 
-          grade="Grade 3"
-          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-          emptyRows={2}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 3'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+          </div>
 
-        {/* Grade 4 */}
-        <GradeBlock 
-          grade="Grade 4"
-          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-          emptyRows={2}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 4'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+          {/* ROW 2: Grade 3 | Grade 4 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+            
+            {/* Grade 3 */}
+            <GradeBlock 
+              grade="Grade 3"
+              subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+              emptyRows={2}
+              studentData={student}
+              subjectGrades={subjects}
+              isActive={student?.gradeLevel === 'Grade 3'}
+              isEditMode={isEditMode}
+              onSubjectGradeChange={onSubjectGradeChange}
+            />
 
-      </div>
+            {/* Grade 4 */}
+            <GradeBlock 
+              grade="Grade 4"
+              subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+              emptyRows={2}
+              studentData={student}
+              subjectGrades={subjects}
+              isActive={student?.gradeLevel === 'Grade 4'}
+              isEditMode={isEditMode}
+              onSubjectGradeChange={onSubjectGradeChange}
+            />
+
+          </div>
+        </>
+      )}
 
       <div style={{ fontSize: '6pt', fontStyle: 'italic', textAlign: 'right', marginTop: '4px' }}>
         Revised 2025 based on DepEd Order No. 10, s. 2024
@@ -344,7 +431,14 @@ const SF10Form: React.FC<SF10FormProps> = ({
     <div style={{ pageBreakAfter: 'always', breakAfter: 'page', height: '1px' }}></div>
 
     {/* PAGE 2 */}
-    <Page2 student={student} subjects={subjects} isEditMode={isEditMode} onSubjectGradeChange={onSubjectGradeChange} />
+    <Page2 
+      student={student} 
+      subjects={subjects} 
+      isEditMode={isEditMode} 
+      onSubjectGradeChange={onSubjectGradeChange}
+      yearData={yearData}
+      viewMode={viewMode}
+    />
     </div>
   );
 };
@@ -359,6 +453,10 @@ interface GradeBlockProps {
   isActive?: boolean;
   isEditMode?: boolean;
   onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+  // New props for byYear view
+  schoolYear?: string;
+  section?: string;
+  forceActive?: boolean; // When true, always show data regardless of grade match
 }
 
 // Helper to normalize grade level for comparison
@@ -373,7 +471,19 @@ const normalizeGradeLevel = (gradeLevel: string | undefined): string => {
   return normalized;
 };
 
-const GradeBlock: React.FC<GradeBlockProps> = ({ grade, subjects, emptyRows, studentData, subjectGrades = [], isActive = false, isEditMode = false, onSubjectGradeChange }) => {
+const GradeBlock: React.FC<GradeBlockProps> = ({ 
+  grade, 
+  subjects, 
+  emptyRows, 
+  studentData, 
+  subjectGrades = [], 
+  isActive = false, 
+  isEditMode = false, 
+  onSubjectGradeChange,
+  schoolYear,
+  section,
+  forceActive = false
+}) => {
   // Filter grades for subjects in this grade level
   const gradesMap = new Map<string, SF10SubjectData>();
   subjectGrades.forEach(sg => {
@@ -437,7 +547,12 @@ const GradeBlock: React.FC<GradeBlockProps> = ({ grade, subjects, emptyRows, stu
   // Check if this block is active based on normalized grade levels
   const blockGrade = normalizeGradeLevel(grade);
   const studentGrade = normalizeGradeLevel(studentData?.gradeLevel);
-  const isBlockActive = isActive || blockGrade === studentGrade;
+  const isBlockActive = forceActive || isActive || blockGrade === studentGrade;
+  
+  // Use year-specific data if provided, otherwise fall back to studentData
+  const displayGradeLevel = schoolYear ? grade : (studentData?.gradeLevel || '');
+  const displaySection = section || studentData?.section || '';
+  const displaySchoolYear = schoolYear || studentData?.schoolYear || '';
 
   return (
     <div style={{ opacity: isBlockActive ? 1 : 0.7 }}>
@@ -464,15 +579,15 @@ const GradeBlock: React.FC<GradeBlockProps> = ({ grade, subjects, emptyRows, stu
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
         <span>Classified as Grade:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '20px', height: '11px', padding: '0 2px', textAlign: 'center' }}>
-          {isBlockActive ? studentData?.gradeLevel?.replace('Grade ', '') : ''}
+          {isBlockActive ? displayGradeLevel?.replace('Grade ', '') : ''}
         </span>
         <span>Section:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
-          {isBlockActive ? studentData?.section : ''}
+          {isBlockActive ? displaySection : ''}
         </span>
         <span>School Year:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '50px', height: '11px', padding: '0 2px' }}>
-          {isBlockActive ? studentData?.schoolYear : ''}
+          {isBlockActive ? displaySchoolYear : ''}
         </span>
       </div>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '2px' }}>
@@ -773,9 +888,11 @@ interface Page2Props {
   subjects?: SF10SubjectData[];
   isEditMode?: boolean;
   onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+  yearData?: YearData[];
+  viewMode?: 'single' | 'byYear';
 }
 
-const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = false, onSubjectGradeChange }) => {
+const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = false, onSubjectGradeChange, yearData = [], viewMode = 'single' }) => {
   return (
     <div style={{ 
       width: '215mm', 
@@ -813,29 +930,59 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
       {/* ROW 1: Grade 5 (left) | Grade 6 (right) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 6px', marginBottom: '4px' }}>
         
-        {/* Grade 5 */}
-        <GradeBlock 
-          grade="Grade 5"
-          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-          emptyRows={2}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 5'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+        {/* Grade 5 - Use yearData[4] when in byYear mode */}
+        {viewMode === 'byYear' && yearData[4] ? (
+          <GradeBlock 
+            grade={yearData[4].gradeLevel}
+            schoolYear={yearData[4].schoolYear}
+            section={yearData[4].section}
+            subjects={yearData[4].subjects.map(s => s.subjectName)}
+            emptyRows={Math.max(0, 12 - yearData[4].subjects.length)}
+            studentData={student}
+            subjectGrades={yearData[4].subjects}
+            forceActive={true}
+            isEditMode={isEditMode}
+            onSubjectGradeChange={onSubjectGradeChange}
+          />
+        ) : (
+          <GradeBlock 
+            grade="Grade 5"
+            subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+            emptyRows={2}
+            studentData={student}
+            subjectGrades={subjects}
+            isActive={student?.gradeLevel === 'Grade 5'}
+            isEditMode={isEditMode}
+            onSubjectGradeChange={onSubjectGradeChange}
+          />
+        )}
 
-        {/* Grade 6 */}
-        <GradeBlock 
-          grade="Grade 6"
-          subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-          emptyRows={2}
-          studentData={student}
-          subjectGrades={subjects}
-          isActive={student?.gradeLevel === 'Grade 6'}
-          isEditMode={isEditMode}
-          onSubjectGradeChange={onSubjectGradeChange}
-        />
+        {/* Grade 6 - Use yearData[5] when in byYear mode */}
+        {viewMode === 'byYear' && yearData[5] ? (
+          <GradeBlock 
+            grade={yearData[5].gradeLevel}
+            schoolYear={yearData[5].schoolYear}
+            section={yearData[5].section}
+            subjects={yearData[5].subjects.map(s => s.subjectName)}
+            emptyRows={Math.max(0, 12 - yearData[5].subjects.length)}
+            studentData={student}
+            subjectGrades={yearData[5].subjects}
+            forceActive={true}
+            isEditMode={isEditMode}
+            onSubjectGradeChange={onSubjectGradeChange}
+          />
+        ) : (
+          <GradeBlock 
+            grade="Grade 6"
+            subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
+            emptyRows={2}
+            studentData={student}
+            subjectGrades={subjects}
+            isActive={student?.gradeLevel === 'Grade 6'}
+            isEditMode={isEditMode}
+            onSubjectGradeChange={onSubjectGradeChange}
+          />
+        )}
 
       </div>
 

@@ -318,7 +318,8 @@ export default function GradeInput() {
         // Only load grades for the selected subject
         setIsEditingUnlocked(false);
         if (selectedSubject) {
-          await loadExistingGrades(teacherId, selectedSubject, selectedGradingPeriod);
+          const subjectObj = subjects.find(s => s.id === selectedSubject);
+          await loadExistingGrades(teacherId, selectedSubject, selectedGradingPeriod, subjectObj?.schoolYear);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -620,7 +621,7 @@ export default function GradeInput() {
     loadSections();
   }, [teacherId]);
 
-  const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string) => {
+  const loadExistingGrades = async (teacherId: string, subjectId: string, gradingPeriod: string, schoolYear?: string) => {
     try {
       // Only cache current grades if we're SWITCHING to a different subject/period
       // Don't cache on initial load when grades are empty
@@ -655,7 +656,7 @@ export default function GradeInput() {
         fetch(`/api/teacher/students?scope=school${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, {
           headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
         }),
-        fetch(`/api/teacher/grades?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(subjectId)}&gradingPeriod=${encodeURIComponent(gradingPeriod)}`, {
+        fetch(`/api/teacher/grades?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(subjectId)}&gradingPeriod=${encodeURIComponent(gradingPeriod)}${schoolYear ? `&schoolYear=${encodeURIComponent(schoolYear)}` : ''}`, {
           headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
         }),
       ]);
@@ -946,7 +947,7 @@ export default function GradeInput() {
         body: JSON.stringify({
           name: newStudent.name.trim(),
           lrn: newStudent.lrn.trim(),
-          gradeLevel: newStudent.gradeLevel,
+          gradeLevel: targetGradeLevel,
           section: selectedSection,
           subjectIds: studentSubjectId // Send all selected subject IDs
         })
@@ -968,15 +969,15 @@ export default function GradeInput() {
           const refreshedStudents = await refreshedStudentsResponse.json();
           setAllStudents(refreshedStudents);
         }
-        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '' });
-        setSelectedSection('');
-        setShowAddStudent(false);
         const subjectNames = studentSubjectId.map(id => {
           const subject = subjects?.find(s => s.id === id);
           return subject?.name && subject?.code ? `${subject.name} (${subject.code})` : 'Unknown Subject';
         }).join(', ');
         
-        setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${newStudent.gradeLevel})` });
+        setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${targetGradeLevel})` });
+        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '' });
+        setSelectedSection('');
+        setShowAddStudent(false);
       } else {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.message || 'Failed to add student' });
@@ -1083,6 +1084,9 @@ export default function GradeInput() {
       const t = teacherData?.teacher ?? teacherData;
       const teacherUid = t?.uid || t?.id || '';
 
+      // Get the school year from the selected subject
+      const schoolYear = selectedSubjectObj?.schoolYear || '2024-2025';
+      
       const gradeData: GradeInput[] = students.map(student => ({
         studentId: student.id,
         subjectId: selectedSubject,
@@ -1092,6 +1096,7 @@ export default function GradeInput() {
         teacherId: teacherUid,
         gradeLevel: student.gradeLevel || 'Unknown',
         section: student.section || 'Default', // Use student's actual section
+        schoolYear: selectedSubjectObj?.schoolYear || '2024-2025', // Include school year from subject
         dateInput: new Date().toISOString()
       }));
 
@@ -1117,7 +1122,7 @@ export default function GradeInput() {
         
         // Reload grades to ensure they persist after save
         if (selectedSubject) {
-          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod);
+          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod, selectedSubjectObj?.schoolYear);
         }
       } else {
         const errorData = await response.json();

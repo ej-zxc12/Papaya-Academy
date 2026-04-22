@@ -75,17 +75,57 @@ export default function SF10List() {
   // UI Interaction States
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isBtnHovered, setIsBtnHovered] = useState(false);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
+  const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
+
+  // Load subjects first to get the correct school year
+  useEffect(() => {
+    const loadSubjects = async () => {
+      const session = localStorage.getItem('teacherSession');
+      if (!session) return;
+      
+      const teacherData = JSON.parse(session);
+      const teacherId = teacherData?.teacher?.id || teacherData?.teacher?.uid || teacherData?.id;
+      
+      try {
+        const response = await fetch('/api/teacher/subjects', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+        
+        if (response.ok) {
+          const subjectsData = await response.json();
+          setSubjects(subjectsData);
+          
+          // Get unique school years from subjects
+          const schoolYears = Array.from(new Set(subjectsData.map((s: any) => s.schoolYear).filter(Boolean))) as string[];
+          setAvailableSchoolYears(schoolYears);
+          
+          if (schoolYears.length > 0 && !selectedSchoolYear) {
+            setSelectedSchoolYear(schoolYears[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading subjects:', error);
+      }
+    };
+    
+    loadSubjects();
+  }, [selectedSchoolYear]);
 
   useEffect(() => {
-    fetchSF10Records();
-  }, []);
+    if (selectedSchoolYear) {
+      fetchSF10Records(selectedSchoolYear);
+    }
+  }, [selectedSchoolYear]);
 
-  const fetchSF10Records = async () => {
+  const fetchSF10Records = async (schoolYear?: string) => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/teacher/sf10');
+      const url = schoolYear ? `/api/teacher/sf10?schoolYear=${encodeURIComponent(schoolYear)}` : '/api/teacher/sf10';
+      const response = await fetch(url);
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -149,8 +189,54 @@ export default function SF10List() {
     setSelectedSF10(record);
     setIsViewModalOpen(true);
     
-    // Fetch grades for this student
-    await fetchStudentGrades(record.student.id, record.sf10?.schoolYear || '2024-2025');
+    // Fetch grades by year for two-column layout
+    await fetchStudentGradesByYear(record.student.id);
+  };
+
+  const [yearData, setYearData] = useState<any[]>([]);
+  const [sf10ViewMode, setSf10ViewMode] = useState<'single' | 'byYear'>('byYear');
+
+  const fetchStudentGradesByYear = async (studentId: string) => {
+    try {
+      setIsLoadingGrades(true);
+      
+      const session = localStorage.getItem('teacherSession');
+      const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
+      
+      // Fetch SF10 data by year for two-column layout
+      const response = await fetch(`/api/teacher/sf10?studentId=${studentId}&view=byYear`, {
+        headers: { Authorization: `Bearer ${teacherId}` },
+      });
+      
+      if (!response.ok) {
+        // Fall back to single year view if byYear fails
+        console.log('ByYear view failed, falling back to single year');
+        await fetchStudentGrades(studentId, selectedSchoolYear || '2024-2025');
+        setSf10ViewMode('single');
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('ByYear SF10 data:', data);
+      
+      if (data.yearData && data.yearData.length > 0) {
+        setYearData(data.yearData);
+        setSf10ViewMode('byYear');
+        // For backward compatibility, also set viewStudentGrades with first year's subjects
+        setViewStudentGrades(data.yearData[0]?.subjects || []);
+      } else {
+        setYearData([]);
+        setSf10ViewMode('single');
+        await fetchStudentGrades(studentId, selectedSchoolYear || '2024-2025');
+      }
+    } catch (err) {
+      console.error('Error fetching byYear grades:', err);
+      // Fall back to single year
+      setSf10ViewMode('single');
+      await fetchStudentGrades(studentId, selectedSchoolYear || '2024-2025');
+    } finally {
+      setIsLoadingGrades(false);
+    }
   };
 
   const handleGenerateSF10 = async () => {
@@ -162,6 +248,9 @@ export default function SF10List() {
       const session = localStorage.getItem('teacherSession');
       const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
       
+      // Use the school year from the selected record or fall back to selectedSchoolYear
+      const schoolYearToUse = selectedSF10.sf10?.schoolYear || selectedSchoolYear || '2024-2025';
+      
       const response = await fetch('/api/teacher/sf10/generate', {
         method: 'POST',
         headers: {
@@ -170,7 +259,7 @@ export default function SF10List() {
         },
         body: JSON.stringify({
           studentId: selectedSF10.student.id,
-          schoolYear: '2024-2025'
+          schoolYear: schoolYearToUse
         })
       });
       
@@ -426,6 +515,21 @@ export default function SF10List() {
               />
             </div>
           </div>
+          
+          {/* School Year Selector */}
+          {availableSchoolYears.length > 1 && (
+            <div className="relative">
+              <select
+                value={selectedSchoolYear}
+                onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                className="h-11 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent bg-white text-sm"
+              >
+                {availableSchoolYears.map(year => (
+                  <option key={year} value={year}>SY {year}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -487,7 +591,7 @@ export default function SF10List() {
                       {sf10Records.length === 0 && (
                         <div className="w-48">
                           <button
-                            onClick={fetchSF10Records}
+                            onClick={() => fetchSF10Records(selectedSchoolYear)}
                             className="flex items-center justify-center gap-2 px-5 w-full rounded-md font-semibold text-sm tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11 hover:bg-[#1B3E2A] hover:text-white"
                           >
                             <Plus className="w-4 h-4" />
@@ -662,6 +766,8 @@ export default function SF10List() {
                   isEditMode={isEditMode}
                   onStudentFieldChange={handleStudentFieldChange}
                   onSubjectGradeChange={handleSubjectGradeChange}
+                  yearData={!isEditMode ? yearData : undefined}
+                  viewMode={!isEditMode && sf10ViewMode === 'byYear' ? 'byYear' : 'single'}
                 />
               )}
             </div>

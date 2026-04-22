@@ -174,18 +174,27 @@ export default function ReportCardViewerPage() {
         }
       });
       
-      // Then populate the grades
-      studentGradeRecords.forEach((grade) => {
-        const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
-        const quarterIndex =
-          grade.quarter === 'Q1' ? 0 : grade.quarter === 'Q2' ? 1 : grade.quarter === 'Q3' ? 2 : 3;
+      // Populate the grades and detect effective grade/section
+      let effectiveGradeLevel = found.gradeLevel || '';
+      let effectiveSection = (found as any).section || '';
 
-        if (!studentGrades[subjectName]) {
-          studentGrades[subjectName] = { quarters: [null, null, null, null] };
-        }
+      if (studentGradeRecords.length > 0) {
+        // Use the first grade record's level/section as the source of truth for this year
+        effectiveGradeLevel = studentGradeRecords[0].gradeLevel || effectiveGradeLevel;
+        effectiveSection = studentGradeRecords[0].section || effectiveSection;
+        
+        studentGradeRecords.forEach((grade) => {
+          const subjectName = subjectNamesMap.get(grade.subjectId) || grade.subjectId || '';
+          const quarterIndex =
+            grade.quarter === 'Q1' ? 0 : grade.quarter === 'Q2' ? 1 : grade.quarter === 'Q3' ? 2 : 3;
 
-        studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
-      });
+          if (!studentGrades[subjectName]) {
+            studentGrades[subjectName] = { quarters: [null, null, null, null] };
+          }
+
+          studentGrades[subjectName].quarters[quarterIndex] = grade.grade;
+        });
+      }
 
       Object.keys(studentGrades).forEach((subject) => {
         const quarters = studentGrades[subject].quarters;
@@ -198,15 +207,15 @@ export default function ReportCardViewerPage() {
         }
       });
 
-      // Update student data with fallbacks
+      // Update student data with detected effective values
       setStudent({
         ...found,
         grades: studentGrades,
         age: (found as any).age || 0,
         sex: (found as any).sex || 'M',
         lrn: (found as any).lrn || '',
-        section: (found as any).section || '',
-        gradeLevel: (found as any).gradeLevel || '',
+        section: effectiveSection,
+        gradeLevel: effectiveGradeLevel,
       });
     } catch (error) {
       console.error('Error loading student:', error);

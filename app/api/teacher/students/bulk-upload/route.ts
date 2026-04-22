@@ -159,45 +159,56 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Check if student already exists
-        let existingStudent = null;
-        for (const teacherIdToTry of teacherIdsToTry) {
-          const existingQuery = query(
-            studentsCollection,
-            where('teacherId', '==', teacherIdToTry),
-            where('name', '==', name.trim()),
-            where('lrn', '==', lrn.trim()),
-            where('gradeLevel', '==', gradeLevel.trim()),
-            where('section', '==', section.trim())
-          );
-          
-          const existingSnapshot = await getDocs(existingQuery);
-          if (!existingSnapshot.empty) {
-            existingStudent = existingSnapshot.docs[0];
-            break;
-          }
-        }
+        // Normalize section for duplicate check (treat null, undefined, and empty string as equivalent)
+        const normalizedSection = (section || '').trim();
+
+        // Check if student already exists across ALL teachers
+        // Look across ALL teachers to prevent duplicates (same as route.ts)
+        const existingQuery = query(
+          studentsCollection,
+          where('name', '==', name.trim()),
+          where('lrn', '==', lrn.trim()),
+          where('gradeLevel', '==', gradeLevel.trim())
+        );
+        
+        const existingSnapshot = await getDocs(existingQuery);
+        // Filter results to match section (treating null/undefined/empty as equivalent)
+        const existingStudent = existingSnapshot.docs.find(doc => {
+          const data = doc.data();
+          const docSection = data.section || '';
+          return docSection === normalizedSection;
+        });
 
         if (existingStudent) {
           // Update existing student with new subject IDs
           const existingData = existingStudent.data();
           const existingSubjectIds = existingData.subjectIds || [];
+          const existingTeacherIds = existingData.teacherIds || [existingData.teacherId].filter(Boolean);
           
           // Merge new subject IDs with existing ones (avoid duplicates)
           const mergedSubjectIds = Array.from(new Set([...existingSubjectIds, ...subjectIds]));
           
-          if (mergedSubjectIds.length > existingSubjectIds.length) {
+          // Add current teacher to teacherIds if not already present
+          const mergedTeacherIds = existingTeacherIds.includes(teacherId)
+            ? existingTeacherIds
+            : [...existingTeacherIds, teacherId];
+          
+          const needsUpdate = mergedSubjectIds.length > existingSubjectIds.length ||
+                             mergedTeacherIds.length > existingTeacherIds.length;
+          
+          if (needsUpdate) {
             // Update the existing student
             await import('firebase/firestore').then(({ updateDoc, doc }) => {
               return updateDoc(doc(db, 'students', existingStudent.id), {
                 subjectIds: mergedSubjectIds,
+                teacherIds: mergedTeacherIds,
                 updatedAt: Timestamp.now()
               });
             });
             
             uploadedCount++;
           } else {
-            skippedCount++; // Student already has all subjects
+            skippedCount++; // Student already has all subjects and teacher
           }
         } else {
           // Create new student
