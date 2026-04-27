@@ -109,8 +109,8 @@ export async function GET(request: NextRequest) {
           id,
           name: data?.name || '',
           lrn: data?.lrn || '',
-          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-          section: data?.section || data?.currentSection,
+          gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+          section: data?.currentSection || data?.section,
           currentGradeLevel: data?.currentGradeLevel,
           currentSection: data?.currentSection,
           teacherId: data?.teacherId,
@@ -147,8 +147,8 @@ export async function GET(request: NextRequest) {
           id: docSnap.id,
           name: data?.name || '',
           lrn: data?.lrn || '',
-          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-          section: data?.section || data?.currentSection,
+          gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+          section: data?.currentSection || data?.section || '',
           currentGradeLevel: data?.currentGradeLevel,
           currentSection: data?.currentSection,
           teacherId: data?.teacherId,
@@ -226,8 +226,8 @@ export async function GET(request: NextRequest) {
         id,
         name: data?.name || '',
         lrn: data?.lrn || '',
-        gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-        section: data?.section || data?.currentSection,
+        gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+        section: data?.currentSection || data?.section || '',
         currentGradeLevel: data?.currentGradeLevel,
         currentSection: data?.currentSection,
         teacherId: data?.teacherId,
@@ -286,22 +286,30 @@ export async function POST(request: NextRequest) {
 
     const studentsCollection = collection(db, 'students');
 
-    // Check if student already exists with same name, LRN, grade level, and section
-    // Look across ALL teachers to prevent duplicates
+    // Normalize section for duplicate check (treat null, undefined, and empty string as equivalent)
+    const normalizedSection = section || '';
+
+    // Check if student already exists with same LRN (across ALL grade levels)
+    // This prevents duplicates when a student moves to a different grade
     const existingStudentQuery = query(
       studentsCollection,
-      where('name', '==', name),
-      where('lrn', '==', lrn),
-      where('gradeLevel', '==', gradeLevel),
-      where('section', '==', section)
+      where('lrn', '==', lrn)
     );
     
     const existingStudentSnapshot = await getDocs(existingStudentQuery);
     
-    if (!existingStudentSnapshot.empty) {
-      // Student exists (created by any teacher), update their subjects
-      const existingStudentDoc = existingStudentSnapshot.docs[0];
-      const existingStudentData = existingStudentDoc.data();
+    // Find matching student by name + LRN (same person regardless of grade)
+    const matchingStudent = existingStudentSnapshot.docs.find(doc => {
+      const data = doc.data();
+      const docName = (data.name || '').trim().toLowerCase();
+      const inputName = name.trim().toLowerCase();
+      return docName === inputName;
+    });
+    
+    if (matchingStudent) {
+      // Student exists (same LRN + name found)
+      const existingStudentData = matchingStudent.data();
+      
       const existingSubjectIds = existingStudentData.subjectIds || [];
       
       // Merge new subject IDs with existing ones (avoid duplicates)
@@ -313,26 +321,51 @@ export async function POST(request: NextRequest) {
         ? existingTeachers 
         : [...existingTeachers, teacherId];
       
+      // Check if grade level changed
+      const existingGradeLevel = existingStudentData.currentGradeLevel || existingStudentData.gradeLevel;
+      const gradeLevelChanged = existingGradeLevel !== gradeLevel;
+      
       await import('firebase/firestore').then(({ updateDoc, doc }) => {
-        return updateDoc(doc(db, 'students', existingStudentDoc.id), {
+        const updateData: any = {
           subjectIds: mergedSubjectIds,
           teacherIds: updatedTeachers,
           updatedAt: Timestamp.now()
-        });
+        };
+        
+        // If grade level changed, update it
+        if (gradeLevelChanged) {
+          updateData.gradeLevel = gradeLevel;
+          updateData.currentGradeLevel = gradeLevel;
+          updateData.section = section;
+          updateData.currentSection = section;
+          
+          // Also update the academic record for the current school year
+          const currentSchoolYear = '2024-2025'; // Could be passed as parameter
+          updateData[`academicRecords.${currentSchoolYear}.gradeLevel`] = gradeLevel;
+          updateData[`academicRecords.${currentSchoolYear}.section`] = section;
+          updateData[`academicRecords.${currentSchoolYear}.updatedAt`] = Timestamp.now();
+        }
+        
+        return updateDoc(doc(db, 'students', matchingStudent.id), updateData);
       });
       
       const updatedStudent = {
-        id: existingStudentDoc.id,
+        id: matchingStudent.id,
         ...existingStudentData,
         subjectIds: mergedSubjectIds,
         teacherIds: updatedTeachers,
+        gradeLevel: gradeLevelChanged ? gradeLevel : existingGradeLevel,
+        currentGradeLevel: gradeLevelChanged ? gradeLevel : existingStudentData.currentGradeLevel,
         updatedAt: new Date().toISOString()
       };
 
       return NextResponse.json({
-        message: `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
+        message: gradeLevelChanged 
+          ? `Student grade level updated from ${existingGradeLevel} to ${gradeLevel}`
+          : `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
         student: updatedStudent,
-        isUpdate: true
+        isUpdate: true,
+        gradeLevelChanged
       });
     }
 

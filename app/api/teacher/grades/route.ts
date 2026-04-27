@@ -84,7 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { grades, schoolYear = '2024-2025' } = await request.json();
+    const body = await request.json();
+    const { grades } = body;
 
     if (!Array.isArray(grades)) {
       return NextResponse.json(
@@ -93,12 +94,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get school year from the first grade (all grades should have same school year)
+    // This ensures we use the subject's actual school year, not a default
+    const schoolYear = grades[0]?.schoolYear || '2024-2025';
+
     const gradeData = grades.map(grade => ({
       studentId: grade.studentId,
       subjectId: grade.subjectId,
       gradeLevel: grade.gradeLevel || 'Unknown',
       section: grade.section || 'Default',
-      schoolYear,
+      schoolYear: grade.schoolYear || schoolYear,
       quarter: normalizePeriod(grade.gradingPeriod) as 'Q1' | 'Q2' | 'Q3' | 'Q4',
       grade: grade.grade,
       remarks: grade.remarks || '',

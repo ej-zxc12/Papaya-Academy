@@ -50,27 +50,56 @@ export default function ReportCardsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
-  const [schoolYear, setSchoolYear] = useState('2024-2025');
+  const [schoolYear, setSchoolYear] = useState('');
   const [teacherData, setTeacherData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
 
+  // Load subjects first to get the correct school year
   useEffect(() => {
-    const session = localStorage.getItem('teacherSession');
-    if (!session) {
-      router.push('/teacher/login');
-      return;
-    }
+    const loadSubjects = async () => {
+      const session = localStorage.getItem('teacherSession');
+      if (!session) {
+        router.push('/teacher/login');
+        return;
+      }
 
-    try {
-      const parsed = JSON.parse(session);
-      setTeacherData(parsed.teacher || parsed);
-      loadStudents(parsed.teacher?.uid || parsed.teacher?.id || parsed.uid || parsed.id);
-    } catch (error) {
-      console.error('Error parsing session:', error);
-      router.push('/teacher/login');
-    }
-  }, [router]);
+      try {
+        const parsed = JSON.parse(session);
+        const teacherId = parsed.teacher?.uid || parsed.teacher?.id || parsed.uid || parsed.id;
+        setTeacherData(parsed.teacher || parsed);
+        
+        // Fetch subjects to get the school year
+        const subjectsResponse = await fetch('/api/teacher/subjects', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+        
+        if (subjectsResponse.ok) {
+          const subjectsData = await subjectsResponse.json();
+          setSubjects(subjectsData);
+          
+          // Get unique school years from subjects
+          const schoolYears = Array.from(new Set(subjectsData.map((s: any) => s.schoolYear).filter(Boolean))) as string[];
+          setAvailableSchoolYears(schoolYears);
+          
+          if (schoolYears.length > 0 && !schoolYear) {
+            setSchoolYear(schoolYears[0]);
+          } else if (schoolYears.length === 0) {
+            setSchoolYear('2024-2025'); // fallback only if no subjects
+          }
+        } else {
+          setSchoolYear('2024-2025'); // fallback
+        }
+      } catch (error) {
+        console.error('Error loading subjects:', error);
+        setSchoolYear('2024-2025'); // fallback
+      }
+    };
+    
+    loadSubjects();
+  }, [router, schoolYear]);
 
   useEffect(() => {
     let filtered = students;
@@ -95,11 +124,20 @@ export default function ReportCardsPage() {
     setFilteredStudents(filtered);
   }, [searchTerm, selectedGradeLevel, selectedSection, students]);
 
+  // Load students when schoolYear is determined
+  useEffect(() => {
+    if (!schoolYear) return;
+    const teacherId = teacherData?.uid || teacherData?.id;
+    if (!teacherId) return;
+    
+    loadStudents(teacherId);
+  }, [schoolYear, teacherData]);
+
   // Real-time listener for ALL grades - updates when any teacher adds/updates grades
   useEffect(() => {
-    if (!teacherData) return;
+    if (!teacherData || !schoolYear) return;
     const teacherId = teacherData?.uid || teacherData?.id;
-    if (!teacherId || !schoolYear) return;
+    if (!teacherId) return;
 
     const gradesQuery = query(
       collection(db, 'grades'),
@@ -344,12 +382,24 @@ export default function ReportCardsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">School Year</label>
-                <input
-                  type="text"
-                  value={schoolYear}
-                  onChange={(e) => setSchoolYear(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                />
+                {availableSchoolYears.length > 1 ? (
+                  <select
+                    value={schoolYear}
+                    onChange={(e) => setSchoolYear(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                  >
+                    {availableSchoolYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={schoolYear}
+                    onChange={(e) => setSchoolYear(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
+                  />
+                )}
               </div>
             </div>
           </div>

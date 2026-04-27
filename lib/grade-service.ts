@@ -132,12 +132,18 @@ export class GradeService {
 
   static async getGradesForSF10(
     studentId: string,
-    schoolYear: string = '2024-2025'
+    schoolYear: string = '2024-2025',
+    gradeLevel?: string
   ): Promise<Map<string, Map<string, number>>> {
     const grades = await this.getGradesByStudent(studentId, schoolYear);
     const gradesMap = new Map<string, Map<string, number>>();
 
     grades.forEach(grade => {
+      // If gradeLevel is specified, only include grades for that grade level
+      if (gradeLevel && grade.gradeLevel !== gradeLevel) {
+        return;
+      }
+      
       if (!gradesMap.has(grade.subjectId)) {
         gradesMap.set(grade.subjectId, new Map());
       }

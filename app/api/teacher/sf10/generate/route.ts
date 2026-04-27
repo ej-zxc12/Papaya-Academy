@@ -133,10 +133,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Create SF10 record
+    // Check if SF10 already exists for this student and school year
+    const existingSF10Query = db.collection('sf10')
+      .where('studentId', '==', studentId)
+      .where('schoolYear', '==', schoolYear);
+    const existingSnapshot = await existingSF10Query.get();
+    
     const yearRecord = student.academicRecords?.[schoolYear] || {};
     
-    const sf10Record = {
+    const sf10Record: any = {
       studentId,
       lrn: student.lrn || '',
       studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.name || `Student ${studentId}`,
@@ -147,31 +152,48 @@ export async function POST(request: NextRequest) {
       generalAverage,
       status: generalAverage >= 75 ? 'promoted' : 'retained',
       dateCompleted: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: teacherId,
+      updatedBy: teacherId,
       adviserName: 'Teacher' // Could be fetched from teacher profile
     };
     
-    // Save to Firestore
-    const sf10Ref = await db.collection('sf10').add(sf10Record);
+    let sf10Id: string;
+    let isNewRecord = false;
+    
+    if (!existingSnapshot.empty) {
+      // Update existing SF10
+      const existingDoc = existingSnapshot.docs[0];
+      sf10Id = existingDoc.id;
+      await db.collection('sf10').doc(sf10Id).update({
+        ...sf10Record,
+        // Preserve original createdAt if it exists
+        createdAt: existingDoc.data().createdAt || new Date().toISOString()
+      });
+      console.log('SF10 updated with ID:', sf10Id);
+    } else {
+      // Create new SF10
+      sf10Record.createdAt = new Date().toISOString();
+      sf10Record.createdBy = teacherId;
+      const sf10Ref = await db.collection('sf10').add(sf10Record);
+      sf10Id = sf10Ref.id;
+      isNewRecord = true;
+      console.log('SF10 created with ID:', sf10Id);
+    }
     
     // Update student's academic record
     await studentRef.update({
       [`academicRecords.${schoolYear}.sf10`]: {
-        id: sf10Ref.id,
+        id: sf10Id,
         ...sf10Record
       },
       updatedAt: new Date().toISOString()
     });
     
-    console.log('SF10 generated and saved with ID:', sf10Ref.id);
-    
     return NextResponse.json({
       success: true,
-      message: 'SF10 generated successfully',
+      message: isNewRecord ? 'SF10 generated successfully' : 'SF10 updated successfully',
       sf10: {
-        id: sf10Ref.id,
+        id: sf10Id,
         ...sf10Record
       }
     });
