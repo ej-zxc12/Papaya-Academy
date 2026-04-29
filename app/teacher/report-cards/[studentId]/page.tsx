@@ -202,7 +202,7 @@ export default function ReportCardViewerPage() {
 
         if (validGrades.length > 0) {
           const average = validGrades.reduce((a, b) => a + b, 0) / validGrades.length;
-          studentGrades[subject].finalGrade = Math.round(average * 100) / 100;
+          studentGrades[subject].finalGrade = Math.round(average);
           studentGrades[subject].remarks = studentGrades[subject].finalGrade! >= 75 ? 'Passed' : 'Failed';
         }
       });
