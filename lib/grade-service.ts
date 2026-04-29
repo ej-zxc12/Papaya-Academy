@@ -41,10 +41,9 @@ export class GradeService {
       errors: [] as string[]
     };
 
-    for (const grade of gradeData) {
+    // Process all grade checks in parallel for better performance
+    const checkPromises = gradeData.map(async (grade) => {
       try {
-        results.processed++;
-        
         const existingGradeQuery = query(
           collection(db, 'grades'),
           where('studentId', '==', grade.studentId),
@@ -52,9 +51,9 @@ export class GradeService {
           where('schoolYear', '==', grade.schoolYear),
           where('quarter', '==', grade.quarter)
         );
-        
+
         const existingSnapshot = await getDocs(existingGradeQuery);
-        
+
         const gradeDoc = {
           studentId: grade.studentId,
           teacherId: grade.teacherId,
@@ -69,20 +68,43 @@ export class GradeService {
           updatedAt: serverTimestamp()
         };
 
-        if (existingSnapshot.empty) {
+        return {
+          grade,
+          existingDoc: existingSnapshot.empty ? null : existingSnapshot.docs[0],
+          gradeDoc
+        };
+      } catch (error) {
+        return {
+          grade,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+      }
+    });
+
+    const checkResults = await Promise.all(checkPromises);
+
+    // Process the save/update operations
+    for (const result of checkResults) {
+      try {
+        if ('error' in result) {
+          results.errors.push(`Error checking grade for student ${result.grade.studentId}: ${result.error}`);
+          continue;
+        }
+
+        results.processed++;
+
+        if (result.existingDoc) {
+          await updateDoc(doc(db, 'grades', result.existingDoc.id), result.gradeDoc);
+          results.updated++;
+        } else {
           await addDoc(collection(db, 'grades'), {
-            ...gradeDoc,
+            ...result.gradeDoc,
             createdAt: serverTimestamp()
           });
           results.saved++;
-        } else {
-          const existingDoc = existingSnapshot.docs[0];
-          await updateDoc(doc(db, 'grades', existingDoc.id), gradeDoc);
-          results.updated++;
         }
-        
       } catch (error) {
-        results.errors.push(`Error processing grade for student ${grade.studentId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        results.errors.push(`Error saving grade for student ${result.grade.studentId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
 

@@ -80,7 +80,7 @@ export default function ReportCard({
       .filter((g): g is number => g !== undefined && g !== null && !isNaN(g));
     
     if (validFinalGrades.length === 0) return null;
-    return Math.round((validFinalGrades.reduce((a, b) => a + b, 0) / validFinalGrades.length) * 100) / 100;
+    return Math.round(validFinalGrades.reduce((a, b) => a + b, 0) / validFinalGrades.length);
   };
 
   const generalAverage = calculateGeneralAverage();
@@ -99,9 +99,11 @@ export default function ReportCard({
 
   const getRemarks = (grade: number | null | undefined) => {
     if (grade === null || grade === undefined || isNaN(grade)) return '';
-    if (grade >= 90) return 'Passed';
-    if (grade >= 85) return 'Passed';
-    if (grade >= 80) return 'Passed';
+    // Ensure grade is a whole number for comparison
+    const roundedGrade = Math.round(grade);
+    if (roundedGrade >= 90) return 'Passed';
+    if (roundedGrade >= 85) return 'Passed';
+    if (roundedGrade >= 80) return 'Passed';
     if (grade >= 75) return 'Passed';
     return 'Failed';
   };
@@ -225,7 +227,7 @@ export default function ReportCard({
             <div className="text-[11px] relative z-10 space-y-2 pr-1 mt-6">
               <div className="flex items-end">
                 <span className="font-bold w-12 mr-1">Name:</span>
-                <div className="w-64 border-b border-black px-1 uppercase font-bold text-[13px] leading-tight min-h-[1.4rem] flex items-end">
+                <div className="w-50 border-b border-black px-1 uppercase font-bold text-[13px] leading-tight min-h-[1.4rem] flex items-end">
                   {studentName}
                 </div>
               </div>

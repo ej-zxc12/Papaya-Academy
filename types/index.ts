@@ -31,6 +31,9 @@ export interface Student {
   subjectIds?: string[];
   section?: string;
   lrn?: string;
+  schoolYear?: string;
+  currentGradeLevel?: string;
+  currentSection?: string;
   status?: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
   createdAt?: string;
   updatedAt?: string;
