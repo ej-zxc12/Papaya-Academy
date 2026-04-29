@@ -60,6 +60,10 @@ export default function SF10List() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sf10Records, setSF10Records] = useState<SF10Record[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Client-side caching
+  const [cache, setCache] = useState<Map<string, { data: SF10Record[], timestamp: number }>>(new Map());
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   const [selectedSF10, setSelectedSF10] = useState<SF10Record | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewStudentGrades, setViewStudentGrades] = useState<SF10Subject[]>([]);
@@ -79,39 +83,67 @@ export default function SF10List() {
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
   const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
 
-  // Load subjects first to get the correct school year
+  // Load subjects and students to get school years
   useEffect(() => {
-    const loadSubjects = async () => {
+    const loadData = async () => {
       const session = localStorage.getItem('teacherSession');
       if (!session) return;
-      
+
       const teacherData = JSON.parse(session);
       const teacherId = teacherData?.teacher?.id || teacherData?.teacher?.uid || teacherData?.id;
-      
+
       try {
-        const response = await fetch('/api/teacher/subjects', {
+        // Fetch subjects
+        const subjectsResponse = await fetch('/api/teacher/subjects', {
           headers: { 'Authorization': `Bearer ${teacherId}` }
         });
-        
-        if (response.ok) {
-          const subjectsData = await response.json();
+
+        // Fetch students to get school years
+        const studentsResponse = await fetch('/api/teacher/students?scope=school', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+
+        // Fetch all grades to get historical school years
+        const gradesResponse = await fetch('/api/teacher/grades/student?studentId=all', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+
+        const schoolYearsSet = new Set<string>();
+
+        if (subjectsResponse.ok) {
+          const subjectsData = await subjectsResponse.json();
           setSubjects(subjectsData);
-          
-          // Get unique school years from subjects
-          const schoolYears = Array.from(new Set(subjectsData.map((s: any) => s.schoolYear).filter(Boolean))) as string[];
-          setAvailableSchoolYears(schoolYears);
-          
-          if (schoolYears.length > 0 && !selectedSchoolYear) {
-            setSelectedSchoolYear(schoolYears[0]);
-          }
+        }
+
+        // Get school years from students
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          studentsData.forEach((s: any) => {
+            if (s.schoolYear) schoolYearsSet.add(s.schoolYear);
+          });
+        }
+
+        // Get school years from grades (historical data)
+        if (gradesResponse.ok) {
+          const gradesData = await gradesResponse.json();
+          gradesData.forEach((g: any) => {
+            if (g.schoolYear) schoolYearsSet.add(g.schoolYear);
+          });
+        }
+
+        const schoolYears = Array.from(schoolYearsSet);
+        setAvailableSchoolYears(schoolYears);
+
+        if (schoolYears.length > 0 && !selectedSchoolYear) {
+          setSelectedSchoolYear(schoolYears[0]);
         }
       } catch (error) {
-        console.error('Error loading subjects:', error);
+        console.error('Error loading data:', error);
       }
     };
-    
-    loadSubjects();
-  }, [selectedSchoolYear]);
+
+    loadData();
+  }, []);
 
   useEffect(() => {
     if (selectedSchoolYear) {
@@ -121,6 +153,18 @@ export default function SF10List() {
 
   const fetchSF10Records = async (schoolYear?: string) => {
     try {
+      const cacheKey = schoolYear || 'default';
+      const now = Date.now();
+      
+      // Check cache first
+      const cached = cache.get(cacheKey);
+      if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+        console.log('Using cached SF10 data for', cacheKey);
+        setSF10Records(cached.data);
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       setError(null);
       
@@ -153,11 +197,16 @@ export default function SF10List() {
         }
       }
       
-      if (data.sf10Records) {
-        setSF10Records(data.sf10Records);
-      } else {
-        setSF10Records([]);
-      }
+      const records = data.sf10Records || [];
+      
+      // Update cache
+      setCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(cacheKey, { data: records, timestamp: now });
+        return newCache;
+      });
+      
+      setSF10Records(records);
     } catch (err) {
       console.error('Error fetching SF10 records:', err);
       setError(err instanceof Error ? err.message : 'Failed to load SF10 records');
@@ -374,13 +423,40 @@ export default function SF10List() {
   const handleEditClick = () => {
     // Initialize editable data with current values
     if (selectedSF10) {
+      // Parse name in format: "LAST NAME, First Name Middle Name"
+      const fullName = selectedSF10.student.name;
+      let firstName = '', lastName = '', middleName = '';
+      
+      if (fullName.includes(',')) {
+        // Format: "AGUSTIN, RIELYHANA ROSE B."
+        const parts = fullName.split(',');
+        lastName = parts[0].trim();
+        const remaining = parts[1]?.trim() || '';
+        const nameParts = remaining.split(' ').filter(Boolean);
+        
+        // Middle name is the last part if it ends with a dot (e.g., "B.")
+        const lastPart = nameParts[nameParts.length - 1];
+        if (lastPart && lastPart.endsWith('.')) {
+          middleName = lastPart;
+          firstName = nameParts.slice(0, -1).join(' ');
+        } else {
+          firstName = remaining;
+        }
+      } else {
+        // Fallback: simple space-separated
+        const parts = fullName.split(' ').filter(Boolean);
+        firstName = parts[0] || '';
+        lastName = parts[parts.length - 1] || '';
+        middleName = parts.slice(1, -1).join(' ');
+      }
+      
       setEditableStudent({
         id: selectedSF10.student.id,
         lrn: selectedSF10.student.lrn,
-        name: selectedSF10.student.name,
-        firstName: selectedSF10.student.name.split(' ')[0],
-        lastName: selectedSF10.student.name.split(' ').slice(-1)[0],
-        middleName: selectedSF10.student.name.split(' ').slice(1, -1).join(' '),
+        name: fullName,
+        firstName,
+        lastName,
+        middleName,
         gradeLevel: selectedSF10.student.gradeLevel,
         section: selectedSF10.student.section,
         schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
@@ -748,18 +824,47 @@ export default function SF10List() {
                 </div>
               ) : (
                 <SF10Form 
-                  student={isEditMode && editableStudent ? editableStudent : selectedSF10?.student ? {
-                    id: selectedSF10.student.id,
-                    lrn: selectedSF10.student.lrn,
-                    name: selectedSF10.student.name,
-                    firstName: selectedSF10.student.name.split(' ')[0],
-                    lastName: selectedSF10.student.name.split(' ').slice(-1)[0],
-                    middleName: selectedSF10.student.name.split(' ').slice(1, -1).join(' '),
-                    gradeLevel: selectedSF10.student.gradeLevel,
-                    section: selectedSF10.student.section,
-                    schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
-                    adviserName: selectedSF10.sf10?.adviserName || 'Teacher'
-                  } : undefined}
+                  student={isEditMode && editableStudent ? editableStudent : selectedSF10?.student ? (() => {
+                    // Parse name in format: "LAST NAME, First Name Middle Name"
+                    const fullName = selectedSF10.student.name;
+                    let firstName = '', lastName = '', middleName = '';
+                    
+                    if (fullName.includes(',')) {
+                      // Format: "AGUSTIN, RIELYHANA ROSE B."
+                      const parts = fullName.split(',');
+                      lastName = parts[0].trim();
+                      const remaining = parts[1]?.trim() || '';
+                      const nameParts = remaining.split(' ').filter(Boolean);
+                      
+                      // Middle name is the last part if it ends with a dot (e.g., "B.")
+                      const lastPart = nameParts[nameParts.length - 1];
+                      if (lastPart && lastPart.endsWith('.')) {
+                        middleName = lastPart;
+                        firstName = nameParts.slice(0, -1).join(' ');
+                      } else {
+                        firstName = remaining;
+                      }
+                    } else {
+                      // Fallback: simple space-separated
+                      const parts = fullName.split(' ').filter(Boolean);
+                      firstName = parts[0] || '';
+                      lastName = parts[parts.length - 1] || '';
+                      middleName = parts.slice(1, -1).join(' ');
+                    }
+                    
+                    return {
+                      id: selectedSF10.student.id,
+                      lrn: selectedSF10.student.lrn,
+                      name: fullName,
+                      firstName,
+                      lastName,
+                      middleName,
+                      gradeLevel: selectedSF10.student.gradeLevel,
+                      section: selectedSF10.student.section,
+                      schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
+                      adviserName: selectedSF10.sf10?.adviserName || 'Teacher'
+                    };
+                  })() : undefined}
                   subjects={isEditMode ? editableSubjects : (viewStudentGrades.length > 0 ? viewStudentGrades : selectedSF10?.sf10?.subjects || [])}
                   generalAverage={selectedSF10?.sf10?.generalAverage || 0}
                   status={(selectedSF10?.sf10?.status as any) || 'promoted'}

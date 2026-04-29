@@ -50,6 +50,32 @@ function getTeacherIdentifiers(request: NextRequest) {
   }
 }
 
+// Helper function to extract last name from full name
+// Handles format: "LAST NAME, FIRST NAME" or "FirstName LastName"
+function getLastName(fullName: string): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  
+  // Check if name is in "LAST NAME, FIRST NAME" format
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',');
+    return parts[0].trim().toLowerCase();
+  }
+  
+  // Fallback for "FirstName LastName" format
+  const parts = trimmed.split(/\s+/);
+  return parts[parts.length - 1].toLowerCase();
+}
+
+// Helper function to sort students by last name
+function sortStudentsByLastName(students: any[]): any[] {
+  return students.sort((a, b) => {
+    const lastNameA = getLastName(a.name);
+    const lastNameB = getLastName(b.name);
+    return lastNameA.localeCompare(lastNameB);
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Check teacher session
@@ -116,12 +142,13 @@ export async function GET(request: NextRequest) {
           teacherId: data?.teacherId,
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
+          schoolYear: data?.schoolYear,
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
         }));
 
-        return NextResponse.json(students);
+        return NextResponse.json(sortStudentsByLastName(students));
       } else if (gradeLevels.length > 0) {
         if (gradeLevels.length > 10) {
           return NextResponse.json(
@@ -154,13 +181,14 @@ export async function GET(request: NextRequest) {
           teacherId: data?.teacherId,
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
+          schoolYear: data?.schoolYear,
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
         };
       });
 
-      return NextResponse.json(students);
+      return NextResponse.json(sortStudentsByLastName(students));
     }
 
     // Add filters if provided
@@ -233,14 +261,15 @@ export async function GET(request: NextRequest) {
         teacherId: data?.teacherId,
         subjectId: data?.subjectId,
         subjectIds: data?.subjectIds || [],
+        schoolYear: data?.schoolYear,
         status: data?.status || 'enrolled',
         createdAt: data?.createdAt,
-        updatedAt: data?.updatedAt
+        updatedAt: data?.updatedAt,
+        academicRecords: data?.academicRecords || {}
       };
     });
 
-    return NextResponse.json(students);
-
+    return NextResponse.json(sortStudentsByLastName(students));
   } catch (error) {
     console.error('Error fetching students:', error);
     return NextResponse.json(

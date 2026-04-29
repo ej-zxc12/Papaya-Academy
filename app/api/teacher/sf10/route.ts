@@ -159,20 +159,18 @@ export async function GET(request: NextRequest) {
     }
 
     const debugLogs: string[] = [];
-    
-    // Get teacher's subjects first (like the grades/all API does)
+
+    // Get teacher's subjects (don't filter by school year - subjects may have 'Global' or no school year)
     const subjectsQuery = query(
       collection(db, 'subjects'),
-      where('teacherId', '==', teacherId),
-      where('schoolYear', '==', schoolYear)
+      where('teacherId', '==', teacherId)
     );
-    
+
     const teacherSubjectsQuery = query(
       collection(db, 'teacherSubjects'),
-      where('teacherId', '==', teacherId),
-      where('schoolYear', '==', schoolYear)
+      where('teacherId', '==', teacherId)
     );
-    
+
     const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
       getDocs(subjectsQuery),
       getDocs(teacherSubjectsQuery)
@@ -211,77 +209,92 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get all grades for the teacher's assigned subjects
-    const gradesPromises = uniqueSubjects.map(async (ts: any) => {
-      const subjectId = ts.subjectId || ts.id;
-      const gradesQuery = query(
-        collection(db, 'grades'),
-        where('teacherId', '==', teacherId),
-        where('subjectId', '==', subjectId),
-        where('schoolYear', '==', schoolYear)
-      );
-      
-      const gradesSnapshot = await getDocs(gradesQuery);
-      return gradesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          studentId: data.studentId,
-          quarter: data.quarter,
-          ...data
-        };
-      });
+    // OPTIMIZATION: Batch query all grades at once instead of per-subject queries
+    const allGradesQuery = query(
+      collection(db, 'grades'),
+      where('teacherId', '==', teacherId),
+      where('schoolYear', '==', schoolYear)
+    );
+    
+    const allGradesSnapshot = await getDocs(allGradesQuery);
+    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = allGradesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        studentId: data.studentId,
+        quarter: data.quarter,
+        ...data
+      };
     });
-
-    const gradesArrays = await Promise.all(gradesPromises);
-    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = gradesArrays.flat();
     
     debugLogs.push(`Found ${allGrades.length} total grades`);
     
-    // Create a map of students with grades
+    // OPTIMIZATION: Batch fetch all students at once, then process grades
+    const uniqueStudentIdsSet = new Set(allGrades.map(g => g.studentId).filter(Boolean));
+    const uniqueStudentIds = Array.from(uniqueStudentIdsSet);
+    
+    // Batch fetch all student documents
+    const studentPromises = uniqueStudentIds.map(async (studentId) => {
+      const studentDoc = await getDoc(doc(db, 'students', studentId));
+      return { studentId, doc: studentDoc };
+    });
+    
+    const studentResults = await Promise.all(studentPromises);
+    const studentDocuments = new Map();
+    
+    studentResults.forEach(({ studentId, doc }) => {
+      if (doc.exists()) {
+        studentDocuments.set(studentId, doc.data() as StudentDocument);
+      }
+    });
+    
+    // Create a map of students with grades using batch-fetched data
     const studentsWithGrades = new Map();
     
-    for (const grade of allGrades) {
-      const studentId = grade.studentId;
-      if (!studentId) continue;
-      
-      if (!studentsWithGrades.has(studentId)) {
-        // Get student details
-        const studentDoc = await getDoc(doc(db, 'students', studentId));
-        if (!studentDoc.exists()) continue;
-        
-        const student = studentDoc.data() as StudentDocument;
-        const yearRecord = student.academicRecords?.[schoolYear] || {};
-        
-        // Get all grades for this student to determine completion status
-        const studentGrades = allGrades.filter(g => g.studentId === studentId);
-        const quarters = studentGrades.map(g => g.quarter);
-        
-        // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
-        const studentName = (student.firstName || student.lastName) 
-          ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
-          : (student as any).name || `Student ${studentId}`;
-        
-        studentsWithGrades.set(studentId, {
-          student: {
-            id: studentId,
-            lrn: student.lrn || '',
-            name: studentName,
-            gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
-            section: yearRecord.section || student.currentSection
-          },
-          sf10: yearRecord.sf10 || null,
-          completionStatus: {
-            firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
-            secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
-            thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
-            fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
-            overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
-          },
-          hasGrades: true
-        });
-        debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
+    // Group grades by student for efficient processing
+    const gradesByStudent = new Map<string, typeof allGrades>();
+    allGrades.forEach(grade => {
+      if (!grade.studentId) return;
+      if (!gradesByStudent.has(grade.studentId)) {
+        gradesByStudent.set(grade.studentId, []);
       }
+      gradesByStudent.get(grade.studentId)!.push(grade);
+    });
+    
+    // Process each student with their grades
+    const studentEntries = Array.from(gradesByStudent.entries());
+    for (let i = 0; i < studentEntries.length; i++) {
+      const [studentId, studentGrades] = studentEntries[i];
+      const student = studentDocuments.get(studentId);
+      if (!student) continue;
+      
+      const yearRecord = student.academicRecords?.[schoolYear] || {};
+      const quarters = studentGrades.map((g: any) => g.quarter);
+      
+      // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
+      const studentName = (student.firstName || student.lastName) 
+        ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+        : (student as any).name || `Student ${studentId}`;
+      
+      studentsWithGrades.set(studentId, {
+        student: {
+          id: studentId,
+          lrn: student.lrn || '',
+          name: studentName,
+          gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
+          section: yearRecord.section || student.currentSection
+        },
+        sf10: yearRecord.sf10 || null,
+        completionStatus: {
+          firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
+          secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
+          thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
+          fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
+          overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
+        },
+        hasGrades: true
+      });
+      debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
     }
     
     // Convert map to array and apply filters

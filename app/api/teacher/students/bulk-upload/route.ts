@@ -381,20 +381,47 @@ export async function POST(request: NextRequest) {
           const mergedTeacherIds = existingTeacherIds.includes(teacherId)
             ? existingTeacherIds
             : [...existingTeacherIds, teacherId];
-          
-          const needsUpdate = mergedSubjectIds.length > existingSubjectIds.length ||
-                             mergedTeacherIds.length > existingTeacherIds.length;
-          
+
+          // Check if grade level, section, or school year has changed
+          const existingGradeLevel = existingData.gradeLevel || existingData.currentGradeLevel;
+          const existingSection = existingData.section || existingData.currentSection;
+          const existingSchoolYear = existingData.schoolYear;
+
+          const gradeLevelChanged = existingGradeLevel !== gradeLevel.trim();
+          const sectionChanged = existingSection !== section.trim();
+          const schoolYearChanged = existingSchoolYear !== foundSchoolYear;
+          const subjectsChanged = mergedSubjectIds.length > existingSubjectIds.length;
+          const teachersChanged = mergedTeacherIds.length > existingTeacherIds.length;
+
+          const needsUpdate = gradeLevelChanged || sectionChanged || schoolYearChanged ||
+                             subjectsChanged || teachersChanged;
+
           if (needsUpdate) {
-            // Update the existing student
+            // Update the existing student with all changed fields
+            const updateData: any = {
+              subjectIds: mergedSubjectIds,
+              teacherIds: mergedTeacherIds,
+              updatedAt: Timestamp.now()
+            };
+
+            if (gradeLevelChanged) {
+              updateData.gradeLevel = gradeLevel.trim();
+              updateData.currentGradeLevel = gradeLevel.trim();
+            }
+
+            if (sectionChanged) {
+              updateData.section = section.trim();
+              updateData.currentSection = section.trim();
+            }
+
+            if (schoolYearChanged) {
+              updateData.schoolYear = foundSchoolYear;
+            }
+
             await import('firebase/firestore').then(({ updateDoc, doc }) => {
-              return updateDoc(doc(db, 'students', existingStudent.id), {
-                subjectIds: mergedSubjectIds,
-                teacherIds: mergedTeacherIds,
-                updatedAt: Timestamp.now()
-              });
+              return updateDoc(doc(db, 'students', existingStudent.id), updateData);
             });
-            
+
             uploadedCount++;
           } else {
             skippedCount++; // Student already has all subjects and teacher

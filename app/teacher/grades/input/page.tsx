@@ -206,28 +206,28 @@ export default function GradeInput() {
   const [studentSubjectId, setStudentSubjectId] = useState<string[]>([]);
   const [availableGradeLevelsForStudent, setAvailableGradeLevelsForStudent] = useState<string[]>([]);
   const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
-  const [sections, setSections] = useState<Array<{ id: string; name: string; subjectId?: string }>>([]);
+  const [sections, setSections] = useState<Array<{ id: string; name: string; subjectId?: string; gradeLevel?: string }>>([]);
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
+  const [newSectionGradeLevel, setNewSectionGradeLevel] = useState('Grade 1');
   const [selectedSection, setSelectedSection] = useState('');
 
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '' });
   
   // Excel upload states
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showExcelUpload, setShowExcelUpload] = useState(false);
   const [excelPreview, setExcelPreview] = useState<any[]>([]);
+  const [excelSchoolYear, setExcelSchoolYear] = useState<string>('');
 
   // Subject management states
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [newSubject, setNewSubject] = useState({
     name: '',
-    code: '',
-    gradeLevels: [] as string[],
-    schoolYear: '2024-2025'
+    code: ''
   });
 
   useEffect(() => {
@@ -352,10 +352,12 @@ export default function GradeInput() {
       id: s.id, 
       name: s.name || 'Unnamed Student', 
       gradeLevel: s.gradeLevel || 'Unknown Grade', 
+      section: s.section || 'NO SECTION',
       subjectId: s.subjectId || null, 
       subjectIds: s.subjectIds || [] 
     })));
     console.log('🔍 DEBUG: Selected subject:', selectedSubject || 'NONE');
+    console.log('🔍 DEBUG: Selected section filter:', selectedSectionFilter || 'NONE');
     
     // CRITICAL: Check if there are grades from other subjects in memory
     const currentGrades = Object.keys(grades);
@@ -490,9 +492,15 @@ export default function GradeInput() {
       console.log('🔍 DEBUG: After grade level filter:', filtered.length, 'students remain');
     }
     
-    // Apply section filter
+    // Apply section filter (case-insensitive, matches Diamond, DIAMOND, diamond)
     if (selectedSectionFilter) {
-      filtered = filtered.filter(s => s.section === selectedSectionFilter);
+      console.log('🔍 DEBUG: Students before section filter with their sections:', filtered.map(s => ({ name: s.name, section: s.section })));
+      filtered = filtered.filter(s => {
+        const studentSection = (s.section || '').trim().toUpperCase();
+        const filterSection = selectedSectionFilter.trim().toUpperCase();
+        console.log(`🔍 DEBUG: Comparing student section "${studentSection}" with filter "${filterSection}"`);
+        return studentSection === filterSection;
+      });
       console.log('🔍 DEBUG: After section filter:', filtered.length, 'students remain');
     }
     
@@ -547,29 +555,15 @@ export default function GradeInput() {
   }, [subjects, studentSubjectId]);
 
   useEffect(() => {
-    // Update available grade levels for student dropdown when subjects change
-    const allGradeLevels: string[] = [];
-    studentSubjectId.forEach(subjectId => {
-      const subj = subjects?.find(s => s.id === subjectId);
-      if (subj) {
-        const subjLevels = subj?.gradeLevels && subj.gradeLevels.length > 0
-          ? subj.gradeLevels
-          : (subj?.gradeLevel ? [subj.gradeLevel] : []);
-        allGradeLevels.push(...subjLevels);
-        console.log('DEBUG: Subject:', subj.name, 'Grade levels:', subjLevels);
-      }
-    });
+    // Update available grade levels for student dropdown
+    const allGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+    setAvailableGradeLevelsForStudent(allGradeLevels);
     
-    const uniqueGradeLevels = Array.from(new Set(allGradeLevels));
-    console.log('DEBUG: Available grade levels for student:', uniqueGradeLevels);
-    setAvailableGradeLevelsForStudent(uniqueGradeLevels);
-    
-    // Auto-select first grade level if none is selected and grade levels are available
-    if (uniqueGradeLevels.length > 0 && !newStudent.gradeLevel) {
-      setNewStudent(prev => ({ ...prev, gradeLevel: uniqueGradeLevels[0] }));
-      console.log('DEBUG: Auto-selected grade level:', uniqueGradeLevels[0]);
+    // Auto-select first grade level if none is selected
+    if (!newStudent.gradeLevel) {
+      setNewStudent(prev => ({ ...prev, gradeLevel: allGradeLevels[0] }));
     }
-  }, [studentSubjectId, subjects]);
+  }, []);
 
   useEffect(() => {
     if (subjects?.length > 0 && !selectedSubject) {
@@ -595,15 +589,16 @@ export default function GradeInput() {
           const teacherSubjectsData = await response.json();
           console.log('Sections API response:', teacherSubjectsData); // Debug log
           // Extract unique sections from teacherSubjects
-          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string }>();
+          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string; gradeLevel?: string }>();
           
           teacherSubjectsData.forEach((ts: any) => {
-            if (ts.section && ts.subjectId) {
-              const key = `${ts.subjectId}_${ts.section}`;
+            if (ts.section) {
+              const key = ts.section;
               sectionsMap.set(key, { 
-                id: key, 
+                id: ts.id || key, 
                 name: ts.section, 
-                subjectId: ts.subjectId 
+                subjectId: ts.subjectId,
+                gradeLevel: ts.gradeLevel
               });
             }
           });
@@ -625,9 +620,9 @@ export default function GradeInput() {
     try {
       // Only cache current grades if we're SWITCHING to a different subject/period
       // Don't cache on initial load when grades are empty
-      const isSwitching = selectedSubject && selectedGradingPeriod && 
+      const isSwitching = selectedSubject && selectedGradingPeriod &&
         (selectedSubject !== subjectId || selectedGradingPeriod !== gradingPeriod);
-      
+
       if (isSwitching && Object.keys(grades).length > 0) {
         setGradesBySubjectAndPeriod(prev => ({
           ...prev,
@@ -652,11 +647,38 @@ export default function GradeInput() {
         }));
       }
 
-      const [studentsRes, gradesRes] = await Promise.all([
-        fetch(`/api/teacher/students?scope=school${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, {
-          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
-        }),
-        fetch(`/api/teacher/grades?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(subjectId)}&gradingPeriod=${encodeURIComponent(gradingPeriod)}${schoolYear ? `&schoolYear=${encodeURIComponent(schoolYear)}` : ''}`, {
+      // Fetch students first to get their schoolYear
+      const studentsRes = await fetch(`/api/teacher/students?scope=school${subjectId ? `&subjectId=${encodeURIComponent(subjectId)}` : ''}`, {
+        headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+      });
+
+      let studentsData: any[] = [];
+      if (studentsRes.ok) {
+        studentsData = await studentsRes.json();
+      }
+
+      console.log('🔍 DEBUG: Students data with schoolYear:', studentsData.map(s => ({ name: s.name, schoolYear: s.schoolYear })));
+
+      // Always use student's schoolYear, ignore subject's schoolYear
+      // Get the most common schoolYear from students
+      let effectiveSchoolYear = schoolYear;
+      if (studentsData.length > 0) {
+        const schoolYearCounts = new Map<string, number>();
+        studentsData.forEach((s: any) => {
+          if (s.schoolYear) {
+            schoolYearCounts.set(s.schoolYear, (schoolYearCounts.get(s.schoolYear) || 0) + 1);
+          }
+        });
+        if (schoolYearCounts.size > 0) {
+          effectiveSchoolYear = Array.from(schoolYearCounts.entries())
+            .sort((a, b) => b[1] - a[1])[0][0];
+        }
+      }
+
+      console.log('🔍 DEBUG: Effective schoolYear for loading grades:', effectiveSchoolYear, '(subject schoolYear was:', schoolYear, ')');
+
+      const [gradesRes] = await Promise.all([
+        fetch(`/api/teacher/grades?teacherId=${encodeURIComponent(teacherId)}&subjectId=${encodeURIComponent(subjectId)}&gradingPeriod=${encodeURIComponent(gradingPeriod)}${effectiveSchoolYear ? `&schoolYear=${encodeURIComponent(effectiveSchoolYear)}` : ''}`, {
           headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
         }),
       ]);
@@ -849,11 +871,6 @@ export default function GradeInput() {
       return;
     }
 
-    if (!Array.isArray(newSubject.gradeLevels) || newSubject.gradeLevels.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one grade level for this subject' });
-      return;
-    }
-
     setMessage(null);
     try {
       const session = localStorage.getItem('teacherSession');
@@ -869,9 +886,7 @@ export default function GradeInput() {
         },
         body: JSON.stringify({
           name: newSubject.name.trim(),
-          code: newSubject.code.trim(),
-          gradeLevels: newSubject.gradeLevels,
-          schoolYear: newSubject.schoolYear
+          code: newSubject.code.trim()
         })
       });
 
@@ -882,9 +897,7 @@ export default function GradeInput() {
         setSelectedSubject(created.id);
         setNewSubject({
           name: '',
-          code: '',
-          gradeLevels: [],
-          schoolYear: '2024-2025'
+          code: ''
         });
         setShowAddSubject(false);
         setMessage({ type: 'success', text: 'Subject added successfully' });
@@ -913,24 +926,7 @@ export default function GradeInput() {
       return;
     }
 
-    const selectedSubjectObj = subjects?.find(s => s.id === studentSubjectId[0]);
-    if (!selectedSubjectObj) {
-      setMessage({ type: 'error', text: 'Please select a subject first (this will determine the student category/grade level).' });
-      return;
-    }
-
-    const allowedGradeLevels = selectedSubjectObj.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
-      ? selectedSubjectObj.gradeLevels
-      : (selectedSubjectObj.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
-
-    if (allowedGradeLevels.length === 0) {
-      setMessage({ type: 'error', text: 'Selected subject has no grade levels assigned. Please edit the subject and add grade levels.' });
-      return;
-    }
-
-    const targetGradeLevel = newStudent.gradeLevel && allowedGradeLevels.includes(newStudent.gradeLevel)
-      ? newStudent.gradeLevel
-      : allowedGradeLevels[0];
+    const targetGradeLevel = newStudent.gradeLevel || 'Grade 1';
 
     try {
       const session = localStorage.getItem('teacherSession');
@@ -949,15 +945,14 @@ export default function GradeInput() {
           lrn: newStudent.lrn.trim(),
           gradeLevel: targetGradeLevel,
           section: selectedSection,
+          schoolYear: newStudent.schoolYear,
           subjectIds: studentSubjectId // Send all selected subject IDs
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        const studentsUrl = allowedGradeLevels.length > 0
-          ? `/api/teacher/students?scope=school&${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
-          : '/api/teacher/students?scope=school';
+        const studentsUrl = '/api/teacher/students?scope=school';
 
         const refreshedStudentsResponse = await fetch(studentsUrl, {
           headers: {
@@ -975,7 +970,7 @@ export default function GradeInput() {
         }).join(', ');
         
         setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${targetGradeLevel})` });
-        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '' });
+        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '' });
         setSelectedSection('');
         setShowAddStudent(false);
       } else {
@@ -1084,8 +1079,7 @@ export default function GradeInput() {
       const t = teacherData?.teacher ?? teacherData;
       const teacherUid = t?.uid || t?.id || '';
 
-      // Get the school year from the selected subject
-      const schoolYear = selectedSubjectObj?.schoolYear || '2024-2025';
+      const currentSelectedSubject = subjects?.find(s => s.id === selectedSubject);
       
       const gradeData: GradeInput[] = students.map(student => ({
         studentId: student.id,
@@ -1095,8 +1089,8 @@ export default function GradeInput() {
         remarks: remarks[student.id] || '',
         teacherId: teacherUid,
         gradeLevel: student.gradeLevel || 'Unknown',
-        section: student.section || 'Default', // Use student's actual section
-        schoolYear: selectedSubjectObj?.schoolYear || '2024-2025', // Include school year from subject
+        section: student.section || 'Default',
+        schoolYear: (student as any).schoolYear || currentSelectedSubject?.schoolYear || '2025-2026',
         dateInput: new Date().toISOString()
       }));
 
@@ -1122,7 +1116,7 @@ export default function GradeInput() {
         
         // Reload grades to ensure they persist after save
         if (selectedSubject) {
-          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod, selectedSubjectObj?.schoolYear);
+          await loadExistingGrades(teacherUid, selectedSubject, selectedGradingPeriod, currentSelectedSubject?.schoolYear);
         }
       } else {
         const errorData = await response.json();
@@ -1135,40 +1129,6 @@ export default function GradeInput() {
     }
   };
 
-  const selectedSubjectObj = subjects?.find(s => s.id === selectedSubject);
-  const availableGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
-    ? selectedSubjectObj.gradeLevels
-    : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
-
-  const allSystemGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
-  
-  // Use all system grade levels for filter, not just selected subject's levels
-  const gradeLevelFilterOptions = [
-    { label: "All Grade Levels", value: "" }, 
-    ...allSystemGradeLevels.map(g => ({ label: g, value: g }))
-  ];
-
-  // Get unique sections from all students for filtering
-  const availableSections = Array.from(new Set(allStudents.map(s => s.section).filter((section): section is string => Boolean(section))));
-  const sectionFilterOptions = [
-    { label: "All Sections", value: "" },
-    ...availableSections.map(section => ({ label: section, value: section }))
-  ];
-
-  const handleUnlockEditing = () => {
-    if (!isLockedByDefault) return;
-    if (confirm('Unlock editing to fix errors?')) {
-      setIsEditingUnlocked(true);
-    }
-  };
-
-  const handleChangeActiveGrading = (value: 'first' | 'second' | 'third' | 'fourth') => {
-    setActiveGradingPeriod(value);
-    const storageKey = `activeGradingPeriod_${teacherId || ''}`;
-    localStorage.setItem(storageKey, value);
-    setIsEditingUnlocked(false);
-  };
-
   const handleChangeGradeLevelFilter = (value: string) => {
     setSelectedGradeLevelFilter(value);
   };
@@ -1179,6 +1139,24 @@ export default function GradeInput() {
 
   const handleChangeStudentListSubjectFilter = (value: string) => {
     setStudentListSubjectFilter(value);
+  };
+
+  const handleStudentSectionChange = (sectionName: string) => {
+    setSelectedSection(sectionName);
+    
+    // Auto-set grade level based on section if a match is found
+    const sectionData = sections.find(s => s.name === sectionName);
+    if (sectionData?.gradeLevel) {
+      setNewStudent(prev => ({ ...prev, gradeLevel: sectionData.gradeLevel! }));
+    }
+  };
+
+  const handleStudentGradeLevelChange = (gradeLevel: string) => {
+    setNewStudent(prev => ({ ...prev, gradeLevel }));
+    
+    // If current selected section doesn't match this grade level, we might want to reset it
+    // or keep it but update the student's grade level. 
+    // For now, let's just update the grade level.
   };
 
   const handleAddSection = async () => {
@@ -1194,18 +1172,11 @@ export default function GradeInput() {
 
     setMessage(null);
     try {
-      // Add section to the selected subject's teacherSubject document
-      if (!selectedSubject) {
-        setMessage({ type: 'error', text: 'Please select a subject first' });
-        return;
-      }
-
       const session = localStorage.getItem('teacherSession');
       const teacherData = JSON.parse(session!);
       const t = teacherData?.teacher ?? teacherData;
       const teacherUid = t?.uid || t?.id || '';
 
-      // Create or update teacherSubject with the section
       const response = await fetch('/api/teacher/subjects', {
         method: 'POST',
         headers: {
@@ -1214,13 +1185,13 @@ export default function GradeInput() {
         },
         body: JSON.stringify({
           section: newSectionName.trim(),
-          subjectId: selectedSubject,
+          gradeLevel: newSectionGradeLevel,
+          subjectId: selectedSubject || 'global',
           action: 'addSection'
         })
       });
 
       if (response.ok) {
-        // Refresh sections from API to get the updated list
         const sectionsResponse = await fetch('/api/teacher/subjects', {
           headers: {
             'Authorization': `Bearer ${teacherUid}`
@@ -1229,31 +1200,29 @@ export default function GradeInput() {
 
         if (sectionsResponse.ok) {
           const teacherSubjectsData = await sectionsResponse.json();
-          console.log('Sections API response after adding section:', teacherSubjectsData); // Debug log
-          // Extract unique sections from teacherSubjects
-          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string }>();
+          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string; gradeLevel?: string }>();
           
           teacherSubjectsData.forEach((ts: any) => {
-            if (ts.section && ts.subjectId) {
-              const key = `${ts.subjectId}_${ts.section}`;
+            if (ts.section) {
+              const key = ts.section;
               sectionsMap.set(key, { 
-                id: key, 
+                id: ts.id || key, 
                 name: ts.section, 
-                subjectId: ts.subjectId 
+                subjectId: ts.subjectId,
+                gradeLevel: ts.gradeLevel
               });
             }
           });
 
           const normalized = Array.from(sectionsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-          console.log('Processed sections after adding:', normalized); // Debug log
           setSections(normalized);
         }
 
-        // Set the newly added section as selected
         setSelectedSection(newSectionName.trim());
         setNewSectionName('');
+        setNewSectionGradeLevel('Grade 1');
         setShowAddSection(false);
-        setMessage({ type: 'success', text: 'Section added successfully' });
+        setMessage({ type: 'success', text: `Section "${newSectionName}" for ${newSectionGradeLevel} added successfully` });
       } else {
         const errorData = await response.json();
         setMessage({ type: 'error', text: errorData.message || 'Failed to add section' });
@@ -1285,10 +1254,185 @@ export default function GradeInput() {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
+        // Convert to 2D array to find metadata and header row
+        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false }) as any[][];
+        
+        console.log('📊 Raw 2D Excel data:', rawData);
+        
+        // Find school year
+        let foundSchoolYear = '';
+        
+        // First, try to extract from filename (Papaya masterlist format)
+        if (file.name) {
+          const filenameMatch = file.name.match(/(\d{4}[-–]\d{4})/);
+          if (filenameMatch) {
+            foundSchoolYear = filenameMatch[1].replace('–', '-');
+          }
+        }
+        
+        // If not in filename, check the sheet
+        if (!foundSchoolYear) {
+          for (let r = 0; r < rawData.length; r++) {
+            for (let c = 0; c < rawData[r].length; c++) {
+              const cellValue = String(rawData[r][c] || '').trim();
+              const cellLower = cellValue.toLowerCase();
+              
+              // Check for explicit "School Year" label
+              if (cellLower === 'school year' && rawData[r][c + 1]) {
+                foundSchoolYear = String(rawData[r][c + 1]).trim();
+                break;
+              }
+              
+              // Check for masterlist pattern with year
+              if (cellLower.includes('masterlist')) {
+                const match = cellValue.match(/(\d{4}[-–]\d{4})/);
+                if (match) {
+                  foundSchoolYear = match[1].replace('–', '-');
+                  break;
+                }
+              }
+              
+              // Check for any year pattern
+              const match = cellValue.match(/(\d{4}[-–]\d{4})/);
+              if (match) {
+                foundSchoolYear = match[1].replace('–', '-');
+                break;
+              }
+            }
+            if (foundSchoolYear) break;
+          }
+        }
+        
+        // Default fallback for Papaya masterlist
+        if (!foundSchoolYear) {
+          foundSchoolYear = '2025-2026';
+        }
+
+        // Helper function to convert Roman numerals to integers
+        const romanToInt = (roman: string): number => {
+          const romanUpper = roman.toUpperCase();
+          const romanNumerals: { [key: string]: number } = {
+            'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+            'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10,
+            'XI': 11, 'XII': 12
+          };
+          return romanNumerals[romanUpper] || 0;
+        };
+
+        // Helper function to convert grade level with Roman numeral to whole number
+        const convertGradeLevel = (gradeLevel: string): string => {
+          if (!gradeLevel) return gradeLevel;
+          
+          const match = gradeLevel.match(/grade\s*(\w+)/i);
+          if (match) {
+            const gradePart = match[1];
+            const romanNumeral = romanToInt(gradePart);
+            if (romanNumeral > 0) {
+              return `Grade ${romanNumeral}`;
+            }
+          }
+          return gradeLevel;
+        };
+        
+        // Find header row (contains "LRN NUMBER" or "NAME")
+        let headerRowIndex = -1;
+        for (let r = 0; r < rawData.length; r++) {
+          const row = rawData[r];
+          const rowStr = row.map((cell: any) => String(cell || '').toLowerCase()).join(' ');
+          if (rowStr.includes('lrn') || rowStr.includes('name')) {
+            headerRowIndex = r;
+            console.log(`📋 Found header row at index ${r}:`, row);
+            break;
+          }
+        }
+        
+        let jsonData: any[] = [];
+        let defaultGradeLevel = '';
+        let defaultSection = '';
+        
+        if (headerRowIndex >= 0) {
+          // Extract grade/section from row before header (row 8 in Papaya format)
+          if (headerRowIndex > 0) {
+            const gradeSectionRow = rawData[headerRowIndex - 1];
+            const gradeSectionText = gradeSectionRow.map((cell: any) => String(cell || '')).join(' ');
+            console.log(`📋 Grade/Section row: ${gradeSectionText}`);
+            
+            // Parse "GRADE VI - DIAMOND"
+            const gradeMatch = gradeSectionText.match(/GRADE\s+(\w+)/i);
+            if (gradeMatch) {
+              defaultGradeLevel = convertGradeLevel(`Grade ${gradeMatch[1]}`);
+            }
+            
+            const sectionMatch = gradeSectionText.match(/-\s*(\w+)$/);
+            if (sectionMatch) {
+              defaultSection = sectionMatch[1].trim();
+            }
+            
+            console.log(`📋 Default Grade: "${defaultGradeLevel}", Default Section: "${defaultSection}"`);
+          }
+          
+          // Use the header row to parse data
+          const headers = rawData[headerRowIndex].map((h: any) => String(h || '').trim());
+          console.log('📋 Headers (raw):', headers);
+          
+          // Parse data rows (skip header row)
+          for (let r = headerRowIndex + 1; r < rawData.length; r++) {
+            const row = rawData[r];
+            if (row.length === 0 || row.every((cell: any) => !cell)) continue; // Skip empty rows
+            
+            const obj: any = {};
+            headers.forEach((header: string, index: number) => {
+              if (header && row[index] !== undefined) {
+                obj[header] = row[index];
+              }
+            });
+            
+            // Map Papaya masterlist column names to standard names
+            if (obj['NAME']) {
+              obj['Student Name'] = obj['NAME'];
+            }
+            if (obj['LRN NUMBER']) {
+              obj['LRN'] = obj['LRN NUMBER'];
+            }
+            
+            // Add default grade and section if not in data
+            if (defaultGradeLevel && !obj['Grade Level'] && !obj['gradeLevel']) {
+              obj['Grade Level'] = defaultGradeLevel;
+            }
+            if (defaultSection && !obj['Section'] && !obj['section']) {
+              obj['Section'] = defaultSection;
+            }
+            
+            // Convert Roman numerals in grade level to whole numbers
+            if (obj['Grade Level']) {
+              obj['Grade Level'] = convertGradeLevel(obj['Grade Level']);
+            }
+            if (obj['gradeLevel']) {
+              obj['gradeLevel'] = convertGradeLevel(obj['gradeLevel']);
+            }
+            
+            // Only add if it has meaningful data
+            if (Object.keys(obj).length > 0) {
+              jsonData.push(obj);
+            }
+          }
+        } else {
+          // Fallback: use default parsing
+          jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+        }
+        
+        console.log('📊 Parsed student data:', jsonData);
+        console.log('📊 Number of students:', jsonData.length);
+
+        setExcelSchoolYear(foundSchoolYear);
         setExcelPreview(jsonData.slice(0, 5)); // Show first 5 rows as preview
-        setMessage({ type: 'success', text: `Excel file loaded successfully. Found ${jsonData.length} students.` });
+        
+        if (foundSchoolYear) {
+          setMessage({ type: 'success', text: `Excel file loaded successfully for School Year: ${foundSchoolYear}. Found ${jsonData.length} students.` });
+        } else {
+          setMessage({ type: 'error', text: 'School Year not found in Excel file. Please ensure it follows the template.' });
+        }
       } catch (error) {
         setMessage({ type: 'error', text: 'Failed to parse Excel file. Please check the format.' });
         console.error('Excel parsing error:', error);
@@ -1327,15 +1471,15 @@ export default function GradeInput() {
       if (response.ok) {
         const result = await response.json();
         
+        console.log('🔍 Excel Upload Result:', {
+          uploadedCount: result.uploadedCount,
+          skippedCount: result.skippedCount,
+          totalRows: result.totalRows,
+          errors: result.errors
+        });
+        
         // Refresh students list
-        const selectedSubjectObj = subjects?.find(s => s.id === studentSubjectId[0]);
-        const allowedGradeLevels = selectedSubjectObj?.gradeLevels && selectedSubjectObj.gradeLevels.length > 0
-          ? selectedSubjectObj.gradeLevels
-          : (selectedSubjectObj?.gradeLevel ? [selectedSubjectObj.gradeLevel] : []);
-
-        const studentsUrl = allowedGradeLevels.length > 0
-          ? `/api/teacher/students?scope=school&${allowedGradeLevels.map(g => `gradeLevels=${encodeURIComponent(g)}`).join('&')}`
-          : '/api/teacher/students?scope=school';
+        const studentsUrl = '/api/teacher/students?scope=school';
 
         const refreshedStudentsResponse = await fetch(studentsUrl, {
           headers: {
@@ -1345,7 +1489,19 @@ export default function GradeInput() {
 
         if (refreshedStudentsResponse.ok) {
           const refreshedStudents = await refreshedStudentsResponse.json();
+          console.log('🔍 Students returned from API:', refreshedStudents.length, 'students');
+          console.log('🔍 Student names:', (refreshedStudents as any[]).map((s: any) => s.name));
           setAllStudents(refreshedStudents);
+          
+          // Temporarily clear all filters to show all uploaded students
+          setStudentListSubjectFilter('');
+          setSelectedGradeLevelFilter('');
+          setSelectedSectionFilter('');
+          
+          // Select the first subject from studentSubjectId to ensure uploaded students are visible
+          if (studentSubjectId.length > 0) {
+            setSelectedSubject(studentSubjectId[0]);
+          }
         }
 
         setExcelFile(null);
@@ -1357,7 +1513,13 @@ export default function GradeInput() {
         });
       } else {
         const errorData = await response.json();
-        setMessage({ type: 'error', text: errorData.message || 'Failed to upload students' });
+        let errorMessage = errorData.message || 'Failed to upload students';
+        
+        if (errorData.code === 'MISSING_SCHOOL_YEAR') {
+          errorMessage = 'The School Year is missing from your Excel file. Please ensure Column A contains "School Year" and Column B contains the year (e.g., 2023-2024) as shown in the template.';
+        }
+        
+        setMessage({ type: 'error', text: errorMessage });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to upload students' });
@@ -1368,7 +1530,7 @@ export default function GradeInput() {
   };
 
   const downloadExcelTemplate = () => {
-    const template = [
+    const data = [
       {
         'Student Name': 'Juan Dela Cruz',
         'LRN': '123456789012',
@@ -1380,10 +1542,15 @@ export default function GradeInput() {
         'LRN': '123456789013',
         'Grade Level': 'Grade 5',
         'Section': 'Section A'
+      },
+      {}, // Empty row
+      {
+        'Student Name': 'School Year',
+        'LRN': '2023-2024'
       }
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Students');
     XLSX.writeFile(wb, 'student_template.xlsx');
@@ -1400,17 +1567,26 @@ export default function GradeInput() {
   }
 
   // Options prep
-  const gradingOptions = [
-    { label: "First Grading", value: "first" },
-    { label: "Second Grading", value: "second" },
-    { label: "Third Grading", value: "third" },
-    { label: "Fourth Grading", value: "fourth" },
-  ];
-  const subjectOptions = subjects?.map(s => ({ label: `${s.name} (${s.code})`, value: s.id })) || [];
-  const gradeLevelOptions = [
+    const gradingOptions = [
+      { label: "First Grading", value: "first" },
+      { label: "Second Grading", value: "second" },
+      { label: "Third Grading", value: "third" },
+      { label: "Fourth Grading", value: "fourth" },
+    ];
+  const availableGradeLevels = ['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+  const allSystemGradeLevels = availableGradeLevels;
+  const gradeLevelFilterOptions = [
     { label: "All Grade Levels", value: "" }, 
     ...availableGradeLevels.map(g => ({ label: g, value: g }))
   ];
+
+  const availableSections = Array.from(new Set(sections.map(s => s.name)));
+
+  const sectionFilterOptions = [
+    { label: "All Sections", value: "" },
+    ...availableSections.map(name => ({ label: name, value: name }))
+  ];
+
   const subjectFilterOptions = [
     ...(subjects?.map(s => ({ label: `${s.name} (${s.code})`, value: s.id })) || [])
   ];
@@ -1418,17 +1594,6 @@ export default function GradeInput() {
   return (
     <TeacherLayout title="Input Grades" subtitle="Enter and manage student grades per subject and grading period.">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <style jsx global>{`
-          @keyframes jump {
-            0%, 100% { transform: translateY(-50%); }
-            50% { transform: translateY(-80%); }
-          }
-          .animate-icon-jump { animation: jump 0.4s ease-in-out; }
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        `}</style>
 
         {/* Message Popup Modal */}
         {message && (
@@ -1477,44 +1642,6 @@ export default function GradeInput() {
             </AnimatedButton>
           </div>
 
-          <div className="flex items-center justify-between mb-6 gap-4">
-            <h4 className="text-sm font-semibold text-[#1B3E2A] uppercase tracking-wider">Sections</h4>
-            <AnimatedButton
-              onClick={() => setShowAddSection(!showAddSection)}
-              className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-              style={{ width: 'auto' }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Section
-            </AnimatedButton>
-          </div>
-
-          {showAddSection && (
-            <div className="border-t border-dashed border-gray-200 pt-6 mb-6 animate-in slide-in-from-top-4 duration-300">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section Name</label>
-                  <input
-                    type="text"
-                    value={newSectionName}
-                    onChange={(e) => setNewSectionName(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
-                    placeholder="e.g. Section A"
-                  />
-                </div>
-                <div className="flex items-end justify-end">
-                  <AnimatedButton
-                    onClick={handleAddSection}
-                    className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
-                    style={{ width: 'auto' }}
-                  >
-                    Confirm Add Section
-                  </AnimatedButton>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Section will be added to the currently selected subject</p>
-            </div>
-          )}
           {showAddSubject && (
             <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1528,7 +1655,7 @@ export default function GradeInput() {
                     placeholder="e.g. Mathematics"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-3">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Code</label>
                   <input
                     type="text"
@@ -1537,39 +1664,6 @@ export default function GradeInput() {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
                     placeholder="e.g. MATH"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">School Year</label>
-                  <input
-                    type="text"
-                    value={newSubject.schoolYear}
-                    onChange={(e) => setNewSubject(prev => ({ ...prev, schoolYear: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
-                    placeholder="e.g. 2024-2025"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Levels</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((level) => (
-                      <label key={level} className={`cursor-pointer px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${newSubject.gradeLevels.includes(level) ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-100' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1B3E2A]'}`}>
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={newSubject.gradeLevels.includes(level)}
-                          onChange={(e) => {
-                            setNewSubject((prev) => {
-                              const next = e.target.checked
-                                ? Array.from(new Set([...prev.gradeLevels, level]))
-                                : prev.gradeLevels.filter((g) => g !== level);
-                              return { ...prev, gradeLevels: next };
-                            });
-                          }}
-                        />
-                        {level}
-                      </label>
-                    ))}
-                  </div>
                 </div>
               </div>
               <div className="mt-6 flex justify-end">
@@ -1580,6 +1674,65 @@ export default function GradeInput() {
                 >
                   Confirm Add Subject
                 </AnimatedButton>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section Management Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+            <h3 className="text-lg font-semibold text-[#1B3E2A] flex items-center gap-2">
+              <Plus className="w-5 h-5 text-[#F2C94C]" />
+              Section Management
+            </h3>
+            <AnimatedButton
+              onClick={() => setShowAddSection(!showAddSection)}
+              className="flex items-center justify-center gap-2 px-4 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+              style={{ width: 'auto' }}
+            >
+              <Plus className="w-4 h-4" />
+              Add Section
+            </AnimatedButton>
+          </div>
+
+          {showAddSection && (
+            <div className="border-t border-dashed border-gray-200 pt-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section Name</label>
+                  <input
+                    type="text"
+                    value={newSectionName}
+                    onChange={(e) => setNewSectionName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="e.g. Section A"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
+                  <div className="relative h-11">
+                    <select
+                      value={newSectionGradeLevel}
+                      onChange={(e) => setNewSectionGradeLevel(e.target.value)}
+                      className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                    >
+                      {['Pre-School', 'Nursery', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'].map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  </div>
+                </div>
+                <div className="flex items-end justify-end">
+                  <AnimatedButton
+                    onClick={handleAddSection}
+                    className="flex items-center justify-center gap-2 px-6 rounded-md font-semibold text-xs tracking-normal border border-[#1B3E2A] border-b-2 shadow-sm transition-all duration-300 h-11"
+                    style={{ width: 'auto' }}
+                  >
+                    Confirm Add Section
+                  </AnimatedButton>
+                </div>
               </div>
             </div>
           )}
@@ -1649,7 +1802,7 @@ export default function GradeInput() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Student Name</label>
                   <input
@@ -1659,24 +1812,36 @@ export default function GradeInput() {
                     className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
                     placeholder="Enter student name"
                   />
-                  <div className="mt-4">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">LRN</label>
-                    <input
-                      type="text"
-                      value={newStudent.lrn}
-                      onChange={(e) => setNewStudent(prev => ({ ...prev, lrn: e.target.value }))}
-                      className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
-                      placeholder="Enter LRN"
-                    />
-                  </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">LRN</label>
+                  <input
+                    type="text"
+                    value={newStudent.lrn}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, lrn: e.target.value }))}
+                    className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="Enter LRN"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">School Year</label>
+                  <input
+                    type="text"
+                    value={newStudent.schoolYear}
+                    onChange={(e) => setNewStudent(prev => ({ ...prev, schoolYear: e.target.value }))}
+                    className="w-full h-11 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A] outline-none transition-all"
+                    placeholder="e.g. 2024-2025"
+                  />
+                </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
                   <div className="relative h-11">
                     <select
                       value={newStudent.gradeLevel}
-                      onChange={(e) => setNewStudent(prev => ({ ...prev, gradeLevel: e.target.value }))}
+                      onChange={(e) => handleStudentGradeLevelChange(e.target.value)}
                       className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
                     >
                       {availableGradeLevelsForStudent.length === 0 ? (
@@ -1689,39 +1854,39 @@ export default function GradeInput() {
                     </select>
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                   </div>
+                </div>
 
-                  <div className="mt-4">
-                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section</label>
-                    <div className="relative h-11">
-                      <select
-                        value={selectedSection}
-                        onChange={(e) => setSelectedSection(e.target.value)}
-                        className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
-                      >
-                        <option value=""></option>
-                        {sections
-                          .filter((s) => {
-                            // Show section if no subjectId (applies to all) 
-                            // OR if no subjects selected for student (show all)
-                            // OR if section matches selected student subjects or main selected subject
-                            if (!s.subjectId) return true;
-                            if (studentSubjectId.length === 0) return true;
-                            return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
-                          })
-                          .map((s) => (
-                            <option key={s.id} value={s.name}>{s.name}</option>
-                          ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                    </div>
-                    {sections.filter((s) => {
-                      if (!s.subjectId) return true;
-                      if (studentSubjectId.length === 0) return true;
-                      return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
-                    }).length === 0 && (
-                      <p className="text-xs text-gray-500 mt-1">No sections available for selected subjects. Add a section in Subject Management.</p>
-                    )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Section</label>
+                  <div className="relative h-11">
+                    <select
+                      value={selectedSection}
+                      onChange={(e) => handleStudentSectionChange(e.target.value)}
+                      className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                    >
+                      <option value=""></option>
+                      {sections
+                        .filter((s) => {
+                          // Show section if no subjectId (applies to all) 
+                          // OR if no subjects selected for student (show all)
+                          // OR if section matches selected student subjects or main selected subject
+                          if (!s.subjectId) return true;
+                          if (studentSubjectId.length === 0) return true;
+                          return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
+                        })
+                        .map((s) => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                   </div>
+                  {sections.filter((s) => {
+                    if (!s.subjectId) return true;
+                    if (studentSubjectId.length === 0) return true;
+                    return studentSubjectId.includes(s.subjectId) || s.subjectId === selectedSubject;
+                  }).length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">No sections available for selected subjects. Add a section in Subject Management.</p>
+                  )}
                 </div>
               </div>
 
@@ -1797,7 +1962,15 @@ export default function GradeInput() {
               {/* Preview Section */}
               {excelPreview.length > 0 && (
                 <div className="mb-6">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Preview (First 5 rows)</label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Preview (First 5 rows)</label>
+                    {excelSchoolYear && (
+                      <div className="flex items-center gap-2 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                        <span className="text-[10px] font-bold text-amber-700 uppercase tracking-tighter">School Year</span>
+                        <span className="text-xs font-bold text-amber-900">{excelSchoolYear}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="overflow-x-auto border border-gray-200 rounded-lg">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -1950,12 +2123,12 @@ export default function GradeInput() {
                           type="number"
                           min="0"
                           max="100"
-                          step="0.01"
+                          step="1"
                           value={grades[student.id] || ''}
                           onChange={(e) => handleGradeChange(student.id, e.target.value)}
                           disabled={isReadOnly}
                           className={`w-28 px-3 py-2 border rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-[#1B3E2A] transition-all ${getGradeColor(grades[student.id] || '')} ${isReadOnly ? 'bg-gray-50 text-gray-400 border-gray-200' : 'bg-white border-gray-300 group-hover:border-[#1B3E2A]'}`}
-                          placeholder="0.00"
+                          placeholder="0"
                         />
                       </div>
                     </td>

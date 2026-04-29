@@ -225,7 +225,7 @@ export default function ReportCard({
             <div className="text-[11px] relative z-10 space-y-2 pr-1 mt-6">
               <div className="flex items-end">
                 <span className="font-bold w-12 mr-1">Name:</span>
-                <div className="w-64 border-b border-black px-1 uppercase font-bold text-[13px] leading-tight min-h-[1.4rem] flex items-end">
+                <div className="w-50 border-b border-black px-1 uppercase font-bold text-[13px] leading-tight min-h-[1.4rem] flex items-end">
                   {studentName}
                 </div>
               </div>

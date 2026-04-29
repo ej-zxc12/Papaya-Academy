@@ -112,41 +112,47 @@ export async function POST(request: NextRequest) {
 
     const results = await GradeService.saveGrades(gradeData);
 
-    // Auto-generate/update SF10 for affected students
+    // Auto-generate/update SF10 for affected students - run in parallel for better performance
     const affectedStudents = new Set<string>();
     gradeData.forEach(grade => affectedStudents.add(grade.studentId));
-    
-    const sf10Results: { studentId: string; success: boolean; error?: string }[] = [];
-    
-    // Generate SF10 for each affected student (async but don't block response)
-    for (const studentId of Array.from(affectedStudents)) {
+
+    // Generate SF10 for all affected students in parallel using Promise.all
+    const sf10Promises = Array.from(affectedStudents).map(async (studentId) => {
       try {
-        // Check if student exists and has academic record
         const studentDoc = await getDoc(doc(db, 'students', studentId));
         if (studentDoc.exists()) {
-          // Try to generate/update SF10
           await SF10NormalizedGenerator.generateSF10(studentId, schoolYear);
-          sf10Results.push({ studentId, success: true });
           console.log(`Auto-generated SF10 for student ${studentId}`);
+          return { studentId, success: true };
         }
+        return { studentId, success: false, error: 'Student not found' };
       } catch (sf10Error) {
         console.error(`Failed to auto-generate SF10 for student ${studentId}:`, sf10Error);
-        sf10Results.push({ 
-          studentId, 
-          success: false, 
-          error: sf10Error instanceof Error ? sf10Error.message : 'Unknown error' 
-        });
-        // Don't fail the entire request if SF10 generation fails
+        return {
+          studentId,
+          success: false,
+          error: sf10Error instanceof Error ? sf10Error.message : 'Unknown error'
+        };
       }
-    }
+    });
+
+    // Start SF10 generation in background but don't wait for it
+    // This allows the response to return immediately while SF10 generation continues
+    const sf10UpdatePromise = Promise.all(sf10Promises).then(sf10Results => {
+      console.log(`SF10 generation completed: ${sf10Results.filter(r => r.success).length} succeeded, ${sf10Results.filter(r => !r.success).length} failed`);
+    }).catch(error => {
+      console.error('SF10 generation batch error:', error);
+    });
+
+    // Don't await sf10UpdatePromise - let it run in background
+    // Return immediately after grades are saved
 
     return NextResponse.json({
       message: 'Grades processed successfully',
       results,
       sf10Update: {
-        generated: sf10Results.filter(r => r.success).length,
-        failed: sf10Results.filter(r => !r.success).length,
-        details: sf10Results
+        status: 'processing_in_background',
+        studentsCount: affectedStudents.size
       }
     });
 

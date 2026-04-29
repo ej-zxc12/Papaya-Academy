@@ -149,7 +149,6 @@ export default function TeacherLayout({ children, title, subtitle }: TeacherLayo
     { icon: School, label: 'Input Grades', href: '/teacher/grades/input' },
     { icon: FileText, label: 'Report Cards', href: '/teacher/report-cards' },
     { icon: Eye, label: 'View SF10', href: '/teacher/sf10/list' },
-    { icon: Table, label: 'Class Records', href: '/teacher/grades/view' },
     { icon: DollarSign, label: 'Contributions', href: '/teacher/contributions' },
   ];
 

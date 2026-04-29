@@ -57,9 +57,11 @@ export default function ReportCardsPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
 
-  // Load subjects first to get the correct school year
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Load subjects and students to get available school years
   useEffect(() => {
-    const loadSubjects = async () => {
+    const loadData = async () => {
       const session = localStorage.getItem('teacherSession');
       if (!session) {
         router.push('/teacher/login');
@@ -76,30 +78,68 @@ export default function ReportCardsPage() {
           headers: { 'Authorization': `Bearer ${teacherId}` }
         });
         
+        // Fetch students and grades to get school years
+        const studentsResponse = await fetch('/api/teacher/students?scope=school', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+
+        // Fetch all grades to get historical school years
+        const gradesResponse = await fetch('/api/teacher/grades/student?studentId=all', {
+          headers: { 'Authorization': `Bearer ${teacherId}` }
+        });
+
+        console.log('🔍 DEBUG: Grades response status:', gradesResponse.status);
+
+        const schoolYearsSet = new Set<string>();
+
+        // Get school years from students
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json();
+          console.log('🔍 DEBUG: Students loaded:', studentsData.length);
+          studentsData.forEach((s: any) => {
+            if (s.schoolYear) {
+              console.log('🔍 DEBUG: Adding student schoolYear:', s.schoolYear);
+              schoolYearsSet.add(s.schoolYear);
+            }
+          });
+        }
+
+        // Get school years from grades (historical data)
+        if (gradesResponse.ok) {
+          const gradesData = await gradesResponse.json();
+          console.log('🔍 DEBUG: Grades loaded:', gradesData.length);
+          gradesData.forEach((g: any) => {
+            if (g.schoolYear) {
+              console.log('🔍 DEBUG: Adding grade schoolYear:', g.schoolYear);
+              schoolYearsSet.add(g.schoolYear);
+            }
+          });
+        } else {
+          console.error('🔍 DEBUG: Grades fetch failed:', gradesResponse.statusText);
+        }
+
         if (subjectsResponse.ok) {
           const subjectsData = await subjectsResponse.json();
           setSubjects(subjectsData);
-          
-          // Get unique school years from subjects
-          const schoolYears = Array.from(new Set(subjectsData.map((s: any) => s.schoolYear).filter(Boolean))) as string[];
-          setAvailableSchoolYears(schoolYears);
-          
-          if (schoolYears.length > 0 && !schoolYear) {
-            setSchoolYear(schoolYears[0]);
-          } else if (schoolYears.length === 0) {
-            setSchoolYear('2024-2025'); // fallback only if no subjects
-          }
-        } else {
-          setSchoolYear('2024-2025'); // fallback
+        }
+        
+        const schoolYears = Array.from(schoolYearsSet).sort();
+        console.log('🔍 DEBUG: Final school years:', schoolYears);
+        setAvailableSchoolYears(schoolYears);
+        
+        if (schoolYears.length > 0 && !schoolYear) {
+          setSchoolYear(schoolYears[0]);
+        } else if (schoolYears.length === 0 && !schoolYear) {
+          setSchoolYear('2024-2025'); // fallback only if no data
         }
       } catch (error) {
-        console.error('Error loading subjects:', error);
-        setSchoolYear('2024-2025'); // fallback
+        console.error('Error loading data:', error);
+        if (!schoolYear) setSchoolYear('2024-2025'); // fallback
       }
     };
     
-    loadSubjects();
-  }, [router, schoolYear]);
+    loadData();
+  }, [router]); // Remove schoolYear from dependencies to prevent reset
 
   useEffect(() => {
     let filtered = students;
@@ -168,6 +208,8 @@ export default function ReportCardsPage() {
       }
 
       const studentsData: Student[] = await studentsResponse.json();
+      console.log('🔍 DEBUG: Total students fetched:', studentsData.length);
+      console.log('🔍 DEBUG: Students with their schoolYear:', studentsData.map(s => ({ id: s.id, name: s.name, schoolYear: s.schoolYear })));
 
       // Fetch ALL grades for ALL students in the school (from all teachers)
       // This allows seeing grades entered by other teachers
@@ -180,6 +222,8 @@ export default function ReportCardsPage() {
         gradesData = await gradesResponse.json();
       }
 
+      console.log('🔍 DEBUG: Fetching grades for schoolYear:', schoolYear);
+      console.log('🔍 DEBUG: Total grades fetched:', gradesData.length);
       console.log('🔍 DEBUG: All grades fetched from API:', gradesData.map(g => ({
         studentId: g.studentId,
         studentName: studentsData.find(s => s.id === g.studentId)?.name || 'Unknown',
@@ -225,8 +269,16 @@ export default function ReportCardsPage() {
           remarks?: string;
         }> = {};
 
-        // Initialize with empty structure - will be populated by actual grades
+        // Extract historical info if available for the selected school year
+        const historicalRecord = (student as any).academicRecords?.[schoolYear];
+        
+        // Find if any grade record exists for this student in this school year that has gradeLevel/section
         const studentGradeRecords = gradesData.filter(g => g.studentId === student.id);
+        const gradeLevelFromGrades = studentGradeRecords.find(g => g.gradeLevel)?.gradeLevel;
+        const sectionFromGrades = studentGradeRecords.find(g => g.section)?.section;
+
+        const displayGradeLevel = gradeLevelFromGrades || historicalRecord?.gradeLevel || student.gradeLevel;
+        const displaySection = sectionFromGrades || historicalRecord?.section || student.section || '';
         
         console.log(`🔍 DEBUG: Student ${student.name} has ${studentGradeRecords.length} grade records:`, studentGradeRecords.map(g => ({
           subjectId: g.subjectId,
@@ -260,10 +312,10 @@ export default function ReportCardsPage() {
         Object.keys(studentGrades).forEach(subject => {
           const quarters = studentGrades[subject].quarters;
           const validGrades = quarters.filter(g => g !== null) as number[];
-          
+
           if (validGrades.length > 0) {
             const average = validGrades.reduce((a, b) => a + b, 0) / validGrades.length;
-            studentGrades[subject].finalGrade = Math.round(average * 100) / 100;
+            studentGrades[subject].finalGrade = Math.round(average);
             studentGrades[subject].remarks = studentGrades[subject].finalGrade! >= 75 ? 'Passed' : 'Failed';
           }
         });
@@ -274,9 +326,13 @@ export default function ReportCardsPage() {
           age: (student as any).age || 12,
           sex: (student as any).sex || 'M',
           lrn: (student as any).lrn || student.id,
-          section: (student as any).section || 'Section A',
+          gradeLevel: displayGradeLevel,
+          section: displaySection,
         } as StudentWithGrades;
       });
+
+      console.log('🔍 DEBUG: Total processed students:', processedStudents.length);
+      console.log('🔍 DEBUG: Students with grades for', schoolYear, ':', processedStudents.filter(s => Object.keys(s.grades).length > 0).map(s => ({ id: s.id, name: s.name, gradeCount: Object.keys(s.grades).length })));
 
       setStudents(processedStudents);
       setFilteredStudents(processedStudents);
@@ -323,129 +379,138 @@ export default function ReportCardsPage() {
       title="Student Report Cards" 
       subtitle="Generate and print official student report cards"
     >
-      {/* Header Section */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          {/* Search Bar */}
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by student name, ID, or section..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-[#1B3E2A]"
-            />
-          </div>
+      <style jsx global>{`
+        @keyframes jump {
+          0%, 100% { transform: translateY(-50%); }
+          50% { transform: translateY(-80%); }
+        }
+        .animate-icon-jump {
+          animation: jump 0.4s ease-in-out;
+        }
+      `}</style>
 
-          {/* Filters Button */}
+      {/* Action Toolbar */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 z-20">
+          {/* Search Bar */}
+          <div className="relative group flex-1 sm:flex-none">
+            <div className={`absolute inset-0 bg-gradient-to-r from-[#1B3E2A] to-[#F2C94C] rounded-lg opacity-0 transition-opacity duration-300 blur-sm ${isSearchFocused ? 'opacity-100' : 'group-hover:opacity-100'}`}></div>
+            <div className="relative flex items-center h-11">
+              <Search 
+                className={`w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${isSearchFocused ? 'text-[#1B3E2A] animate-icon-jump' : 'group-focus-within:text-[#1B3E2A]'}`} 
+              />
+              <input
+                type="text"
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className="h-full pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent bg-white transition-all duration-300 w-full sm:w-64 group-hover:border-[#1B3E2A] text-sm"
+              />
+            </div>
+          </div>
+          
+          {/* School Year Selector */}
+          {availableSchoolYears.length > 0 && (
+            <div className="relative">
+              <select
+                value={schoolYear}
+                onChange={(e) => setSchoolYear(e.target.value)}
+                className="h-11 px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent bg-white text-sm"
+              >
+                {availableSchoolYears.map(year => (
+                  <option key={year} value={year}>SY {year}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Filters Toggle Button */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className={`h-11 px-4 flex items-center gap-2 border border-gray-300 rounded-lg transition-all duration-300 text-sm ${showFilters ? 'bg-[#1B3E2A] text-white border-[#1B3E2A]' : 'bg-white text-gray-700 hover:border-[#1B3E2A]'}`}
           >
             <Filter className="w-4 h-4" />
             <span>Filters</span>
           </button>
         </div>
-
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
-                <select
-                  value={selectedGradeLevel}
-                  onChange={(e) => setSelectedGradeLevel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                >
-                  <option value="">All Grade Levels</option>
-                  {availableGradeLevels.map(level => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                <select
-                  value={selectedSection}
-                  onChange={(e) => setSelectedSection(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                >
-                  <option value="">All Sections</option>
-                  {availableSections.map(section => (
-                    <option key={section} value={section}>{section}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">School Year</label>
-                {availableSchoolYears.length > 1 ? (
-                  <select
-                    value={schoolYear}
-                    onChange={(e) => setSchoolYear(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                  >
-                    {availableSchoolYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={schoolYear}
-                    onChange={(e) => setSchoolYear(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A]"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
+      {/* Filters Panel */}
+      {showFilters && (
+        <div className="mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Grade Level</label>
+              <select
+                value={selectedGradeLevel}
+                onChange={(e) => setSelectedGradeLevel(e.target.value)}
+                className="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent text-sm"
+              >
+                <option value="">All Grade Levels</option>
+                {availableGradeLevels.map(level => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section</label>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="w-full h-10 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] focus:border-transparent text-sm"
+              >
+                <option value="">All Sections</option>
+                {availableSections.map(section => (
+                  <option key={section} value={section}>{section}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Directory Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        {/* Card Header */}
-        <div className="px-6 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8 z-0">
+        {/* Enhanced Header - Matching SF10 Style */}
+        <div className="px-6 py-4 bg-gradient-to-r from-[#F2C94C] to-[#e5b840] text-[#1B3E2A]">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-50 rounded-lg">
-                <FileText className="w-5 h-5 text-yellow-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Student Report Cards</h2>
-                <p className="text-sm text-gray-500">Managing {filteredStudents.length} total student records</p>
-              </div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Student Report Cards ({filteredStudents.length})
+            </h3>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <GraduationCap className="w-4 h-4" />
+              <span>SY {schoolYear}</span>
             </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+            <thead className="bg-[#f0f7f3]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Student ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Student Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Grade Level
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Section
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="w-[20%] px-6 py-4 text-center text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="bg-white divide-y divide-gray-100">
               {filteredStudents.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center">
@@ -459,13 +524,18 @@ export default function ReportCardsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {student.id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {student.name}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {student.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        LRN: {student.lrn}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {student.gradeLevel}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {student.section}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -473,7 +543,7 @@ export default function ReportCardsPage() {
                         {/* View Button */}
                         <button
                           onClick={() => handleView(student)}
-                          className="p-2 text-gray-500 hover:text-[#1B3E2A] hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-2 text-[#1B3E2A] hover:text-[#F2C94C] transition-colors"
                           title="View Report Card"
                         >
                           <Eye className="w-4 h-4" />
@@ -482,7 +552,7 @@ export default function ReportCardsPage() {
                         {/* Download Button */}
                         <button
                           onClick={() => handleDownload(student)}
-                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
                           title="Download"
                         >
                           <Download className="w-4 h-4" />
@@ -491,7 +561,7 @@ export default function ReportCardsPage() {
                         {/* Print Button */}
                         <button
                           onClick={() => handlePrint(student)}
-                          className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-green-600 hover:text-green-800 transition-colors"
                           title="Print Report Card"
                         >
                           <Printer className="w-4 h-4" />

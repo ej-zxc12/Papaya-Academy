@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('studentId');
-    const schoolYear = searchParams.get('schoolYear') || '2024-2025';
+    const schoolYear = searchParams.get('schoolYear'); // Don't set default
 
     // If studentId is 'all', fetch ALL grades for the school year (from all teachers)
     // Otherwise, fetch grades for a specific student
@@ -47,19 +47,68 @@ export async function GET(request: NextRequest) {
     }
 
     if (studentId === 'all') {
-      // Get ALL grades for the school year - needed for report cards to show all teacher grades
-      gradesQuery = query(
-        collection(db, 'grades'),
-        where('schoolYear', '==', schoolYear)
-      );
+      // If schoolYear is provided, filter by it. Otherwise, get ALL grades (for school year discovery)
+      if (schoolYear && schoolYear !== 'all' && schoolYear !== '') {
+        gradesQuery = query(
+          collection(db, 'grades'),
+          where('schoolYear', '==', schoolYear)
+        );
+      } else {
+        // Get ALL grades without school year filter using getDocs on collection
+        const gradesSnapshot = await getDocs(collection(db, 'grades'));
+        const grades: any[] = gradesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // Fetch subject names for grades
+        const subjectIds = Array.from(new Set(grades.map(g => g.subjectId).filter(Boolean)));
+        const subjectNamesMap = new Map<string, string>();
+
+        for (const subjectId of subjectIds) {
+          try {
+            const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+            if (subjectDoc.exists()) {
+              const subjectData = subjectDoc.data();
+              subjectNamesMap.set(subjectId, subjectData.name || subjectData.subjectName || subjectId);
+            } else {
+              // Try teacherSubjects collection
+              const teacherSubjectDoc = await getDoc(doc(db, 'teacherSubjects', subjectId));
+              if (teacherSubjectDoc.exists()) {
+                const teacherSubjectData = teacherSubjectDoc.data();
+                subjectNamesMap.set(subjectId, teacherSubjectData.name || teacherSubjectData.subjectName || subjectId);
+              } else {
+                subjectNamesMap.set(subjectId, subjectId);
+              }
+            }
+          } catch {
+            subjectNamesMap.set(subjectId, subjectId);
+          }
+        }
+
+        // Add subject names to grades
+        const enrichedGrades = grades.map(grade => ({
+          ...grade,
+          subjectName: subjectNamesMap.get(grade.subjectId) || grade.subjectName || grade.subjectId
+        }));
+
+        return NextResponse.json(enrichedGrades);
+      }
     } else {
       // Get ALL grades for this specific student - not just current teacher's subjects
       // This is needed for SF10 which should show all grades regardless of who entered them
-      gradesQuery = query(
-        collection(db, 'grades'),
-        where('studentId', '==', studentId),
-        where('schoolYear', '==', schoolYear)
-      );
+      if (schoolYear && schoolYear !== 'all' && schoolYear !== '') {
+        gradesQuery = query(
+          collection(db, 'grades'),
+          where('studentId', '==', studentId),
+          where('schoolYear', '==', schoolYear)
+        );
+      } else {
+        gradesQuery = query(
+          collection(db, 'grades'),
+          where('studentId', '==', studentId)
+        );
+      }
     }
     
     const gradesSnapshot = await getDocs(gradesQuery);
