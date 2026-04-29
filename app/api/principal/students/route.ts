@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Student } from '@/types';
 import { db } from '@/lib/firebase-admin';
 
+// Cache for 2 minutes (120 seconds) - student data changes moderately frequently
+export const revalidate = 120
+
 function getPrincipalIdFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -65,7 +68,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json(students);
+    return NextResponse.json(students, {
+      headers: {
+        'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     console.error('[principal/students] Error fetching students:', error);
     return NextResponse.json(

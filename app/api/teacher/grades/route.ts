@@ -4,6 +4,9 @@ import { collection, getDocs, query, where, doc, getDoc, updateDoc, serverTimest
 import GradeService from '@/lib/grade-service';
 import SF10NormalizedGenerator from '@/lib/sf10-normalized-generator';
 
+// Cache for 1 minute (60 seconds) - grade data changes frequently during active grading periods
+export const revalidate = 60
+
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -48,7 +51,11 @@ export async function GET(request: NextRequest) {
     const quarter = normalizePeriod(gradingPeriod);
     const grades = await GradeService.getGradesByTeacherSubject(teacherId, subjectId, quarter, schoolYear);
 
-    return NextResponse.json(grades);
+    return NextResponse.json(grades, {
+      headers: {
+        'Cache-Control': 's-maxage=60, stale-while-revalidate=180',
+      },
+    });
 
   } catch (error) {
     console.error('Error fetching grades:', error);
