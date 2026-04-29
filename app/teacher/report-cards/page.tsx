@@ -493,19 +493,16 @@ export default function ReportCardsPage() {
           <table className="min-w-full divide-y divide-gray-200 table-fixed">
             <thead className="bg-[#f0f7f3]">
               <tr>
-                <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
-                  Student ID
-                </th>
-                <th className="w-[30%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                <th className="w-[35%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Student Name
                 </th>
-                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Grade Level
                 </th>
-                <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Section
                 </th>
-                <th className="w-[20%] px-6 py-4 text-center text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                <th className="w-[25%] px-6 py-4 text-center text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -513,7 +510,7 @@ export default function ReportCardsPage() {
             <tbody className="bg-white divide-y divide-gray-100">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={4} className="px-6 py-12 text-center">
                     <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500">No students found</p>
                   </td>
@@ -521,9 +518,6 @@ export default function ReportCardsPage() {
               ) : (
                 filteredStudents.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.id}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {student.name}

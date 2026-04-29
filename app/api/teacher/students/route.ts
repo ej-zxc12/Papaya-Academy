@@ -3,6 +3,9 @@ import { Student, StudentDocument } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, Timestamp, QueryConstraint } from 'firebase/firestore';
 
+// Cache for 2 minutes (120 seconds) - student data changes moderately frequently
+export const revalidate = 120
+
 // Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -148,7 +151,11 @@ export async function GET(request: NextRequest) {
           updatedAt: data?.updatedAt
         }));
 
-        return NextResponse.json(sortStudentsByLastName(students));
+        return NextResponse.json(sortStudentsByLastName(students), {
+          headers: {
+            'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+          },
+        });
       } else if (gradeLevels.length > 0) {
         if (gradeLevels.length > 10) {
           return NextResponse.json(
@@ -188,7 +195,11 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      return NextResponse.json(sortStudentsByLastName(students));
+      return NextResponse.json(sortStudentsByLastName(students), {
+        headers: {
+          'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+        },
+      });
     }
 
     // Add filters if provided
@@ -264,12 +275,15 @@ export async function GET(request: NextRequest) {
         schoolYear: data?.schoolYear,
         status: data?.status || 'enrolled',
         createdAt: data?.createdAt,
-        updatedAt: data?.updatedAt,
-        academicRecords: data?.academicRecords || {}
+        updatedAt: data?.updatedAt
       };
     });
 
-    return NextResponse.json(sortStudentsByLastName(students));
+    return NextResponse.json(sortStudentsByLastName(students), {
+      headers: {
+        'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     console.error('Error fetching students:', error);
     return NextResponse.json(
