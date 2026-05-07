@@ -34,13 +34,14 @@ interface OrgChartMember {
   name: string;
   role: string;
   image?: string;
-  category: 'principal' | 'gradeAdviser' | 'nonAcademicStaff' | 'boardOfTrustees';
+  category: 'principal' | 'gradeAdviser' | 'academicTeacher' | 'nonAcademicStaff' | 'boardOfTrustees';
   boardName?: string;
   order?: number;
 }
 
 interface OrgChartData {
   principal: OrgChartMember | null;
+  academicStaff: OrgChartMember[];
   gradeAdvisers: OrgChartMember[];
   nonAcademicStaff: OrgChartMember[];
   boardOfTrustees: {
@@ -91,12 +92,34 @@ function AboutPageContent() {
   useEffect(() => {
     const fetchOrgChartData = async () => {
       try {
+        const cacheKey = 'orgChartDataCache:v2';
+        const cacheTtlMs = 5 * 60 * 1000;
+
+        if (typeof window !== 'undefined') {
+          const cachedRaw = window.sessionStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw) as { ts: number; data: OrgChartData };
+            if (cached?.ts && cached?.data && Date.now() - cached.ts < cacheTtlMs) {
+              setOrgChartData(cached.data);
+              setOrgChartLoading(false);
+              return;
+            }
+          }
+        }
+
         const response = await fetch('/api/org-chart');
         if (!response.ok) {
           throw new Error('Failed to fetch organizational chart data');
         }
         const result = await response.json();
         setOrgChartData(result);
+
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(
+            cacheKey,
+            JSON.stringify({ ts: Date.now(), data: result })
+          );
+        }
       } catch (err) {
         setOrgChartError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -365,6 +388,12 @@ function AboutPageContent() {
           ) : (
             <>
               {/* PRINCIPAL */}
+              <ScrollReveal animation="fade-up">
+                <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+                  Principal
+                </h3>
+              </ScrollReveal>
+
               {orgChartData?.principal && (
                 <div className="flex justify-center mb-16">
                   <ScrollReveal animation="fade-up">
@@ -393,17 +422,17 @@ function AboutPageContent() {
                 </div>
               )}
 
-              {/* GRADE ADVISERS */}
-              {orgChartData?.gradeAdvisers && orgChartData.gradeAdvisers.length > 0 && (
+              {/* ACADEMIC STAFF */}
+              {orgChartData?.academicStaff && orgChartData.academicStaff.length > 0 && (
                 <>
                   <ScrollReveal animation="fade-up">
                     <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
-                      Grade Advisers
+                      Academic Staff
                     </h3>
                   </ScrollReveal>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-                    {orgChartData.gradeAdvisers.map((person, index) => (
+                    {orgChartData.academicStaff.map((person, index) => (
                       <ScrollReveal key={person.id} animation="fade-up" delay={100 + index * 50}>
                         <div className="flex flex-col items-center">
                           <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">
