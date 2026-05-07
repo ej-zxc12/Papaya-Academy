@@ -29,6 +29,26 @@ interface MissionVisionData {
   updatedAt?: string;
 }
 
+interface OrgChartMember {
+  id: string;
+  name: string;
+  role: string;
+  image?: string;
+  category: 'principal' | 'gradeAdviser' | 'academicTeacher' | 'nonAcademicStaff' | 'boardOfTrustees';
+  boardName?: string;
+  order?: number;
+}
+
+interface OrgChartData {
+  principal: OrgChartMember | null;
+  academicStaff: OrgChartMember[];
+  gradeAdvisers: OrgChartMember[];
+  nonAcademicStaff: OrgChartMember[];
+  boardOfTrustees: {
+    [boardName: string]: OrgChartMember[];
+  };
+}
+
 export default function AboutPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -42,6 +62,9 @@ function AboutPageContent() {
   const [missionVisionData, setMissionVisionData] = useState<MissionVisionData | null>(null);
   const [missionVisionLoading, setMissionVisionLoading] = useState(true);
   const [missionVisionError, setMissionVisionError] = useState<string | null>(null);
+  const [orgChartData, setOrgChartData] = useState<OrgChartData | null>(null);
+  const [orgChartLoading, setOrgChartLoading] = useState(true);
+  const [orgChartError, setOrgChartError] = useState<string | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -63,6 +86,48 @@ function AboutPageContent() {
     };
 
     fetchMissionVisionData();
+  }, []);
+
+  // Fetch organizational chart data
+  useEffect(() => {
+    const fetchOrgChartData = async () => {
+      try {
+        const cacheKey = 'orgChartDataCache:v2';
+        const cacheTtlMs = 5 * 60 * 1000;
+
+        if (typeof window !== 'undefined') {
+          const cachedRaw = window.sessionStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw) as { ts: number; data: OrgChartData };
+            if (cached?.ts && cached?.data && Date.now() - cached.ts < cacheTtlMs) {
+              setOrgChartData(cached.data);
+              setOrgChartLoading(false);
+              return;
+            }
+          }
+        }
+
+        const response = await fetch('/api/org-chart');
+        if (!response.ok) {
+          throw new Error('Failed to fetch organizational chart data');
+        }
+        const result = await response.json();
+        setOrgChartData(result);
+
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(
+            cacheKey,
+            JSON.stringify({ ts: Date.now(), data: result })
+          );
+        }
+      } catch (err) {
+        setOrgChartError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setOrgChartLoading(false);
+      }
+    };
+
+    fetchOrgChartData();
   }, []);
 
   // Handle smooth scrolling when the page loads with a hash
@@ -310,152 +375,124 @@ function AboutPageContent() {
             </h2>
           </ScrollReveal>
 
-          {/* PRINCIPAL */}
-          <div className="flex justify-center mb-16">
-            <ScrollReveal animation="fade-up">
-              <div className="flex flex-col items-center">
-                <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-papaya-green shadow-lg mb-4 bg-white">
-                  <img
-                    src="/images/sheryl.jpg"
-                    alt="Sheryl Ann B. Queliza"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'https://ui-avatars.com/api/?name=Sheryl+Ann+B+Queliza&background=1A5F3F&color=fff&size=256';
-                    }}
-                  />
-                </div>
-                <div className="bg-white px-6 py-4 rounded-lg shadow-md border-2 border-papaya-green text-center w-72 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-                  <h3 className="font-bold text-papaya-green">
-                    Sheryl Queliza
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    School Principal
-                  </p>
-                </div>
-              </div>
-            </ScrollReveal>
-          </div>
-
-          {/* GRADE ADVISERS */}
-          <ScrollReveal animation="fade-up">
-            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
-              Grade Advisers
-            </h3>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-            {[
-              { 
-                name: 'Geenie G. Ramos', 
-                role: 'Grade 6 Adviser',
-                image: '/images/geen.jpg'
-              },
-              { 
-                name: 'Daina Marie R. Lumbao', 
-                role: 'Grade 5 Adviser',
-                image: '/images/dina.jpg'
-              },
-              { 
-                name: 'Erwin Q. Molabola', 
-                role: 'Grade 4 Adviser',
-                image: '/images/erwin.jpg'
-              },
-              { 
-                name: 'Marvin Christopher Agabin', 
-                role: 'Grade 3 Adviser',
-                image: '/images/marvin.jpg'
-              },
-              { 
-                name: 'Leizl R. Mercado', 
-                role: 'Grade 2 Adviser',
-                image: '/images/liezl.jpg'
-              },
-              { 
-                name: 'Jeanebi C. Borres', 
-                role: 'Grade 1 Adviser',
-                image: '/images/jeanebi.jpg'
-              },
-              { 
-                name: 'Katrina A. Ocampo', 
-                role: 'Kinder Adviser',
-                image: '/images/kat.jpg'
-              },
-              { 
-                name: 'Marie Sean B. Lira', 
-                role: 'Science / Registrar',
-                image: '/images/sean.jpg'
-              },
-            ].map((person, index) => (
-              <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
-                <div className="flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">
-                    <img 
-                      src={person.image}
-                      alt={person.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const t = e.target as HTMLImageElement;
-                        t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
-                      }}
-                    />
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-green hover:shadow-md transition-shadow duration-300">
-                    <p className="font-semibold text-papaya-green">{person.name}</p>
-                    <p className="text-sm text-gray-600">{person.role}</p>
-                  </div>
-                </div>
+          {orgChartLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A] mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading organizational chart...</p>
+            </div>
+          ) : orgChartError ? (
+            <div className="text-center py-8">
+              <div className="text-red-500 text-4xl mb-2">⚠️</div>
+              <p className="text-gray-600">{orgChartError}</p>
+            </div>
+          ) : (
+            <>
+              {/* PRINCIPAL */}
+              <ScrollReveal animation="fade-up">
+                <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+                  Principal
+                </h3>
               </ScrollReveal>
-            ))}
-          </div>
 
-          {/* NON-ACADEMIC STAFF */}
-          <ScrollReveal animation="fade-up">
-            <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
-              Non-Academic Staff
-            </h3>
-          </ScrollReveal>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {[
-              { 
-                name: 'Ma. Luzviminda M. Macabuhay', 
-                role: 'Office Manager',
-                image: '/images/luz.jpg'
-              },
-              { 
-                name: 'Salvacion M. Macasacuit', 
-                role: 'Housekeeper',
-                image: '/images/salve.jpg'
-              },
-              { 
-                name: 'Roger C. Macasacuit', 
-                role: 'School Driver / Maintenance',
-                image: '/images/roger.jpg'
-              },
-            ].map((person, index) => (
-              <ScrollReveal key={index} animation="fade-up" delay={100 + index * 50}>
-                <div className="flex flex-col items-center">
-                  <div className="w-28 h-28 rounded-full overflow-hidden border-3 border-papaya-yellow mb-4 shadow-md bg-gray-100">
-                    <img 
-                      src={person.image}
-                      alt={person.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const t = e.target as HTMLImageElement;
-                        t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
-                      }}
-                    />
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-yellow hover:shadow-md transition-shadow duration-300">
-                    <p className="font-semibold text-papaya-green">{person.name}</p>
-                    <p className="text-sm text-gray-600 mt-1">{person.role}</p>
-                  </div>
+              {orgChartData?.principal && (
+                <div className="flex justify-center mb-16">
+                  <ScrollReveal animation="fade-up">
+                    <div className="flex flex-col items-center">
+                      <div className="w-36 h-36 rounded-full overflow-hidden border-4 border-papaya-green shadow-lg mb-4 bg-white">
+                        <img
+                          src={orgChartData.principal.image || `https://ui-avatars.com/api/?name=${orgChartData.principal.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`}
+                          alt={orgChartData.principal.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = `https://ui-avatars.com/api/?name=${orgChartData.principal!.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                          }}
+                        />
+                      </div>
+                      <div className="bg-white px-6 py-4 rounded-lg shadow-md border-2 border-papaya-green text-center w-72 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                        <h3 className="font-bold text-papaya-green">
+                          {orgChartData.principal.name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {orgChartData.principal.role}
+                        </p>
+                      </div>
+                    </div>
+                  </ScrollReveal>
                 </div>
-              </ScrollReveal>
-            ))}
-          </div>
+              )}
 
+              {/* ACADEMIC STAFF */}
+              {orgChartData?.academicStaff && orgChartData.academicStaff.length > 0 && (
+                <>
+                  <ScrollReveal animation="fade-up">
+                    <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+                      Academic Staff
+                    </h3>
+                  </ScrollReveal>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+                    {orgChartData.academicStaff.map((person, index) => (
+                      <ScrollReveal key={person.id} animation="fade-up" delay={100 + index * 50}>
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">
+                            <img
+                              src={person.image || `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`}
+                              alt={person.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                              }}
+                            />
+                          </div>
+                          <div className="bg-white p-3 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-green hover:shadow-md transition-shadow duration-300">
+                            <p className="font-semibold text-papaya-green">{person.name}</p>
+                            <p className="text-sm text-gray-600">{person.role}</p>
+                          </div>
+                        </div>
+                      </ScrollReveal>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* NON-ACADEMIC STAFF */}
+              {orgChartData?.nonAcademicStaff && orgChartData.nonAcademicStaff.length > 0 && (
+                <>
+                  <ScrollReveal animation="fade-up">
+                    <h3 className="text-xl font-semibold text-papaya-green mb-8 text-center">
+                      Non-Academic Staff
+                    </h3>
+                  </ScrollReveal>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    {orgChartData.nonAcademicStaff.map((person, index) => (
+                      <ScrollReveal key={person.id} animation="fade-up" delay={100 + index * 50}>
+                        <div className="flex flex-col items-center">
+                          <div className="w-28 h-28 rounded-full overflow-hidden border-3 border-papaya-yellow mb-4 shadow-md bg-gray-100">
+                            <img
+                              src={person.image || `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`}
+                              alt={person.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                              }}
+                            />
+                          </div>
+                          <div className="bg-white p-4 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-yellow hover:shadow-md transition-shadow duration-300">
+                            <p className="font-semibold text-papaya-green">{person.name}</p>
+                            <p className="text-sm text-gray-600 mt-1">{person.role}</p>
+                          </div>
+                        </div>
+                      </ScrollReveal>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       </section>
 
@@ -488,7 +525,7 @@ function AboutPageContent() {
                   { name: 'Ailyn C. Gardose', role: 'Corporate Secretary', image: '/images/ailyn.jpg' },
                   { name: 'Hadassah A. Castro', role: 'Member', image: '/images/hadassah.jpg' },
                   { name: 'Alberto Villamor', role: 'Member', image: '/images/alberto.jpg' },
-                  { name: 'Max Willem Heinen', role: 'Member', image: 'images/max.jpg' },
+                  { name: 'Max Willem Heinen', role: 'Member', image: '/images/max.jpg' },
                 ],
               },
               {

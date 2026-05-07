@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     const schoolYear = searchParams.get('schoolYear') || '2024-2025';
     const gradeLevel = searchParams.get('gradeLevel');
     const section = searchParams.get('section');
+    const view = searchParams.get('view'); // 'cumulative' or 'single' (default)
 
     // Get teacher info to verify permissions
     const teacherDoc = await getDoc(doc(db, 'teachers', teacherId));
@@ -55,62 +56,121 @@ export async function GET(request: NextRequest) {
 
     // If specific student requested
     if (studentId) {
-      const studentDoc = await getDoc(doc(db, 'students', studentId));
-      if (!studentDoc.exists()) {
-        return NextResponse.json(
-          { message: 'Student not found' },
-          { status: 404 }
-        );
-      }
-
-      const student = studentDoc.data() as StudentDocument;
-      const sf10Record = student.academicRecords[schoolYear]?.sf10;
-
-      if (!sf10Record) {
-        return NextResponse.json(
-          { message: 'SF10 record not found for this school year' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        student: {
-          id: student.id,
-          lrn: student.lrn,
-          name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-                `Student ${student.id}`,
-          gradeLevel: student.academicRecords[schoolYear]?.gradeLevel || student.currentGradeLevel,
-          section: student.academicRecords[schoolYear]?.section || student.currentSection
-        },
-        sf10: sf10Record,
-        completionStatus: {
-          firstGrading: student.academicRecords[schoolYear]?.grades?.first ? true : false,
-          secondGrading: student.academicRecords[schoolYear]?.grades?.second ? true : false,
-          thirdGrading: student.academicRecords[schoolYear]?.grades?.third ? true : false,
-          fourthGrading: student.academicRecords[schoolYear]?.grades?.fourth ? true : false,
-          overall: student.academicRecords[schoolYear]?.grades?.first && 
-                    student.academicRecords[schoolYear]?.grades?.second && 
-                    student.academicRecords[schoolYear]?.grades?.third && 
-                    student.academicRecords[schoolYear]?.grades?.fourth
+      try {
+        const studentDoc = await getDoc(doc(db, 'students', studentId));
+        if (!studentDoc.exists()) {
+          return NextResponse.json(
+            { message: 'Student not found' },
+            { status: 404 }
+          );
         }
-      });
+
+        const student = studentDoc.data() as StudentDocument;
+        
+        // If byYear view requested, return data grouped by school year for two-column layout
+        if (view === 'byYear') {
+          try {
+            const yearData = await SF10NormalizedGenerator.generateSF10ByYear(studentId);
+            
+            return NextResponse.json({
+              student: {
+                id: student.id || studentId,
+                lrn: student.lrn || '',
+                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                      `Student ${studentId}`,
+                gradeLevel: student.currentGradeLevel || 'Unknown',
+                section: student.currentSection || 'Default'
+              },
+              yearData,
+              view: 'byYear',
+              schoolYears: yearData.map(y => y.schoolYear)
+            });
+          } catch (byYearError) {
+            console.error('Error generating SF10 by year:', byYearError);
+            // Fall back to single year view if byYear fails
+          }
+        }
+        
+        // If cumulative view requested, generate merged SF10 from all years
+        if (view === 'cumulative') {
+          try {
+            const cumulativeSF10 = await SF10NormalizedGenerator.generateCumulativeSF10(studentId);
+            
+            return NextResponse.json({
+              student: {
+                id: student.id || studentId,
+                lrn: student.lrn || '',
+                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                      `Student ${studentId}`,
+                gradeLevel: student.currentGradeLevel || 'Unknown',
+                section: student.currentSection || 'Default'
+              },
+              sf10: cumulativeSF10,
+              view: 'cumulative',
+              schoolYears: cumulativeSF10.schoolYears
+            });
+          } catch (cumulativeError) {
+            console.error('Error generating cumulative SF10:', cumulativeError);
+            // Fall back to single year view if cumulative fails
+          }
+        }
+        
+        // Safely access academic records for single year view
+        const academicRecords = student.academicRecords || {};
+        const yearRecord = academicRecords[schoolYear] || {};
+        const sf10Record = yearRecord.sf10;
+
+        if (!sf10Record) {
+          return NextResponse.json(
+            { message: 'SF10 record not found for this school year' },
+            { status: 404 }
+          );
+        }
+
+        return NextResponse.json({
+          student: {
+            id: student.id || studentId,
+            lrn: student.lrn || '',
+            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                  `Student ${studentId}`,
+            gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel || 'Unknown',
+            section: yearRecord.section || student.currentSection || 'Default'
+          },
+          sf10: sf10Record,
+          view: 'single',
+          completionStatus: {
+            firstGrading: yearRecord.grades?.first ? true : false,
+            secondGrading: yearRecord.grades?.second ? true : false,
+            thirdGrading: yearRecord.grades?.third ? true : false,
+            fourthGrading: yearRecord.grades?.fourth ? true : false,
+            overall: yearRecord.grades?.first && 
+                      yearRecord.grades?.second && 
+                      yearRecord.grades?.third && 
+                      yearRecord.grades?.fourth
+          }
+        });
+      } catch (studentError) {
+        console.error('Error fetching student SF10:', studentError);
+        return NextResponse.json(
+          { message: 'Error fetching student record', error: studentError instanceof Error ? studentError.message : String(studentError) },
+          { status: 500 }
+        );
+      }
     }
 
     const debugLogs: string[] = [];
-    
-    // Get teacher's subjects first (like the grades/all API does)
+
+    // Get teacher's subjects (don't filter by school year - subjects may have 'Global' or no school year)
     const subjectsQuery = query(
       collection(db, 'subjects'),
-      where('teacherId', '==', teacherId),
-      where('schoolYear', '==', schoolYear)
+      where('teacherId', '==', teacherId)
     );
-    
+
     const teacherSubjectsQuery = query(
       collection(db, 'teacherSubjects'),
-      where('teacherId', '==', teacherId),
-      where('schoolYear', '==', schoolYear)
+      where('teacherId', '==', teacherId)
     );
-    
+
     const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
       getDocs(subjectsQuery),
       getDocs(teacherSubjectsQuery)
@@ -149,77 +209,92 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get all grades for the teacher's assigned subjects
-    const gradesPromises = uniqueSubjects.map(async (ts: any) => {
-      const subjectId = ts.subjectId || ts.id;
-      const gradesQuery = query(
-        collection(db, 'grades'),
-        where('teacherId', '==', teacherId),
-        where('subjectId', '==', subjectId),
-        where('schoolYear', '==', schoolYear)
-      );
-      
-      const gradesSnapshot = await getDocs(gradesQuery);
-      return gradesSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          studentId: data.studentId,
-          quarter: data.quarter,
-          ...data
-        };
-      });
+    // OPTIMIZATION: Batch query all grades at once instead of per-subject queries
+    const allGradesQuery = query(
+      collection(db, 'grades'),
+      where('teacherId', '==', teacherId),
+      where('schoolYear', '==', schoolYear)
+    );
+    
+    const allGradesSnapshot = await getDocs(allGradesQuery);
+    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = allGradesSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        studentId: data.studentId,
+        quarter: data.quarter,
+        ...data
+      };
     });
-
-    const gradesArrays = await Promise.all(gradesPromises);
-    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = gradesArrays.flat();
     
     debugLogs.push(`Found ${allGrades.length} total grades`);
     
-    // Create a map of students with grades
+    // OPTIMIZATION: Batch fetch all students at once, then process grades
+    const uniqueStudentIdsSet = new Set(allGrades.map(g => g.studentId).filter(Boolean));
+    const uniqueStudentIds = Array.from(uniqueStudentIdsSet);
+    
+    // Batch fetch all student documents
+    const studentPromises = uniqueStudentIds.map(async (studentId) => {
+      const studentDoc = await getDoc(doc(db, 'students', studentId));
+      return { studentId, doc: studentDoc };
+    });
+    
+    const studentResults = await Promise.all(studentPromises);
+    const studentDocuments = new Map();
+    
+    studentResults.forEach(({ studentId, doc }) => {
+      if (doc.exists()) {
+        studentDocuments.set(studentId, doc.data() as StudentDocument);
+      }
+    });
+    
+    // Create a map of students with grades using batch-fetched data
     const studentsWithGrades = new Map();
     
-    for (const grade of allGrades) {
-      const studentId = grade.studentId;
-      if (!studentId) continue;
-      
-      if (!studentsWithGrades.has(studentId)) {
-        // Get student details
-        const studentDoc = await getDoc(doc(db, 'students', studentId));
-        if (!studentDoc.exists()) continue;
-        
-        const student = studentDoc.data() as StudentDocument;
-        const yearRecord = student.academicRecords?.[schoolYear] || {};
-        
-        // Get all grades for this student to determine completion status
-        const studentGrades = allGrades.filter(g => g.studentId === studentId);
-        const quarters = studentGrades.map(g => g.quarter);
-        
-        // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
-        const studentName = (student.firstName || student.lastName) 
-          ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
-          : (student as any).name || `Student ${studentId}`;
-        
-        studentsWithGrades.set(studentId, {
-          student: {
-            id: studentId,
-            lrn: student.lrn || '',
-            name: studentName,
-            gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
-            section: yearRecord.section || student.currentSection
-          },
-          sf10: yearRecord.sf10 || null,
-          completionStatus: {
-            firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
-            secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
-            thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
-            fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
-            overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
-          },
-          hasGrades: true
-        });
-        debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
+    // Group grades by student for efficient processing
+    const gradesByStudent = new Map<string, typeof allGrades>();
+    allGrades.forEach(grade => {
+      if (!grade.studentId) return;
+      if (!gradesByStudent.has(grade.studentId)) {
+        gradesByStudent.set(grade.studentId, []);
       }
+      gradesByStudent.get(grade.studentId)!.push(grade);
+    });
+    
+    // Process each student with their grades
+    const studentEntries = Array.from(gradesByStudent.entries());
+    for (let i = 0; i < studentEntries.length; i++) {
+      const [studentId, studentGrades] = studentEntries[i];
+      const student = studentDocuments.get(studentId);
+      if (!student) continue;
+      
+      const yearRecord = student.academicRecords?.[schoolYear] || {};
+      const quarters = studentGrades.map((g: any) => g.quarter);
+      
+      // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
+      const studentName = (student.firstName || student.lastName) 
+        ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+        : (student as any).name || `Student ${studentId}`;
+      
+      studentsWithGrades.set(studentId, {
+        student: {
+          id: studentId,
+          lrn: student.lrn || '',
+          name: studentName,
+          gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
+          section: yearRecord.section || student.currentSection
+        },
+        sf10: yearRecord.sf10 || null,
+        completionStatus: {
+          firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
+          secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
+          thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
+          fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
+          overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
+        },
+        hasGrades: true
+      });
+      debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
     }
     
     // Convert map to array and apply filters

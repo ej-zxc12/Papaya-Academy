@@ -3,6 +3,9 @@ import { Student, StudentDocument } from '@/types';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, Timestamp, QueryConstraint } from 'firebase/firestore';
 
+// Cache for 2 minutes (120 seconds) - student data changes moderately frequently
+export const revalidate = 120
+
 // Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -48,6 +51,32 @@ function getTeacherIdentifiers(request: NextRequest) {
   } catch {
     return { uid: bearer ?? null, id: bearer ?? null };
   }
+}
+
+// Helper function to extract last name from full name
+// Handles format: "LAST NAME, FIRST NAME" or "FirstName LastName"
+function getLastName(fullName: string): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  
+  // Check if name is in "LAST NAME, FIRST NAME" format
+  if (trimmed.includes(',')) {
+    const parts = trimmed.split(',');
+    return parts[0].trim().toLowerCase();
+  }
+  
+  // Fallback for "FirstName LastName" format
+  const parts = trimmed.split(/\s+/);
+  return parts[parts.length - 1].toLowerCase();
+}
+
+// Helper function to sort students by last name
+function sortStudentsByLastName(students: any[]): any[] {
+  return students.sort((a, b) => {
+    const lastNameA = getLastName(a.name);
+    const lastNameB = getLastName(b.name);
+    return lastNameA.localeCompare(lastNameB);
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -109,19 +138,24 @@ export async function GET(request: NextRequest) {
           id,
           name: data?.name || '',
           lrn: data?.lrn || '',
-          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-          section: data?.section || data?.currentSection,
+          gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+          section: data?.currentSection || data?.section,
           currentGradeLevel: data?.currentGradeLevel,
           currentSection: data?.currentSection,
           teacherId: data?.teacherId,
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
+          schoolYear: data?.schoolYear,
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
         }));
 
-        return NextResponse.json(students);
+        return NextResponse.json(sortStudentsByLastName(students), {
+          headers: {
+            'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+          },
+        });
       } else if (gradeLevels.length > 0) {
         if (gradeLevels.length > 10) {
           return NextResponse.json(
@@ -149,14 +183,15 @@ export async function GET(request: NextRequest) {
           id: docSnap.id,
           name: data?.name || '',
           lrn: data?.lrn || '',
-          gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-          section: data?.section || data?.currentSection || '',
+          gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+          section: data?.currentSection || data?.section || '',
           currentGradeLevel: data?.currentGradeLevel,
           currentSection: data?.currentSection,
           teacherId: data?.teacherId,
           teacherIds: data?.teacherIds || [],
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
+          schoolYear: data?.schoolYear,
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
@@ -185,7 +220,11 @@ export async function GET(request: NextRequest) {
       
       const students = Array.from(studentMap.values());
 
-      return NextResponse.json(students);
+      return NextResponse.json(sortStudentsByLastName(students), {
+        headers: {
+          'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+        },
+      });
     }
 
     // Add filters if provided
@@ -251,21 +290,25 @@ export async function GET(request: NextRequest) {
         id,
         name: data?.name || '',
         lrn: data?.lrn || '',
-        gradeLevel: data?.gradeLevel || data?.currentGradeLevel,
-        section: data?.section || data?.currentSection,
+        gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
+        section: data?.currentSection || data?.section || '',
         currentGradeLevel: data?.currentGradeLevel,
         currentSection: data?.currentSection,
         teacherId: data?.teacherId,
         subjectId: data?.subjectId,
         subjectIds: data?.subjectIds || [],
+        schoolYear: data?.schoolYear,
         status: data?.status || 'enrolled',
         createdAt: data?.createdAt,
         updatedAt: data?.updatedAt
       };
     });
 
-    return NextResponse.json(students);
-
+    return NextResponse.json(sortStudentsByLastName(students), {
+      headers: {
+        'Cache-Control': 's-maxage=120, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     console.error('Error fetching students:', error);
     return NextResponse.json(
@@ -314,28 +357,27 @@ export async function POST(request: NextRequest) {
     // Normalize section for duplicate check (treat null, undefined, and empty string as equivalent)
     const normalizedSection = section || '';
 
-    // Check if student already exists with same name, LRN, grade level
-    // Look across ALL teachers to prevent duplicates
-    // Firestore 'in' query can have at most 10 values, so we use empty string to match null/undefined/empty
+    // Check if student already exists with same LRN (across ALL grade levels)
+    // This prevents duplicates when a student moves to a different grade
     const existingStudentQuery = query(
       studentsCollection,
-      where('name', '==', name),
-      where('lrn', '==', lrn),
-      where('gradeLevel', '==', gradeLevel)
+      where('lrn', '==', lrn)
     );
     
     const existingStudentSnapshot = await getDocs(existingStudentQuery);
     
-    // Filter results to match section (treating null/undefined/empty as equivalent)
+    // Find matching student by name + LRN (same person regardless of grade)
     const matchingStudent = existingStudentSnapshot.docs.find(doc => {
       const data = doc.data();
-      const docSection = data.section || '';
-      return docSection === normalizedSection;
+      const docName = (data.name || '').trim().toLowerCase();
+      const inputName = name.trim().toLowerCase();
+      return docName === inputName;
     });
     
     if (matchingStudent) {
-      // Student exists (created by any teacher), update their subjects
+      // Student exists (same LRN + name found)
       const existingStudentData = matchingStudent.data();
+      
       const existingSubjectIds = existingStudentData.subjectIds || [];
       
       // Merge new subject IDs with existing ones (avoid duplicates)
@@ -347,12 +389,32 @@ export async function POST(request: NextRequest) {
         ? existingTeachers 
         : [...existingTeachers, teacherId];
       
+      // Check if grade level changed
+      const existingGradeLevel = existingStudentData.currentGradeLevel || existingStudentData.gradeLevel;
+      const gradeLevelChanged = existingGradeLevel !== gradeLevel;
+      
       await import('firebase/firestore').then(({ updateDoc, doc }) => {
-        return updateDoc(doc(db, 'students', matchingStudent.id), {
+        const updateData: any = {
           subjectIds: mergedSubjectIds,
           teacherIds: updatedTeachers,
           updatedAt: Timestamp.now()
-        });
+        };
+        
+        // If grade level changed, update it
+        if (gradeLevelChanged) {
+          updateData.gradeLevel = gradeLevel;
+          updateData.currentGradeLevel = gradeLevel;
+          updateData.section = section;
+          updateData.currentSection = section;
+          
+          // Also update the academic record for the current school year
+          const currentSchoolYear = '2024-2025'; // Could be passed as parameter
+          updateData[`academicRecords.${currentSchoolYear}.gradeLevel`] = gradeLevel;
+          updateData[`academicRecords.${currentSchoolYear}.section`] = section;
+          updateData[`academicRecords.${currentSchoolYear}.updatedAt`] = Timestamp.now();
+        }
+        
+        return updateDoc(doc(db, 'students', matchingStudent.id), updateData);
       });
       
       const updatedStudent = {
@@ -360,13 +422,18 @@ export async function POST(request: NextRequest) {
         ...existingStudentData,
         subjectIds: mergedSubjectIds,
         teacherIds: updatedTeachers,
+        gradeLevel: gradeLevelChanged ? gradeLevel : existingGradeLevel,
+        currentGradeLevel: gradeLevelChanged ? gradeLevel : existingStudentData.currentGradeLevel,
         updatedAt: new Date().toISOString()
       };
 
       return NextResponse.json({
-        message: `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
+        message: gradeLevelChanged 
+          ? `Student grade level updated from ${existingGradeLevel} to ${gradeLevel}`
+          : `Student updated with ${subjectIds.length} additional subject(s). Total subjects: ${mergedSubjectIds.length}`,
         student: updatedStudent,
-        isUpdate: true
+        isUpdate: true,
+        gradeLevelChanged
       });
     }
 

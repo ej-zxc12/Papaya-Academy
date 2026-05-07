@@ -1048,7 +1048,7 @@ export default function ContributionManagement() {
     quota.studentId.toLowerCase().includes(searchTerm.toLowerCase())
   ).filter(quota =>
     !selectedGrade || quota.gradeLevel === selectedGrade
-  );
+  ).sort((a, b) => a.studentName.localeCompare(b.studentName));
 
   const totalCollected = derivedTotals.collected;
   const totalExpected = derivedTotals.expected;

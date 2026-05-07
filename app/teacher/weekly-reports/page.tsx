@@ -159,10 +159,17 @@ export default function WeeklyReportsPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const reportsQuery = query(
-      collection(db, 'weekly_reports'),
-      orderBy('createdAt', 'desc')
-    );
+    // Teachers only see their own reports, principals see all
+    const reportsQuery = currentUser.role === 'teacher'
+      ? query(
+          collection(db, 'weekly_reports'),
+          where('authorId', '==', currentUser.id),
+          orderBy('createdAt', 'asc')
+        )
+      : query(
+          collection(db, 'weekly_reports'),
+          orderBy('createdAt', 'desc')
+        );
 
     const unsubscribe = onSnapshot(reportsQuery, async (snapshot) => {
       setIsReportsLoading(true);

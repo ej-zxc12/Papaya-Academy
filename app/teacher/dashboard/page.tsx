@@ -78,6 +78,8 @@ export default function TeacherDashboard() {
   const [summary, setSummary] = useState<{ totalCollected: number; totalExpected: number; collectionRate: number } | null>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [isActivityLoading, setIsActivityLoading] = useState(true);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('');
+  const [availableSchoolYears, setAvailableSchoolYears] = useState<string[]>([]);
 
   const router = useRouter();
 
@@ -98,6 +100,7 @@ export default function TeacherDashboard() {
         // Uses Firebase uid or legacy id
         const teacherId = teacherData?.uid || teacherData?.id;
         const year = new Date().getFullYear().toString();
+        const currentSchoolYear = `${year}-${(parseInt(year) + 1).toString()}`;
 
         if (!teacherId) {
           setLoadError('Missing teacher session. Please login again.');
@@ -118,9 +121,32 @@ export default function TeacherDashboard() {
           }
         );
 
-        // Fetch SF10 records from API (same as View SF10 page) and contributions summary
+        // Fetch available school years first (like SF10 list page)
+        const gradesRes = await fetch('/api/teacher/grades/student?studentId=all', {
+          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+        });
+        
+        const schoolYearsSet = new Set<string>();
+        if (gradesRes.ok) {
+          const gradesData = await gradesRes.json();
+          gradesData.forEach((g: any) => {
+            if (g.schoolYear) schoolYearsSet.add(g.schoolYear);
+          });
+        }
+        
+        // Add current school year if not present
+        schoolYearsSet.add(currentSchoolYear);
+        
+        const schoolYears = Array.from(schoolYearsSet).sort().reverse(); // Most recent first
+        setAvailableSchoolYears(schoolYears);
+        
+        // Use the most recent school year for dashboard
+        const dashboardSchoolYear = schoolYears[0] || currentSchoolYear;
+        setSelectedSchoolYear(dashboardSchoolYear);
+
+        // Fetch SF10 records from API with the correct school year and contributions summary
         const [sf10Res, contributionsRes, summaryRes] = await Promise.all([
-          fetch('/api/teacher/sf10', {
+          fetch(`/api/teacher/sf10?schoolYear=${encodeURIComponent(dashboardSchoolYear)}`, {
             headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
           }),
           fetch('/api/contributions?scope=school', {

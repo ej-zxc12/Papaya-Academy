@@ -31,6 +31,9 @@ export interface Student {
   subjectIds?: string[];
   section?: string;
   lrn?: string;
+  schoolYear?: string;
+  currentGradeLevel?: string;
+  currentSection?: string;
   status?: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
   createdAt?: string;
   updatedAt?: string;
@@ -135,6 +138,9 @@ export interface GradeInput {
   remarks?: string;
   teacherId: string;
   dateInput: string;
+  gradeLevel: string;
+  section: string;
+  schoolYear: string;
 }
 
 export interface ReportCardGrade {
