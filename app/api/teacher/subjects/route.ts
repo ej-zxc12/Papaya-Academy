@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Subject } from '@/types';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { validateAndNormalizeSubject, normalizeSubjectName } from '@/lib/subject-utils';
 
 // Mock subject data for higher grades (4-6) - replace with actual database
 const mockSubjects: Subject[] = [
@@ -308,10 +309,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate and normalize subject name
+    const primaryGradeLevel = gradeLevels.length > 0 ? gradeLevels[0] : 'Flexible';
+    const validation = validateAndNormalizeSubject(primaryGradeLevel, name);
+    
+    // Use normalized name
+    const normalizedName = validation.normalizedName;
+    
+    // For grades 1-3, suggest the correct code if teacher uses a non-recommended one
+    let finalCode = code;
+    if (validation.isRecommended && validation.suggestedCode && code !== validation.suggestedCode) {
+      // Auto-correct the code to match the recommended one
+      finalCode = validation.suggestedCode;
+    }
+
     const subjectsCollection = collection(db, 'subjects');
     const subjectData: any = {
-      name,
-      code,
+      name: normalizedName,
+      code: finalCode,
       gradeLevels: gradeLevels.length > 0 ? gradeLevels : ['Flexible'],
       gradeLevel: gradeLevels.length > 0 ? gradeLevels[0] : 'Flexible',
       teacherId: teacherUid,
@@ -324,7 +339,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: 'Subject created successfully',
-        subject: { id: docRef.id, ...subjectData }
+        subject: { id: docRef.id, ...subjectData },
+        validation: {
+          originalName: name,
+          normalizedName,
+          originalCode: code,
+          finalCode,
+          isRecommended: validation.isRecommended,
+          autoCorrected: name !== normalizedName || code !== finalCode
+        }
       },
       { status: 201 }
     );

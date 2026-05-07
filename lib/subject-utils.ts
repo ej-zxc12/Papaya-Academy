@@ -146,6 +146,125 @@ function getSubjectIndexInOrder(subjectName: string, orderArray: string[]): numb
  * @param gradeLevel Optional grade level for grade-specific sorting (e.g., 'Grade 1', 'Grade 4')
  * @returns Sorted array
  */
+/**
+ * Normalizes subject names to standard conventions
+ * Handles common variations like 'math' → 'Mathematics'
+ * @param subjectName The input subject name
+ * @returns Normalized subject name
+ */
+export const normalizeSubjectName = (subjectName: string): string => {
+  if (!subjectName || typeof subjectName !== 'string') return subjectName;
+  
+  const trimmed = subjectName.trim().toLowerCase();
+  
+  // Common subject name variations mapping
+  const subjectMappings: Record<string, string> = {
+    // Mathematics variations
+    'math': 'Mathematics',
+    'maths': 'Mathematics',
+    'matematika': 'Mathematics',
+    
+    // Language/English variations
+    'english': 'English',
+    'lang': 'Language',
+    'language arts': 'Language',
+    
+    // Science variations
+    'sci': 'Science',
+    
+    // Filipino variations
+    'fil': 'Filipino',
+    'pilipino': 'Filipino',
+    
+    // GMRC variations
+    'gmrc': 'GMRC (Good Manners and Right Conduct)',
+    'good manners': 'GMRC (Good Manners and Right Conduct)',
+    'good manners and right conduct': 'GMRC (Good Manners and Right Conduct)',
+    
+    // Araling Panlipunan variations
+    'ap': 'Araling Panlipunan',
+    'araling panlipunan': 'Araling Panlipunan',
+    'social studies': 'Araling Panlipunan',
+    
+    // EPP variations
+    'epp': 'EPP',
+    'edukasyong pantahanan at pangkabuhayan': 'EPP',
+    
+    // MAPEH variations
+    'mapeh': 'MAPEH',
+    'music arts pe health': 'MAPEH',
+    
+    // ESP variations
+    'esp': 'Edukasyon sa Pagpapakatao',
+    'edukasyon sa pagpapakatao': 'Edukasyon sa Pagpapakatao',
+    
+    // Makabansa variations
+    'makabansa': 'Makabansa',
+    
+    // Reading and Literacy variations
+    'reading': 'Reading and Literacy',
+    'literacy': 'Reading and Literacy',
+    'reading and literacy': 'Reading and Literacy',
+  };
+  
+  // First check exact matches
+  if (subjectMappings[trimmed]) {
+    return subjectMappings[trimmed];
+  }
+  
+  // Check partial matches for longer variations
+  for (const [key, value] of Object.entries(subjectMappings)) {
+    if (trimmed.includes(key) || key.includes(trimmed)) {
+      return value;
+    }
+  }
+  
+  // If no mapping found, return original with proper capitalization
+  return subjectName.charAt(0).toUpperCase() + subjectName.slice(1).toLowerCase();
+};
+
+/**
+ * Validates and normalizes a subject for a specific grade level
+ * @param gradeLevel The grade level
+ * @param subjectName The subject name to validate
+ * @returns Object with normalized name and validation result
+ */
+export const validateAndNormalizeSubject = (gradeLevel: string, subjectName: string): {
+  normalizedName: string;
+  isValid: boolean;
+  isRecommended: boolean;
+  suggestedCode?: string;
+} => {
+  const normalizedName = normalizeSubjectName(subjectName);
+  
+  // Check if it's a recommended subject for grades 1-3
+  if (usesNewSubjectStructure(gradeLevel)) {
+    const recommendedSubjects = getSubjectsForGrade(gradeLevel);
+    const recommendedSubject = recommendedSubjects.find(s => 
+      s.name.toLowerCase() === normalizedName.toLowerCase()
+    );
+    
+    return {
+      normalizedName,
+      isValid: true, // Allow any subject but flag if not recommended
+      isRecommended: !!recommendedSubject,
+      suggestedCode: recommendedSubject?.code
+    };
+  }
+  
+  // For grades 4-6, check against standard subject list
+  const standardSubjects = getDefaultSubjectsForGrade(gradeLevel);
+  const isStandard = standardSubjects.some(s => 
+    s.toLowerCase() === normalizedName.toLowerCase()
+  );
+  
+  return {
+    normalizedName,
+    isValid: true,
+    isRecommended: isStandard
+  };
+};
+
 export function sortSubjectsByOrder<T extends { name?: string; learningArea?: string }>(
   subjects: T[],
   gradeLevel?: string
