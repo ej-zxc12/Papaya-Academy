@@ -1,3 +1,5 @@
+process.env.TZ = 'Asia/Manila';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { ContributionSummary } from '@/types';
 import { db } from '@/lib/firebase-admin';
