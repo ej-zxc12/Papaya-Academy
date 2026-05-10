@@ -86,12 +86,23 @@ export default function DonatePage() {
   const [showQRModal, setShowQRModal] = useState<boolean>(false);
   const [showPolicyModal, setShowPolicyModal] = useState<boolean>(false);
   const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
-
-
+  const [shakeTerms, setShakeTerms] = useState<boolean>(false);
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
 
+  // Load terms accepted state from localStorage on mount
+  useEffect(() => {
+    const savedTerms = localStorage.getItem('donateTermsAccepted');
+    if (savedTerms === 'true') {
+      setTermsAccepted(true);
+    }
+  }, []);
+
+  // Save terms accepted state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('donateTermsAccepted', termsAccepted.toString());
+  }, [termsAccepted]);
 
   // Fetch real-time EUR to PHP exchange rate on mount
 
@@ -779,13 +790,21 @@ export default function DonatePage() {
 
                 <button
 
-                  disabled={isLoading || !termsAccepted}
+                  disabled={isLoading}
 
                   type="submit"
 
+                  onClick={(e) => {
+                    if (!termsAccepted) {
+                      e.preventDefault();
+                      setShakeTerms(true);
+                      setTimeout(() => setShakeTerms(false), 500);
+                    }
+                  }}
+
                   className="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-base font-bold text-white disabled:opacity-70 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98] hover:opacity-90"
 
-                  style={{ backgroundColor: '#1a3828' }}
+                  style={{ backgroundColor: '#1a3828', opacity: termsAccepted ? 1 : 0.5 }}
 
                 >
 
@@ -833,11 +852,18 @@ export default function DonatePage() {
 
                     type="button"
 
-                    onClick={() => setShowQRModal(true)}
-
-                    disabled={!termsAccepted}
+                    onClick={() => {
+                      if (!termsAccepted) {
+                        setShakeTerms(true);
+                        setTimeout(() => setShakeTerms(false), 500);
+                      } else {
+                        setShowQRModal(true);
+                      }
+                    }}
 
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-sm font-medium transition-colors border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-50"
+
+                    style={{ opacity: termsAccepted ? 1 : 0.5 }}
 
                   >
 
@@ -899,9 +925,32 @@ export default function DonatePage() {
 
                     </span>
 
+                    <span
+
+                      className={`text-xs font-semibold text-red-500 transition-transform ${shakeTerms ? 'animate-pulse' : ''}`}
+
+                      style={{
+                        animation: shakeTerms ? 'shake 0.5s ease-in-out' : 'none',
+                      }}
+
+                    >
+                      (Required to proceed)
+                    </span>
+
                   </label>
 
                 </div>
+
+
+
+                {/* Shake Animation Keyframes */}
+                <style jsx>{`
+                  @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+                    20%, 40%, 60%, 80% { transform: translateX(3px); }
+                  }
+                `}</style>
 
 
 
