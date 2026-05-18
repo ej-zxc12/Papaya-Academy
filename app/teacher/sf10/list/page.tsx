@@ -548,6 +548,63 @@ export default function SF10List() {
     });
   };
 
+  const handleDownloadPDF = (record?: SF10Record) => {
+    const targetRecord = record || selectedSF10;
+    if (!targetRecord) return;
+
+    // Create a printable version of the SF10
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow popups to download the PDF');
+      return;
+    }
+
+    const studentName = targetRecord.student.name.replace(/[^a-zA-Z\s]/g, '');
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>SF10 - ${studentName}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+          }
+          @media print {
+            body {
+              margin: 0;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div id="sf10-content"></div>
+        <script>
+          // Get the SF10 form content from the parent window
+          const sf10Content = window.opener.document.querySelector('#sf10-modal-content')?.innerHTML;
+          if (sf10Content) {
+            document.getElementById('sf10-content').innerHTML = sf10Content;
+            // Trigger print after content is loaded
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          } else {
+            document.body.innerHTML = '<p style="padding: 20px;">Error: Could not load SF10 content. Please try viewing the SF10 first, then download.</p>';
+          }
+        <\/script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   if (isLoading) {
     return (
       <TeacherLayout>
@@ -720,6 +777,7 @@ export default function SF10List() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => handleDownloadPDF(record)}
                           className="text-green-600 hover:text-green-800 transition-colors"
                           title="Download SF10"
                         >
@@ -816,7 +874,7 @@ export default function SF10List() {
             </div>
 
             {/* Modal Content */}
-            <div style={{ padding: '16px', backgroundColor: '#f3f4f6' }}>
+            <div id="sf10-modal-content" style={{ padding: '16px', backgroundColor: '#f3f4f6' }}>
               {isLoadingGrades ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3E2A]"></div>
@@ -974,6 +1032,7 @@ export default function SF10List() {
               )}
               
               <button
+                onClick={() => handleDownloadPDF()}
                 style={{ 
                   padding: '8px 16px', 
                   backgroundColor: '#1B3E2A', 

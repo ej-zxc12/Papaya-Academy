@@ -111,13 +111,13 @@ export default function ReportCard({
   return (
     <div
       ref={printRef}
-      className="report-card bg-white p-4 w-[210mm] h-[297mm] mx-auto font-serif text-black relative overflow-hidden flex flex-col"
+      className="report-card bg-white p-4 w-[279mm] h-[216mm] mx-auto font-serif text-black relative overflow-hidden flex flex-col"
     >
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
           @page {
-            size: A4 portrait;
+            size: letter landscape;
             margin: 0;
           }
           body {
@@ -128,10 +128,10 @@ export default function ReportCard({
           }
           .report-card {
             box-shadow: none !important;
-            width: 210mm !important;
-            height: 297mm !important;
+            width: 11in !important;
+            height: 8.5in !important;
             margin: 0 !important;
-            padding: 4mm !important;
+            padding: 0.16in !important;
             border: none !important;
           }
           .print-hidden {
@@ -235,7 +235,7 @@ export default function ReportCard({
               <div className="flex gap-6">
                 <div className="flex items-end">
                   <span className="font-bold w-9 mr-1">Age:</span>
-                  <div className="w-12 border-b border-black px-1 min-h-[1.4rem] flex items-end justify-center text-[12px]">{age}</div>
+                  <div className="w-12 border-b border-black px-1 min-h-[1.4rem] flex items-end justify-center text-[12px]">{age && age !== '0' ? age : ''}</div>
                 </div>
                 <div className="flex items-end flex-1 justify-center ml-40">
                   <span className="font-bold w-10 mr-2">Sex:</span>

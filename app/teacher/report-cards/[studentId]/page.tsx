@@ -10,6 +10,7 @@ import { toPng } from 'html-to-image';
 import { sortSubjectsByOrder } from '@/lib/subject-utils';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import jsPDF from 'jspdf';
 
 // Default subjects for higher grades (4+) - grades 1-3 will use manually created subjects
 const defaultSubjects = [
@@ -238,7 +239,51 @@ export default function ReportCardViewerPage() {
   }, [student]);
 
   const handlePrint = () => {
-    window.print();
+    if (reportCardRef.current) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const printContent = reportCardRef.current.innerHTML;
+        const printStyles = `
+          <style>
+            @page {
+              size: letter landscape;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .report-card {
+              width: 11in;
+              height: 8.5in;
+              margin: 0;
+              padding: 0.16in;
+              box-shadow: none;
+              border: none;
+            }
+          </style>
+        `;
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Report Card - ${student?.name}</title>
+            ${printStyles}
+          </head>
+          <body>
+            ${printContent}
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.onload = () => {
+          printWindow.print();
+          printWindow.close();
+        };
+      }
+    }
   };
 
   const handleDownloadImage = async () => {
@@ -248,12 +293,39 @@ export default function ReportCardViewerPage() {
       setIsDownloading(true);
       const dataUrl = await toPng(reportCardRef.current, { quality: 1, pixelRatio: 2 });
 
-      const link = document.createElement('a');
-      link.download = `ReportCard_${student.name.replace(/\s+/g, '_')}.png`;
-      link.href = dataUrl;
-      link.click();
+      // Create PDF with Letter landscape size (11 x 8.5 inches)
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'in',
+        format: 'letter'
+      });
+
+      // Calculate dimensions to fit the image on Letter landscape
+      const img = new Image();
+      img.src = dataUrl;
+
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      const pdfWidth = 11; // Letter landscape width in inches
+      const pdfHeight = 8.5; // Letter landscape height in inches
+      const imgWidth = img.width;
+      const imgHeight = img.height;
+
+      // Calculate scaling to fit the image on the page
+      const scale = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 72; // Convert to points
+      const scaledWidth = imgWidth * scale / 72;
+      const scaledHeight = imgHeight * scale / 72;
+
+      // Center the image on the page
+      const x = (pdfWidth - scaledWidth) / 2;
+      const y = (pdfHeight - scaledHeight) / 2;
+
+      pdf.addImage(dataUrl, 'PNG', x, y, scaledWidth, scaledHeight);
+      pdf.save(`ReportCard_${student.name.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('Error generating PDF:', error);
     } finally {
       setIsDownloading(false);
     }
@@ -287,44 +359,16 @@ export default function ReportCardViewerPage() {
 
   return (
     <TeacherLayout title="Report Card" subtitle={subtitle}>
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .print-hidden {
-            display: none !important;
-          }
-          .print-area {
-            padding: 0 !important;
-            background: #fff !important;
-          }
-          .a4-frame {
-            width: 210mm !important;
-            height: 297mm !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-          }
-        }
-      `}</style>
-
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           onClick={() => router.push('/teacher/report-cards')}
-          className="print-hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
 
-        <div className="print-hidden flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <input
             type="text"
             value={schoolYear}
@@ -356,8 +400,8 @@ export default function ReportCardViewerPage() {
           <p className="text-gray-600">Student not found.</p>
         </div>
       ) : (
-        <div className="print-area bg-gray-100 p-4 rounded-lg flex justify-center overflow-x-auto">
-          <div className="a4-frame bg-white shadow-lg">
+        <div className="bg-gray-100 p-4 rounded-lg flex justify-center overflow-x-auto">
+          <div className="bg-white shadow-lg">
             <ReportCard
               printRef={reportCardRef}
               studentName={student.name}

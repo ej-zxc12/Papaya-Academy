@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Subject } from '@/types';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { validateAndNormalizeSubject, normalizeSubjectName } from '@/lib/subject-utils';
 
 // Mock subject data for higher grades (4-6) - replace with actual database
@@ -186,12 +186,11 @@ export async function GET(request: NextRequest) {
     // Merge teacherSubjects data (which contains sections) - avoid duplicates
     const teacherSubjectsMap = new Map<string, any>();
     [...teacherSubjectsByIdSnap.docs, ...teacherSubjectsByUidSnap.docs].forEach((docSnap) => {
-      teacherSubjectsMap.set(docSnap.id, docSnap.data());
+      teacherSubjectsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
     });
 
     const teacherSubjects = Array.from(teacherSubjectsMap.values()).map((data) => {
       return {
-        id: data.id || Math.random().toString(), // Ensure id exists
         ...data,
       };
     });
@@ -411,6 +410,139 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('Error updating subject:', error);
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const teacherUid = getTeacherUid(request);
+    if (!teacherUid) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const sectionId = searchParams.get('sectionId');
+    const sectionName = searchParams.get('sectionName');
+
+    if (!sectionId && !sectionName) {
+      return NextResponse.json(
+        { message: 'sectionId or sectionName is required' },
+        { status: 400 }
+      );
+    }
+
+    const teacherSubjectsCollection = collection(db, 'teacherSubjects');
+    
+    // Check if there are students enrolled in this section
+    const studentsCollection = collection(db, 'students');
+    let studentsInSectionQuery;
+    let targetSectionName = sectionName;
+    
+    if (sectionName) {
+      studentsInSectionQuery = query(
+        studentsCollection,
+        where('section', '==', sectionName)
+      );
+    } else {
+      // If we have sectionId, we need to get the section name first
+      const sectionDoc = await getDoc(doc(db, 'teacherSubjects', sectionId!));
+      if (!sectionDoc.exists()) {
+        return NextResponse.json(
+          { message: 'Section not found' },
+          { status: 404 }
+        );
+      }
+      const sectionData = sectionDoc.data();
+      targetSectionName = sectionData.section;
+      studentsInSectionQuery = query(
+        studentsCollection,
+        where('section', '==', targetSectionName)
+      );
+    }
+
+    const studentsSnapshot = await getDocs(studentsInSectionQuery);
+    
+    if (!studentsSnapshot.empty) {
+      return NextResponse.json(
+        { 
+          message: 'Cannot delete section. There are students enrolled in this section.',
+          studentCount: studentsSnapshot.size
+        },
+        { status: 400 }
+      );
+    }
+
+    // Delete the section from teacherSubjects
+    if (sectionId) {
+      const sectionDoc = await getDoc(doc(db, 'teacherSubjects', sectionId));
+      if (!sectionDoc.exists()) {
+        return NextResponse.json(
+          { message: 'Section not found' },
+          { status: 404 }
+        );
+      }
+
+      const sectionData = sectionDoc.data();
+      
+      // Verify the section belongs to the teacher
+      if (sectionData.teacherId !== teacherUid && sectionData.teacherUid !== teacherUid) {
+        return NextResponse.json(
+          { message: 'Unauthorized - Section does not belong to this teacher' },
+          { status: 403 }
+        );
+      }
+
+      await deleteDoc(doc(db, 'teacherSubjects', sectionId));
+    } else if (sectionName) {
+      // Find and delete by section name with teacher filtering
+      const q = query(
+        teacherSubjectsCollection,
+        where('teacherId', '==', teacherUid),
+        where('section', '==', sectionName)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        // Try with teacherUid as well
+        const q2 = query(
+          teacherSubjectsCollection,
+          where('teacherUid', '==', teacherUid),
+          where('section', '==', sectionName)
+        );
+        const snapshot2 = await getDocs(q2);
+        
+        if (snapshot2.empty) {
+          return NextResponse.json(
+            { message: 'Section not found or does not belong to you' },
+            { status: 404 }
+          );
+        }
+        
+        // Delete all matching sections
+        for (const docSnap of snapshot2.docs) {
+          await deleteDoc(doc(db, 'teacherSubjects', docSnap.id));
+        }
+      } else {
+        // Delete all matching sections (should typically be just one)
+        for (const docSnap of snapshot.docs) {
+          await deleteDoc(doc(db, 'teacherSubjects', docSnap.id));
+        }
+      }
+    }
+
+    return NextResponse.json({
+      message: 'Section deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting section:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

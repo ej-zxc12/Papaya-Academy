@@ -327,7 +327,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                   ) : (
                     <GradeBlock 
                       grade="Grade 1"
-                      subjects={['Filipino', 'English', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+                      subjects={['Language', 'Reading and Literacy', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
                       emptyRows={7}
                       studentData={student}
                       subjectGrades={subjects}
@@ -352,8 +352,8 @@ const SF10Form: React.FC<SF10FormProps> = ({
                   ) : (
                     <GradeBlock 
                       grade="Grade 2"
-                      subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
-                      emptyRows={6}
+                      subjects={['Language', 'Filipino', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+                      emptyRows={7}
                       studentData={student}
                       subjectGrades={subjects}
                       isActive={student?.gradeLevel === 'Grade 2'}
@@ -381,8 +381,8 @@ const SF10Form: React.FC<SF10FormProps> = ({
                   ) : (
                     <GradeBlock 
                       grade="Grade 3"
-                      subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-                      emptyRows={2}
+                      subjects={['Language', 'Filipino', 'Science', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+                      emptyRows={6}
                       studentData={student}
                       subjectGrades={subjects}
                       isActive={student?.gradeLevel === 'Grade 3'}
@@ -429,7 +429,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
             {/* Grade 1 */}
             <GradeBlock 
               grade="Grade 1"
-              subjects={['Filipino', 'English', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+              subjects={['Language', 'Reading and Literacy', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
               emptyRows={7}
               studentData={student}
               subjectGrades={subjects}
@@ -441,8 +441,8 @@ const SF10Form: React.FC<SF10FormProps> = ({
             {/* Grade 2 */}
             <GradeBlock 
               grade="Grade 2"
-              subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
-              emptyRows={6}
+              subjects={['Language', 'Filipino', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+              emptyRows={7}
               studentData={student}
               subjectGrades={subjects}
               isActive={student?.gradeLevel === 'Grade 2'}
@@ -458,8 +458,8 @@ const SF10Form: React.FC<SF10FormProps> = ({
             {/* Grade 3 */}
             <GradeBlock 
               grade="Grade 3"
-              subjects={['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health']}
-              emptyRows={2}
+              subjects={['Language', 'Filipino', 'Science', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa']}
+              emptyRows={6}
               studentData={student}
               subjectGrades={subjects}
               isActive={student?.gradeLevel === 'Grade 3'}
@@ -545,6 +545,66 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
   section,
   forceActive = false
 }) => {
+  // Define correct subject order for each grade level
+  const getSubjectOrder = (gradeLevel: string): string[] => {
+    const gradeNum = parseInt(gradeLevel.replace(/[^0-9]/g, ''));
+    
+    switch (gradeNum) {
+      case 1:
+        return ['Language', 'Reading and Literacy', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa'];
+      case 2:
+        return ['Language', 'Filipino', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa'];
+      case 3:
+        return ['Language', 'Filipino', 'Science', 'Mathematics', 'GMRC (Good Manners and Right Conduct)', 'Makabansa'];
+      case 4:
+        return ['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health'];
+      case 5:
+        return ['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health'];
+      case 6:
+        return ['Filipino', 'English', 'Mathematics', 'Science', 'GMRC (Good Manners and Right Conduct)', 'Araling Panlipunan', 'EPP', 'MAPEH', 'Music & Arts', 'Physical Education & Health'];
+      default:
+        return subjects;
+    }
+  };
+
+  // Sort subjects according to the predefined order for this grade level
+  const sortedSubjects = useMemo(() => {
+    const correctOrder = getSubjectOrder(grade);
+    
+    // Create a map of subject name to its index in the correct order
+    const orderMap = new Map<string, number>();
+    correctOrder.forEach((subject, index) => {
+      orderMap.set(subject.toLowerCase(), index);
+      // Also add variations without parentheses for matching
+      const withoutParens = subject.replace(/\s*\([^)]*\)/g, '').trim().toLowerCase();
+      if (withoutParens !== subject.toLowerCase()) {
+        orderMap.set(withoutParens, index);
+      }
+    });
+
+    // Sort the subjects array based on the correct order
+    return [...subjects].sort((a, b) => {
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      
+      // Try exact match first
+      const aOrder = orderMap.get(aLower);
+      const bOrder = orderMap.get(bLower);
+      
+      // If both have defined order, sort by that
+      if (aOrder !== undefined && bOrder !== undefined) {
+        return aOrder - bOrder;
+      }
+      
+      // If only one has defined order, it comes first
+      if (aOrder !== undefined) return -1;
+      if (bOrder !== undefined) return 1;
+      
+      // If neither has defined order, keep original relative order
+      return 0;
+    });
+  }, [subjects, grade]);
+
   // Filter grades for subjects in this grade level
   const gradesMap = new Map<string, SF10SubjectData>();
   subjectGrades.forEach(sg => {
@@ -660,7 +720,7 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
       </div>
       
-      <GradeTable subjects={subjects} emptyRows={emptyRows} subjectGrades={subjectGrades} isActive={isBlockActive} isEditMode={isEditMode} onSubjectGradeChange={onSubjectGradeChange} />
+      <GradeTable subjects={sortedSubjects} emptyRows={emptyRows} subjectGrades={subjectGrades} isActive={isBlockActive} isEditMode={isEditMode} onSubjectGradeChange={onSubjectGradeChange} />
       <RemedialTable />
     </div>
   );

@@ -1233,6 +1233,70 @@ export default function GradeInput() {
     }
   };
 
+  const handleDeleteSection = async (sectionId: string, sectionName: string) => {
+    if (!confirm(`Are you sure you want to delete section "${sectionName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setMessage(null);
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = JSON.parse(session!);
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherUid = t?.uid || t?.id || '';
+
+      // Use section name for deletion instead of section ID for better reliability
+      const response = await fetch(`/api/teacher/subjects?sectionName=${encodeURIComponent(sectionName)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${teacherUid}`
+        }
+      });
+
+      if (response.ok) {
+        // Reload sections
+        const sectionsResponse = await fetch('/api/teacher/subjects', {
+          headers: {
+            'Authorization': `Bearer ${teacherUid}`
+          }
+        });
+
+        if (sectionsResponse.ok) {
+          const teacherSubjectsData = await sectionsResponse.json();
+          const sectionsMap = new Map<string, { id: string; name: string; subjectId?: string; gradeLevel?: string }>();
+          
+          teacherSubjectsData.forEach((ts: any) => {
+            if (ts.section) {
+              const key = ts.section;
+              sectionsMap.set(key, { 
+                id: ts.id || key, 
+                name: ts.section, 
+                subjectId: ts.subjectId,
+                gradeLevel: ts.gradeLevel
+              });
+            }
+          });
+
+          const normalized = Array.from(sectionsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+          setSections(normalized);
+        }
+
+        // Clear selected section if it was the deleted one
+        if (selectedSection === sectionName) {
+          setSelectedSection('');
+        }
+
+        setMessage({ type: 'success', text: `Section "${sectionName}" deleted successfully` });
+      } else {
+        const errorData = await response.json();
+        setMessage({ type: 'error', text: errorData.message || 'Failed to delete section' });
+      }
+    } catch (e) {
+      console.error('Error deleting section:', e);
+      setMessage({ type: 'error', text: 'Failed to delete section' });
+    }
+  };
+
   // Excel upload functions
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1733,6 +1797,33 @@ export default function GradeInput() {
                     Confirm Add Section
                   </AnimatedButton>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Existing Sections List */}
+          {sections.length > 0 && (
+            <div className="mt-6 border-t border-gray-200 pt-6">
+              <h4 className="text-sm font-semibold text-gray-700 mb-4">Existing Sections</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sections.map((section) => (
+                  <div
+                    key={section.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-[#F2C94C] transition-all"
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{section.name}</div>
+                      <div className="text-xs text-gray-500">{section.gradeLevel || 'No grade level'}</div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteSection(section.id, section.name)}
+                      className="ml-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete section"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
