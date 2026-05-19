@@ -123,7 +123,7 @@ export default function ReportCardsPage() {
           setSubjects(subjectsData);
         }
         
-        const schoolYears = Array.from(schoolYearsSet).sort();
+        const schoolYears = Array.from(schoolYearsSet).sort().reverse();
         console.log('🔍 DEBUG: Final school years:', schoolYears);
         setAvailableSchoolYears(schoolYears);
         

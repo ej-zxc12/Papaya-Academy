@@ -160,16 +160,10 @@ export async function GET(request: NextRequest) {
 
     const debugLogs: string[] = [];
 
-    // Get teacher's subjects (don't filter by school year - subjects may have 'Global' or no school year)
-    const subjectsQuery = query(
-      collection(db, 'subjects'),
-      where('teacherId', '==', teacherId)
-    );
+    // Get ALL subjects from the school (not filtered by teacherId - like report cards)
+    const subjectsQuery = query(collection(db, 'subjects'));
 
-    const teacherSubjectsQuery = query(
-      collection(db, 'teacherSubjects'),
-      where('teacherId', '==', teacherId)
-    );
+    const teacherSubjectsQuery = query(collection(db, 'teacherSubjects'));
 
     const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
       getDocs(subjectsQuery),
@@ -209,10 +203,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // OPTIMIZATION: Batch query all grades at once instead of per-subject queries
+    // OPTIMIZATION: Batch query ALL grades at once (not filtered by teacherId - like report cards)
     const allGradesQuery = query(
       collection(db, 'grades'),
-      where('teacherId', '==', teacherId),
       where('schoolYear', '==', schoolYear)
     );
     

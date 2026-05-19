@@ -371,7 +371,7 @@ export default function ReportCard({
                   <th className="border border-black p-2 text-center w-[45%] text-[10px] font-bold uppercase">
                     Learning Areas
                   </th>
-                  <th className="border border-black p-2 text-center text-[10px] font-bold uppercase" colSpan={4}>
+                  <th className="border border-black p-2 text-center text-[10px] font-bold uppercase" colSpan={3}>
                     Quarter
                   </th>
                   <th className="border border-black p-2 text-center w-[12%] text-[10px] font-bold uppercase leading-tight">
@@ -388,7 +388,6 @@ export default function ReportCard({
                   <th className="border border-black p-1 text-center w-[8%] font-bold text-[10px]">1</th>
                   <th className="border border-black p-1 text-center w-[8%] font-bold text-[10px]">2</th>
                   <th className="border border-black p-1 text-center w-[8%] font-bold text-[10px]">3</th>
-                  <th className="border border-black p-1 text-center w-[8%] font-bold text-[10px]">4</th>
                   <th className="border border-black p-1"></th>
                   <th className="border border-black p-1"></th>
                 </tr>
@@ -409,9 +408,6 @@ export default function ReportCard({
                       {subject.quarters[2] !== null ? subject.quarters[2] : ''}
                     </td>
                     <td className="border border-black p-1 text-center font-normal text-[11px]">
-                      {subject.quarters[3] !== null ? subject.quarters[3] : ''}
-                    </td>
-                    <td className="border border-black p-1 text-center font-normal text-[11px]">
                       {subject.finalGrade !== undefined ? subject.finalGrade : ''}
                     </td>
                     <td className="border border-black p-1 text-center text-[10px] font-normal">
@@ -421,7 +417,7 @@ export default function ReportCard({
                 ))}
                 {/* General Average Row */}
                 <tr className="h-[28px]">
-                  <td className="border border-black px-3 font-bold text-[11px] uppercase text-center" colSpan={5}>
+                  <td className="border border-black px-3 font-bold text-[11px] uppercase text-center" colSpan={4}>
                     General Average
                   </td>
                   <td className="border border-black p-1 text-center font-bold text-[11px]">

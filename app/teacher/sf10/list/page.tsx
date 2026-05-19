@@ -93,8 +93,8 @@ export default function SF10List() {
       const teacherId = teacherData?.teacher?.id || teacherData?.teacher?.uid || teacherData?.id;
 
       try {
-        // Fetch subjects
-        const subjectsResponse = await fetch('/api/teacher/subjects', {
+        // Fetch ALL subjects from the school (not filtered by teacher - like report cards)
+        const subjectsResponse = await fetch('/api/teacher/subjects?scope=school', {
           headers: { 'Authorization': `Bearer ${teacherId}` }
         });
 
