@@ -213,7 +213,7 @@ export default function ReportCardViewerPage() {
         ...found,
         grades: studentGrades,
         age: (found as any).age || 0,
-        sex: (found as any).sex || 'M',
+        sex: (found as any).gender || (found as any).sex || 'M',
         lrn: (found as any).lrn || '',
         section: effectiveSection,
         gradeLevel: effectiveGradeLevel,

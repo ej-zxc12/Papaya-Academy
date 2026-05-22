@@ -248,6 +248,7 @@ export async function POST(request: NextRequest) {
             obj[header] = row[index];
           }
         });
+        console.log(`📋 Backend: Row ${r} parsed as:`, obj);
         
         // Map Papaya masterlist column names to standard names
         if (obj['NAME']) {
@@ -255,6 +256,13 @@ export async function POST(request: NextRequest) {
         }
         if (obj['LRN NUMBER']) {
           obj['LRN'] = obj['LRN NUMBER'];
+        }
+        // Handle gender column with multiple possible names
+        if (obj['GENDER'] || obj['Gender'] || obj['gender'] || obj['SEX'] || obj['Sex'] || obj['sex']) {
+          obj['Gender'] = obj['GENDER'] || obj['Gender'] || obj['gender'] || obj['SEX'] || obj['Sex'] || obj['sex'];
+          console.log(`📋 Mapped gender column: ${obj['Gender']}`);
+        } else {
+          console.log(`📋 No gender column found in row:`, Object.keys(obj));
         }
         
         // Add default grade and section
@@ -336,8 +344,9 @@ export async function POST(request: NextRequest) {
         const lrn = String(row['LRN'] || row['lrn'] || row['LRN NUMBER'] || '').trim();
         let gradeLevel = row['Grade Level'] || row['grade_level'] || row['grade'] || defaultGradeLevel;
         let section = row['Section'] || row['section'] || defaultSection;
-        
-        console.log(`📝 Extracted data - Name: "${name}", LRN: "${lrn}", Grade: "${gradeLevel}", Section: "${section}"`);
+        const gender = row['Gender'] || row['gender'] || row['GENDER'] || row['SEX'] || row['Sex'] || row['sex'] || '';
+
+        console.log(`📝 Extracted data - Name: "${name}", LRN: "${lrn}", Grade: "${gradeLevel}", Section: "${section}", Gender: "${gender}"`);
         console.log(`📝 Row data:`, row);
         console.log(`📝 defaultSection: "${defaultSection}"`);
         
@@ -418,9 +427,23 @@ export async function POST(request: NextRequest) {
               updateData.schoolYear = foundSchoolYear;
             }
 
-            await import('firebase/firestore').then(({ updateDoc, doc }) => {
-              return updateDoc(doc(db, 'students', existingStudent.id), updateData);
-            });
+            // Always update gender if provided, regardless of other changes
+            if (gender && gender.trim()) {
+              updateData.gender = gender.trim();
+              console.log(`📝 Adding gender to updateData: ${gender.trim()}`);
+            } else {
+              console.log(`📝 Gender is empty or not provided, skipping gender update`);
+            }
+
+            // Only proceed with update if there are changes
+            if (Object.keys(updateData).length > 0) {
+              console.log(`📝 Updating existing student ${existingStudent.id} with data:`, updateData);
+              await import('firebase/firestore').then(({ updateDoc, doc }) => {
+                return updateDoc(doc(db, 'students', existingStudent.id), updateData);
+              });
+            } else {
+              console.log(`📝 No changes to update for student ${existingStudent.id}, skipping update`);
+            }
 
             uploadedCount++;
           } else {
@@ -438,11 +461,13 @@ export async function POST(request: NextRequest) {
             currentSection: section.trim(),
             teacherId: teacherId,
             subjectIds: subjectIds,
+            gender: gender.trim() || '',
             status: 'enrolled',
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
           };
 
+          console.log(`📝 Creating new student with data:`, studentData);
           await addDoc(studentsCollection, studentData);
           uploadedCount++;
         }

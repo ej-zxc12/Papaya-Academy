@@ -146,6 +146,7 @@ export async function GET(request: NextRequest) {
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
           schoolYear: data?.schoolYear,
+          gender: data?.gender || data?.sex || '',
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
@@ -192,6 +193,7 @@ export async function GET(request: NextRequest) {
           subjectId: data?.subjectId,
           subjectIds: data?.subjectIds || [],
           schoolYear: data?.schoolYear,
+          gender: data?.gender || data?.sex || '',
           status: data?.status || 'enrolled',
           createdAt: data?.createdAt,
           updatedAt: data?.updatedAt
@@ -298,6 +300,7 @@ export async function GET(request: NextRequest) {
         subjectId: data?.subjectId,
         subjectIds: data?.subjectIds || [],
         schoolYear: data?.schoolYear,
+        gender: data?.gender || data?.sex || '',
         status: data?.status || 'enrolled',
         createdAt: data?.createdAt,
         updatedAt: data?.updatedAt
@@ -334,6 +337,8 @@ export async function POST(request: NextRequest) {
     const lrn = typeof body?.lrn === 'string' ? body.lrn.trim() : '';
     const gradeLevel = typeof body?.gradeLevel === 'string' ? body.gradeLevel.trim() : '';
     const section = typeof body?.section === 'string' ? body.section.trim() : '';
+    const gender = typeof body?.gender === 'string' ? body.gender.trim() : '';
+    const schoolYear = typeof body?.schoolYear === 'string' ? body.schoolYear.trim() : '';
     const subjectIds = Array.isArray(body?.subjectIds) 
       ? body.subjectIds.filter((id: any) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
       : (typeof body?.subjectId === 'string' ? [body.subjectId.trim()] : []);
@@ -448,6 +453,8 @@ export async function POST(request: NextRequest) {
       teacherId,
       teacherIds: [teacherId], // Array of all teachers who have access to this student
       subjectIds, // Store all subject IDs in an array
+      schoolYear,
+      gender,
       status: 'enrolled',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()

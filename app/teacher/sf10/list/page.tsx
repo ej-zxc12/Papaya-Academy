@@ -482,12 +482,15 @@ export default function SF10List() {
     try {
       setIsSaving(true);
       
+      const session = localStorage.getItem('teacherSession');
+      const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
+      
       // Update student info
       const studentResponse = await fetch(`/api/teacher/students/${selectedSF10.student.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('teacherSession')}`
+          'Authorization': `Bearer ${teacherId}`
         },
         body: JSON.stringify({
           lrn: editableStudent.lrn,
@@ -501,7 +504,9 @@ export default function SF10List() {
       });
       
       if (!studentResponse.ok) {
-        throw new Error('Failed to update student info');
+        const errorData = await studentResponse.json().catch(() => ({}));
+        console.error('API Error:', studentResponse.status, errorData);
+        throw new Error(errorData.message || `Failed to update student info (${studentResponse.status})`);
       }
       
       // Refresh the SF10 records

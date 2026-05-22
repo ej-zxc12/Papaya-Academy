@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
       item
     ])).values());
     
-    debugLogs.push(`Found ${uniqueSubjects.length} subjects for teacher ${teacherId}`);
+    debugLogs.push(`Found ${uniqueSubjects.length} subjects (all school subjects)`);
     
     if (uniqueSubjects.length === 0) {
       return NextResponse.json({

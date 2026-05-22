@@ -35,6 +35,8 @@ export interface Student {
   currentGradeLevel?: string;
   currentSection?: string;
   status?: 'enrolled' | 'transferred' | 'graduated' | 'dropped';
+  gender?: 'M' | 'F';
+  sex?: 'M' | 'F';
   createdAt?: string;
   updatedAt?: string;
 }

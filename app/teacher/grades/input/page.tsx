@@ -203,6 +203,7 @@ export default function GradeInput() {
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [selectedGradeLevelFilter, setSelectedGradeLevelFilter] = useState<string>('');
   const [selectedSectionFilter, setSelectedSectionFilter] = useState<string>('');
+  const [selectedGenderFilter, setSelectedGenderFilter] = useState<string>('');
   const [studentSubjectId, setStudentSubjectId] = useState<string[]>([]);
   const [availableGradeLevelsForStudent, setAvailableGradeLevelsForStudent] = useState<string[]>([]);
   const [studentListSubjectFilter, setStudentListSubjectFilter] = useState<string>('');
@@ -214,7 +215,7 @@ export default function GradeInput() {
 
   // Student management states
   const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '', gender: '' });
   
   // Excel upload states
   const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -503,13 +504,27 @@ export default function GradeInput() {
       });
       console.log('🔍 DEBUG: After section filter:', filtered.length, 'students remain');
     }
-    
-    console.log('🔍 DEBUG: Final filtered students:', filtered.map(s => ({ 
-      id: s.id, 
-      name: s.name || 'Unnamed Student', 
-      gradeLevel: s.gradeLevel || 'Unknown Grade', 
-      subjectId: s.subjectId || null, 
-      subjectIds: s.subjectIds || [] 
+
+    // Apply gender filter
+    if (selectedGenderFilter) {
+      console.log('🔍 DEBUG: Applying gender filter:', selectedGenderFilter);
+      console.log('🔍 DEBUG: Students before gender filter with their genders:', filtered.map(s => ({ name: s.name, gender: s.gender || s.sex || 'NONE' })));
+      filtered = filtered.filter(s => {
+        const studentGender = (s.gender || s.sex || '').trim().toUpperCase();
+        const filterGender = selectedGenderFilter.trim().toUpperCase();
+        console.log(`🔍 DEBUG: Comparing student gender "${studentGender}" with filter "${filterGender}"`);
+        return studentGender === filterGender;
+      });
+      console.log('🔍 DEBUG: After gender filter:', filtered.length, 'students remain');
+    }
+
+    console.log('🔍 DEBUG: Final filtered students:', filtered.map(s => ({
+      id: s.id,
+      name: s.name || 'Unnamed Student',
+      gradeLevel: s.gradeLevel || 'Unknown Grade',
+      subjectId: s.subjectId || null,
+      subjectIds: s.subjectIds || [],
+      gender: s.gender || s.sex || 'NONE'
     })));
     
     // CRITICAL: Check for any students with grades who shouldn't be here
@@ -543,7 +558,7 @@ export default function GradeInput() {
     }
     
     setStudents(filtered);
-  }, [selectedGradeLevelFilter, selectedSectionFilter, studentListSubjectFilter, allStudents, selectedSubject, selectedGradingPeriod, grades, remarks, isRemarkManuallyEdited]);
+  }, [selectedGradeLevelFilter, selectedSectionFilter, selectedGenderFilter, studentListSubjectFilter, allStudents, selectedSubject, selectedGradingPeriod, grades, remarks, isRemarkManuallyEdited]);
 
   useEffect(() => {
     if (subjects?.length > 0 && studentSubjectId.length === 0) {
@@ -946,6 +961,7 @@ export default function GradeInput() {
           gradeLevel: targetGradeLevel,
           section: selectedSection,
           schoolYear: newStudent.schoolYear,
+          gender: newStudent.gender,
           subjectIds: studentSubjectId // Send all selected subject IDs
         })
       });
@@ -970,7 +986,7 @@ export default function GradeInput() {
         }).join(', ');
         
         setMessage({ type: 'success', text: `Student added successfully to ${subjectNames} (${targetGradeLevel})` });
-        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '' });
+        setNewStudent({ name: '', lrn: '', gradeLevel: '', section: '', schoolYear: '', gender: '' });
         setSelectedSection('');
         setShowAddStudent(false);
       } else {
@@ -1135,6 +1151,10 @@ export default function GradeInput() {
 
   const handleChangeSectionFilter = (value: string) => {
     setSelectedSectionFilter(value);
+  };
+
+  const handleChangeGenderFilter = (value: string) => {
+    setSelectedGenderFilter(value);
   };
 
   const handleChangeStudentListSubjectFilter = (value: string) => {
@@ -1439,6 +1459,7 @@ export default function GradeInput() {
           // Use the header row to parse data
           const headers = rawData[headerRowIndex].map((h: any) => String(h || '').trim());
           console.log('📋 Headers (raw):', headers);
+          console.log('📋 First data row:', rawData[headerRowIndex + 1]);
           
           // Parse data rows (skip header row)
           for (let r = headerRowIndex + 1; r < rawData.length; r++) {
@@ -1458,6 +1479,10 @@ export default function GradeInput() {
             }
             if (obj['LRN NUMBER']) {
               obj['LRN'] = obj['LRN NUMBER'];
+            }
+            // Handle gender column with multiple possible names
+            if (obj['GENDER'] || obj['Gender'] || obj['gender'] || obj['SEX'] || obj['Sex'] || obj['sex']) {
+              obj['Gender'] = obj['GENDER'] || obj['Gender'] || obj['gender'] || obj['SEX'] || obj['Sex'] || obj['sex'];
             }
             
             // Add default grade and section if not in data
@@ -1561,6 +1586,7 @@ export default function GradeInput() {
           setStudentListSubjectFilter('');
           setSelectedGradeLevelFilter('');
           setSelectedSectionFilter('');
+          setSelectedGenderFilter('');
           
           // Select the first subject from studentSubjectId to ensure uploaded students are visible
           if (studentSubjectId.length > 0) {
@@ -1599,13 +1625,15 @@ export default function GradeInput() {
         'Student Name': 'Juan Dela Cruz',
         'LRN': '123456789012',
         'Grade Level': 'Grade 5',
-        'Section': 'Section A'
+        'Section': 'Section A',
+        'Gender': 'M'
       },
       {
         'Student Name': 'Maria Santos',
         'LRN': '123456789013',
         'Grade Level': 'Grade 5',
-        'Section': 'Section A'
+        'Section': 'Section A',
+        'Gender': 'F'
       },
       {}, // Empty row
       {
@@ -1649,6 +1677,12 @@ export default function GradeInput() {
   const sectionFilterOptions = [
     { label: "All Sections", value: "" },
     ...availableSections.map(name => ({ label: name, value: name }))
+  ];
+
+  const genderFilterOptions = [
+    { label: "All Genders", value: "" },
+    { label: "Male", value: "M" },
+    { label: "Female", value: "F" }
   ];
 
   const subjectFilterOptions = [
@@ -1926,7 +1960,7 @@ export default function GradeInput() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grade Level</label>
                   <div className="relative h-11">
@@ -1978,6 +2012,22 @@ export default function GradeInput() {
                   }).length === 0 && (
                     <p className="text-xs text-gray-500 mt-1">No sections available for selected subjects. Add a section in Subject Management.</p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Gender</label>
+                  <div className="relative h-11">
+                    <select
+                      value={newStudent.gender}
+                      onChange={(e) => setNewStudent(prev => ({ ...prev, gender: e.target.value }))}
+                      className="w-full h-full px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B3E2A] outline-none appearance-none bg-white transition-all"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -2070,6 +2120,7 @@ export default function GradeInput() {
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LRN</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade Level</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -2079,6 +2130,7 @@ export default function GradeInput() {
                             <td className="px-4 py-2 text-sm text-gray-900">{row['LRN'] || row['lrn'] || ''}</td>
                             <td className="px-4 py-2 text-sm text-gray-900">{row['Grade Level'] || row['grade_level'] || ''}</td>
                             <td className="px-4 py-2 text-sm text-gray-900">{row['Section'] || row['section'] || ''}</td>
+                            <td className="px-4 py-2 text-sm text-gray-900">{row['Gender'] || row['gender'] || row['GENDER'] || ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2158,6 +2210,14 @@ export default function GradeInput() {
                     />
                  </div>
                )}
+               <div className="w-40">
+                  <CustomDropdown 
+                    value={selectedGenderFilter}
+                    options={genderFilterOptions}
+                    onChange={handleChangeGenderFilter}
+                    placeholder="Filter Gender"
+                  />
+               </div>
                <div className="w-40">
                   <CustomDropdown 
                     value={selectedGradingPeriod}

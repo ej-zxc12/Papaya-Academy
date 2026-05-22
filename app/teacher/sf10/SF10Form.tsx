@@ -323,6 +323,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       forceActive={true}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   ) : (
                     <GradeBlock 
@@ -334,6 +335,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isActive={student?.gradeLevel === 'Grade 1'}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   )}
                   {grade2Data ? (
@@ -348,6 +350,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       forceActive={true}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   ) : (
                     <GradeBlock 
@@ -359,6 +362,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isActive={student?.gradeLevel === 'Grade 2'}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   )}
                 </div>
@@ -377,6 +381,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       forceActive={true}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   ) : (
                     <GradeBlock 
@@ -388,6 +393,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isActive={student?.gradeLevel === 'Grade 3'}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   )}
                   {grade4Data ? (
@@ -402,6 +408,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       forceActive={true}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   ) : (
                     <GradeBlock 
@@ -413,6 +420,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isActive={student?.gradeLevel === 'Grade 4'}
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
+                      onStudentFieldChange={onStudentFieldChange}
                     />
                   )}
                 </div>
@@ -436,6 +444,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
               isActive={student?.gradeLevel === 'Grade 1'}
               isEditMode={isEditMode}
               onSubjectGradeChange={onSubjectGradeChange}
+              onStudentFieldChange={onStudentFieldChange}
             />
 
             {/* Grade 2 */}
@@ -448,6 +457,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
               isActive={student?.gradeLevel === 'Grade 2'}
               isEditMode={isEditMode}
               onSubjectGradeChange={onSubjectGradeChange}
+              onStudentFieldChange={onStudentFieldChange}
             />
 
           </div>
@@ -465,6 +475,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
               isActive={student?.gradeLevel === 'Grade 3'}
               isEditMode={isEditMode}
               onSubjectGradeChange={onSubjectGradeChange}
+              onStudentFieldChange={onStudentFieldChange}
             />
 
             {/* Grade 4 */}
@@ -477,6 +488,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
               isActive={student?.gradeLevel === 'Grade 4'}
               isEditMode={isEditMode}
               onSubjectGradeChange={onSubjectGradeChange}
+              onStudentFieldChange={onStudentFieldChange}
             />
 
           </div>
@@ -497,6 +509,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
       subjects={subjects} 
       isEditMode={isEditMode} 
       onSubjectGradeChange={onSubjectGradeChange}
+      onStudentFieldChange={onStudentFieldChange}
       yearData={yearData}
       viewMode={viewMode}
     />
@@ -514,6 +527,7 @@ interface GradeBlockProps {
   isActive?: boolean;
   isEditMode?: boolean;
   onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+  onStudentFieldChange?: (field: string, value: string) => void;
   // New props for byYear view
   schoolYear?: string;
   section?: string;
@@ -541,6 +555,7 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
   isActive = false, 
   isEditMode = false, 
   onSubjectGradeChange,
+  onStudentFieldChange,
   schoolYear,
   section,
   forceActive = false
@@ -687,7 +702,9 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
       </div>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '1px' }}>
         <span>District:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
+        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px', padding: '0 2px' }}>
+          {isBlockActive ? '2' : ''}
+        </span>
         <span>Division:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
           {isBlockActive ? 'Division of Rizal' : ''}
@@ -713,9 +730,18 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
       </div>
       <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', fontSize: '6.5pt', flexWrap: 'wrap', marginBottom: '2px' }}>
         <span>Name of Adviser/Teacher:</span>
-        <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
-          {isBlockActive ? studentData?.adviserName : ''}
-        </span>
+        {isEditMode && isBlockActive ? (
+          <input
+            type="text"
+            value={studentData?.adviserName || ''}
+            onChange={(e) => onStudentFieldChange?.('adviserName', e.target.value)}
+            style={{ fontSize: '7pt', flex: 1, height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
+          />
+        ) : (
+          <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
+            {isBlockActive ? studentData?.adviserName : ''}
+          </span>
+        )}
         <span>Signature:</span>
         <span style={{ borderBottom: '1px solid #000', display: 'inline-block', width: '40px', height: '11px' }}></span>
       </div>
@@ -1025,11 +1051,12 @@ interface Page2Props {
   subjects?: SF10SubjectData[];
   isEditMode?: boolean;
   onSubjectGradeChange?: (index: number, field: keyof SF10SubjectData, value: number) => void;
+  onStudentFieldChange?: (field: string, value: string) => void;
   yearData?: YearData[];
   viewMode?: 'single' | 'byYear';
 }
 
-const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = false, onSubjectGradeChange, yearData = [], viewMode = 'single' }) => {
+const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = false, onSubjectGradeChange, onStudentFieldChange, yearData = [], viewMode = 'single' }) => {
   return (
     <div style={{ 
       width: '215mm', 
@@ -1092,6 +1119,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   forceActive={true}
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
+                  onStudentFieldChange={onStudentFieldChange}
                 />
               ) : (
                 <GradeBlock 
@@ -1103,6 +1131,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   isActive={student?.gradeLevel === 'Grade 5'}
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
+                  onStudentFieldChange={onStudentFieldChange}
                 />
               )}
 
@@ -1119,6 +1148,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   forceActive={true}
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
+                  onStudentFieldChange={onStudentFieldChange}
                 />
               ) : (
                 <GradeBlock 
@@ -1130,6 +1160,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   isActive={student?.gradeLevel === 'Grade 6'}
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
+                  onStudentFieldChange={onStudentFieldChange}
                 />
               )}
             </>

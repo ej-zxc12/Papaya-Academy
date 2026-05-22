@@ -108,8 +108,8 @@ export default function TeacherDashboard() {
           return;
         }
 
-        // Real-time: Only students belonging to this teacher
-        const studentsQ = query(collection(db, 'students'), where('teacherId', '==', teacherId));
+        // Real-time: ALL students in the school (not filtered by teacher - like report cards)
+        const studentsQ = query(collection(db, 'students'));
         const unsubStudents = onSnapshot(
           studentsQ,
           (snap) => {

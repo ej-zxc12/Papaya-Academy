@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, deleteDoc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 // Simple middleware to check for teacher session
 function getTeacherSession(request: NextRequest) {
@@ -23,6 +23,62 @@ function getTeacherSession(request: NextRequest) {
   }
   
   return null;
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ studentId: string }> }
+) {
+  try {
+    const resolvedParams = await context.params;
+    const studentId = resolvedParams.studentId;
+
+    const teacherId = getTeacherSession(request);
+    if (!teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized - Please login first' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    console.log("Updating student with data:", body);
+
+    const studentRef = doc(db, 'students', studentId);
+    const studentDoc = await getDoc(studentRef);
+
+    if (!studentDoc.exists()) {
+      return NextResponse.json(
+        { message: 'Student not found' },
+        { status: 404 }
+      );
+    }
+
+    const studentData = studentDoc.data();
+    if (studentData?.teacherId && studentData.teacherId !== teacherId) {
+      return NextResponse.json(
+        { message: 'Unauthorized to update this student' },
+        { status: 403 }
+      );
+    }
+
+    // Update the student document
+    await updateDoc(studentRef, body);
+
+    return NextResponse.json({ message: "Updated successfully" });
+
+  } catch (error) {
+    console.error("PUT ERROR:", error);
+    console.error("Error type:", typeof error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    return NextResponse.json({ 
+      message: "Failed to update student", 
+      error: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
+  }
 }
 
 export async function DELETE(
