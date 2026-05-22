@@ -647,7 +647,8 @@ export default function PrincipalContributionManagement() {
         .filter(
           (quota) => quota.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || quota.studentId.toLowerCase().includes(searchTerm.toLowerCase())
         )
-        .filter((quota) => !selectedGrade || quota.gradeLevel === selectedGrade);
+        .filter((quota) => !selectedGrade || quota.gradeLevel === selectedGrade)
+        .sort((a, b) => a.studentName.localeCompare(b.studentName));
 
       const exportData = filteredQuotas.map((quota) => {
         const studentContributions = contributions.filter((c) => c.studentId === quota.studentId);
@@ -759,11 +760,15 @@ export default function PrincipalContributionManagement() {
 
   const filteredQuotas = quotas
     .filter((quota) => quota.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || quota.studentId.toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter((quota) => !selectedGrade || quota.gradeLevel === selectedGrade);
+    .filter((quota) => !selectedGrade || quota.gradeLevel === selectedGrade)
+    .sort((a, b) => a.studentName.localeCompare(b.studentName));
 
   const totalCollected = derivedTotals.collected;
   const totalExpected = derivedTotals.expected;
   const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+  
+  // Calculate total rollover balance from previous year
+  const totalRolloverBalance = quotas.reduce((sum, q) => sum + (q.previousBalance || 0), 0);
 
   if (isLoading) {
     return (
@@ -917,7 +922,10 @@ export default function PrincipalContributionManagement() {
               />
               {formData.studentId && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Remaining Balance: ₱{(quotas.find((q) => q.studentId === formData.studentId)?.remainingBalance || 0).toLocaleString()}
+                  Remaining Balance: {(() => {
+  const balance = quotas.find((q) => q.studentId === formData.studentId)?.remainingBalance || 0;
+  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
+})()}
                 </p>
               )}
             </div>
@@ -1287,7 +1295,9 @@ export default function PrincipalContributionManagement() {
                         <div className="text-sm font-semibold text-green-600">₱{quota.totalPaid.toLocaleString()}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm font-semibold text-orange-600">₱{quota.remainingBalance.toLocaleString()}</div>
+                        <div className="text-sm font-semibold text-orange-600">
+                          {quota.remainingBalance === 0 ? 'No remaining balance' : `₱${quota.remainingBalance.toLocaleString()}`}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(quota.paymentStatus)}`}>
@@ -1442,7 +1452,10 @@ export default function PrincipalContributionManagement() {
                         <div className="bg-orange-50 p-4 rounded-lg">
                           <p className="text-sm text-gray-600 mb-1">Pending Amount</p>
                           <p className="text-2xl font-bold text-orange-600">
-                            ₱{quotas.find((q) => q.studentId === selectedStudentForDetails.id)?.remainingBalance.toLocaleString() || 0}
+                          {(() => {
+  const balance = quotas.find((q) => q.studentId === selectedStudentForDetails.id)?.remainingBalance || 0;
+  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
+})()}
                           </p>
                         </div>
                       </div>
@@ -1489,7 +1502,10 @@ export default function PrincipalContributionManagement() {
                               placeholder="0"
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                              Remaining Balance: ₱{quotas.find((q) => q.studentId === selectedStudentForDetails?.id)?.remainingBalance.toLocaleString() || 0}
+                              Remaining Balance: {(() => {
+  const balance = quotas.find((q) => q.studentId === selectedStudentForDetails?.id)?.remainingBalance || 0;
+  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
+})()}
                             </p>
                           </div>
 

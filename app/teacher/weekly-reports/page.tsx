@@ -1,46 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MessageCircle, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp, 
-  doc, 
-  updateDoc,
-  getDoc,
-  where,
-  Timestamp
-} from 'firebase/firestore';
+import { User, CheckCircle, Send, Calendar, Clock, AlertCircle, FileText, Paperclip, File, X, ChevronDown, ChevronUp, Edit, Trash2 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import TeacherLayout from '../components/TeacherLayout';
-
-interface WeeklyReport {
-  id: string;
-  text: string;
-  authorId: string;
-  authorName: string;
-  authorRole: 'teacher' | 'principal';
-  authorImageUrl?: string | null;
-  acknowledged: boolean;
-  attachments: { name: string; url: string }[];
-  createdAt: Timestamp | null;
-}
-
-interface Comment {
-  id: string;
-  text: string;
-  authorId: string;
-  authorName: string;
-  authorRole: 'teacher' | 'principal';
-  authorImageUrl?: string | null;
-  createdAt: Timestamp | null;
-}
+import { WeeklyReportPrimaryPost, WeeklyReportSubPost } from '@/types';
 
 interface UserData {
   id: string;
@@ -49,44 +15,41 @@ interface UserData {
   isActive: boolean;
 }
 
-export default function WeeklyReportsPage() {
-  const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [reports, setReports] = useState<WeeklyReport[]>([]);
-  const [comments, setComments] = useState<{ [reportId: string]: Comment[] }>({});
-  const [newPostContent, setNewPostContent] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [commentInputs, setCommentInputs] = useState<{ [reportId: string]: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showComments, setShowComments] = useState<{ [reportId: string]: boolean }>({});
-  const [userImages, setUserImages] = useState<{ [userId: string]: string | null }>({});
-  const [isReportsLoading, setIsReportsLoading] = useState(true);
-
-  // Skeleton component for reports
-  const ReportSkeleton = () => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-pulse">
-      <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
-        <div className="flex items-center space-x-3">
-          <div className="shrink-0 w-10 h-10 rounded-full bg-gray-200"></div>
-          <div className="space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-24"></div>
-            <div className="h-3 bg-gray-200 rounded w-16"></div>
-          </div>
-        </div>
+const WeeklyReportSkeleton = () => {
+  return (
+    <div className="flex flex-col lg:flex-row gap-8 animate-pulse">
+      <div className="w-full lg:w-1/3 flex flex-col gap-6">
+        <div className="bg-gray-200 h-64 rounded-xl shadow-sm border border-gray-200"></div>
+        <div className="bg-gray-200 h-48 rounded-xl shadow-sm border border-gray-200"></div>
       </div>
-      <div className="p-5 space-y-3 bg-white">
-        <div className="h-4 bg-gray-200 rounded w-full"></div>
-        <div className="h-4 bg-gray-200 rounded w-full"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-      </div>
-      <div className="border-t border-gray-100 px-5 py-3 flex items-center space-x-4 bg-gray-50">
-        <div className="h-8 bg-gray-200 rounded w-24"></div>
-        <div className="h-8 bg-gray-200 rounded w-32"></div>
+      <div className="w-full lg:w-2/3">
+        <div className="bg-gray-200 h-96 rounded-xl shadow-sm border border-gray-200 mb-6"></div>
       </div>
     </div>
   );
+};
+
+export default function TeacherWeeklyReportsPage() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDataReady, setIsDataReady] = useState(false);
+  
+  // Primary posts state
+  const [primaryPosts, setPrimaryPosts] = useState<WeeklyReportPrimaryPost[]>([]);
+  const [selectedPrimaryPost, setSelectedPrimaryPost] = useState<WeeklyReportPrimaryPost | null>(null);
+  
+  // Sub-posts state
+  const [subPosts, setSubPosts] = useState<WeeklyReportSubPost[]>([]);
+  const [mySubPost, setMySubPost] = useState<WeeklyReportSubPost | null>(null);
+  
+  // Submit form state
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [isEditingReport, setIsEditingReport] = useState(false);
+  const [reportContent, setReportContent] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate deadline (next Friday at 5 PM)
@@ -103,11 +66,10 @@ export default function WeeklyReportsPage() {
   const nextDeadline = getNextDeadline();
   const daysLeft = Math.ceil((nextDeadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
 
-  // Detect user role from session and teachers_user collection
+  // Detect user role from session
   useEffect(() => {
     const detectUser = async () => {
       try {
-        // Check for teacher session
         const teacherSession = localStorage.getItem('teacherSession');
         
         let sessionData = null;
@@ -124,26 +86,12 @@ export default function WeeklyReportsPage() {
           return;
         }
 
-        // Fetch user role from teachers_user collection
-        const userDoc = await getDoc(doc(db, 'teachers_user', userId));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setCurrentUser({
-            id: userId,
-            username: userData.username || sessionData?.name || 'User',
-            role: userData.role || 'teacher',
-            isActive: userData.isActive !== false
-          });
-        } else {
-          // Fallback to session data
-          setCurrentUser({
-            id: userId,
-            username: sessionData?.name || sessionData?.username || 'User',
-            role: sessionData?.role || 'teacher',
-            isActive: true
-          });
-        }
+        setCurrentUser({
+          id: userId,
+          username: sessionData?.name || sessionData?.username || 'User',
+          role: sessionData?.role || 'teacher',
+          isActive: true
+        });
       } catch (error) {
         console.error('Error detecting user:', error);
         router.push('/portal/login');
@@ -155,137 +103,60 @@ export default function WeeklyReportsPage() {
     detectUser();
   }, [router]);
 
-  // Subscribe to reports
+  // Fetch primary posts
   useEffect(() => {
     if (!currentUser) return;
 
-    // Teachers only see their own reports, principals see all
-    const reportsQuery = currentUser.role === 'teacher'
-      ? query(
-          collection(db, 'weekly_reports'),
-          where('authorId', '==', currentUser.id),
-          orderBy('createdAt', 'asc')
-        )
-      : query(
-          collection(db, 'weekly_reports'),
-          orderBy('createdAt', 'desc')
-        );
-
-    const unsubscribe = onSnapshot(reportsQuery, async (snapshot) => {
-      setIsReportsLoading(true);
-      const reportsData: WeeklyReport[] = [];
-      const uniqueUserIds = new Set<string>();
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        reportsData.push({
-          id: doc.id,
-          text: data.text || '',
-          authorId: data.authorId || '',
-          authorName: data.authorName || 'Unknown',
-          authorRole: data.authorRole || 'teacher',
-          acknowledged: data.acknowledged || false,
-          attachments: data.attachments || [],
-          createdAt: data.createdAt || null
-        });
-        if (data.authorId) {
-          uniqueUserIds.add(data.authorId);
-        }
-      });
-      
-      // Fetch user images for all unique authors
-      const newImages: { [userId: string]: string | null } = {};
-      const userIdsArray = Array.from(uniqueUserIds);
-      for (const userId of userIdsArray) {
-        if (!userImages[userId]) {
-          const imageUrl = await fetchUserImage(userId);
-          if (imageUrl) {
-            newImages[userId] = imageUrl;
+    const fetchPrimaryPosts = async () => {
+      try {
+        const response = await fetch('/api/weekly-reports/primary-posts?isActive=true');
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Teacher fetched primary posts:', data);
+          setPrimaryPosts(data);
+          if (data.length > 0) {
+            setSelectedPrimaryPost(data[0]);
+          } else {
+            setIsDataReady(true);
           }
+        } else {
+          console.error('Teacher failed to fetch primary posts:', response.status);
+          setIsDataReady(true);
         }
+      } catch (error) {
+        console.error('Error fetching primary posts:', error);
+        setIsDataReady(true);
       }
-      
-      if (Object.keys(newImages).length > 0) {
-        setUserImages(prev => ({ ...prev, ...newImages }));
-      }
-      
-      // Add imageUrl to each report using combined images (new + existing)
-      const combinedImages = { ...userImages, ...newImages };
-      const reportsWithImages = reportsData.map(report => ({
-        ...report,
-        authorImageUrl: combinedImages[report.authorId] || null
-      }));
-      
-      setReports(reportsWithImages);
-      setIsReportsLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    fetchPrimaryPosts();
   }, [currentUser]);
 
-  // Subscribe to comments for each report
+  // Fetch sub-posts when primary post is selected
   useEffect(() => {
-    if (!currentUser || reports.length === 0) return;
+    if (!selectedPrimaryPost || !currentUser) return;
 
-    const unsubscribes: (() => void)[] = [];
-
-    reports.forEach((report) => {
-      const commentsQuery = query(
-        collection(db, 'weekly_reports', report.id, 'comments'),
-        orderBy('createdAt', 'asc')
-      );
-
-      const unsubscribe = onSnapshot(commentsQuery, async (snapshot) => {
-        const commentsData: Comment[] = [];
-        const uniqueUserIds = new Set<string>();
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          commentsData.push({
-            id: doc.id,
-            text: data.text || '',
-            authorId: data.authorId || '',
-            authorName: data.authorName || 'Unknown',
-            authorRole: data.authorRole || 'teacher',
-            createdAt: data.createdAt || null
-          });
-          if (data.authorId) {
-            uniqueUserIds.add(data.authorId);
-          }
-        });
-        
-        // Fetch user images for all unique authors
-        const newImages: { [userId: string]: string | null } = {};
-        const userIdsArray = Array.from(uniqueUserIds);
-        for (const userId of userIdsArray) {
-          if (!userImages[userId]) {
-            const imageUrl = await fetchUserImage(userId);
-            if (imageUrl) {
-              newImages[userId] = imageUrl;
-            }
+    const fetchSubPosts = async () => {
+      try {
+        const response = await fetch(`/api/weekly-reports/sub-posts?primaryPostId=${selectedPrimaryPost.id}&teacherId=${currentUser.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSubPosts(data);
+          if (data.length > 0) {
+            setMySubPost(data[0]);
+          } else {
+            setMySubPost(null);
           }
         }
-        
-        if (Object.keys(newImages).length > 0) {
-          setUserImages(prev => ({ ...prev, ...newImages }));
-        }
-        
-        // Add imageUrl to each comment
-        const commentsWithImages = commentsData.map(comment => ({
-          ...comment,
-          authorImageUrl: userImages[comment.authorId] || null
-        }));
-        
-        setComments((prev) => ({ ...prev, [report.id]: commentsWithImages }));
-      });
-
-      unsubscribes.push(unsubscribe);
-    });
-
-    return () => {
-      unsubscribes.forEach((unsub) => unsub());
+      } catch (error) {
+        console.error('Error fetching sub-posts:', error);
+      } finally {
+        setIsDataReady(true);
+      }
     };
-  }, [currentUser, reports.length]);
+
+    fetchSubPosts();
+  }, [selectedPrimaryPost, currentUser]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -318,88 +189,109 @@ export default function WeeklyReportsPage() {
     return uploadedFiles;
   };
 
-  const handlePostReport = async () => {
-    if (!currentUser || (!newPostContent.trim() && attachedFiles.length === 0)) return;
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !selectedPrimaryPost || !reportContent.trim()) return;
 
     setIsSubmitting(true);
     try {
       const uploadedAttachments = await uploadFiles();
+      
+      const isEditing = !!mySubPost && isEditingReport;
+      const finalAttachments = isEditing && uploadedAttachments.length === 0 
+        ? mySubPost.attachments 
+        : uploadedAttachments;
 
-      await addDoc(collection(db, 'weekly_reports'), {
-        text: newPostContent.trim(),
-        authorId: currentUser.id,
-        authorName: currentUser.username,
-        authorRole: currentUser.role,
-        acknowledged: false,
-        attachments: uploadedAttachments,
-        createdAt: serverTimestamp()
+      const method = isEditing ? 'PATCH' : 'POST';
+      const bodyData = isEditing ? {
+        id: mySubPost.id,
+        content: reportContent.trim(),
+        attachments: finalAttachments
+      } : {
+        primaryPostId: selectedPrimaryPost.id,
+        teacherId: currentUser.id,
+        teacherName: currentUser.username,
+        content: reportContent.trim(),
+        attachments: uploadedAttachments
+      };
+
+      const response = await fetch('/api/weekly-reports/sub-posts', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
       });
 
-      setNewPostContent('');
-      setAttachedFiles([]);
+      if (response.ok) {
+        setReportContent('');
+        setAttachedFiles([]);
+        setShowSubmitForm(false);
+        setIsEditingReport(false);
+        
+        // Refresh sub-posts
+        const fetchResponse = await fetch(`/api/weekly-reports/sub-posts?primaryPostId=${selectedPrimaryPost.id}&teacherId=${currentUser.id}`);
+        if (fetchResponse.ok) {
+          const data = await fetchResponse.json();
+          setSubPosts(data);
+          if (data.length > 0) {
+            setMySubPost(data[0]);
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to submit report');
+      }
     } catch (error) {
-      console.error('Error posting report:', error);
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleToggleAcknowledge = async (reportId: string, currentStatus: boolean) => {
-    if (!currentUser || currentUser.role !== 'principal') return;
+  const handleDeleteReport = async () => {
+    if (!mySubPost) return;
+    const confirmDelete = window.confirm('Are you sure you want to delete this report?');
+    if (!confirmDelete) return;
 
     try {
-      const reportRef = doc(db, 'weekly_reports', reportId);
-      await updateDoc(reportRef, {
-        acknowledged: !currentStatus
-      });
-    } catch (error) {
-      console.error('Error updating acknowledgment:', error);
-    }
-  };
-
-  const handlePostComment = async (reportId: string) => {
-    const commentText = commentInputs[reportId];
-    if (!currentUser || !commentText || !commentText.trim()) return;
-
-    try {
-      const commentsRef = collection(db, 'weekly_reports', reportId, 'comments');
-      await addDoc(commentsRef, {
-        text: commentText.trim(),
-        authorId: currentUser.id,
-        authorName: currentUser.username,
-        authorRole: currentUser.role,
-        createdAt: serverTimestamp()
+      const response = await fetch(`/api/weekly-reports/sub-posts?id=${mySubPost.id}`, {
+        method: 'DELETE',
       });
 
-      setCommentInputs((prev) => ({ ...prev, [reportId]: '' }));
-    } catch (error) {
-      console.error('Error posting comment:', error);
-    }
-  };
-
-  // Fetch user image from teachers_user collection
-  const fetchUserImage = async (userId: string) => {
-    try {
-      const userDoc = await getDoc(doc(db, 'teachers_user', userId));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        return userData.imageUrl || null;
+      if (response.ok) {
+        setMySubPost(null);
+        setReportContent('');
+        setAttachedFiles([]);
+        setShowSubmitForm(false);
+        
+        // Refresh sub-posts
+        const fetchResponse = await fetch(`/api/weekly-reports/sub-posts?primaryPostId=${selectedPrimaryPost?.id}&teacherId=${currentUser?.id}`);
+        if (fetchResponse.ok) {
+          const data = await fetchResponse.json();
+          setSubPosts(data);
+        }
+      } else {
+        alert('Failed to delete report.');
       }
-      return null;
     } catch (error) {
-      console.error('Error fetching user image:', error);
-      return null;
+      console.error('Error deleting report:', error);
+      alert('Error deleting report. Please check console for details.');
     }
   };
 
-  // Toggle comments visibility
-  const toggleComments = (reportId: string) => {
-    setShowComments(prev => ({ ...prev, [reportId]: !prev[reportId] }));
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric'
+    });
   };
 
-  const formatDate = (timestamp: Timestamp | null) => {
-    if (!timestamp) return 'Just now';
-    const date = timestamp.toDate();
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'Just now';
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
       day: 'numeric', 
@@ -409,12 +301,10 @@ export default function WeeklyReportsPage() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || !isDataReady) {
     return (
-      <TeacherLayout title="Weekly Reports" subtitle="Loading...">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        </div>
+      <TeacherLayout title="Weekly Reports" subtitle="Loading data...">
+        <WeeklyReportSkeleton />
       </TeacherLayout>
     );
   }
@@ -432,7 +322,7 @@ export default function WeeklyReportsPage() {
   return (
     <TeacherLayout 
       title="Weekly Reports" 
-      subtitle={currentUser.role === 'principal' ? 'Review and acknowledge teacher reports' : 'Submit your weekly progress reports'}
+      subtitle="View assignments and submit your weekly progress reports"
     >
       <div className="flex flex-col lg:flex-row gap-8">
         
@@ -464,27 +354,85 @@ export default function WeeklyReportsPage() {
             </div>
           </div>
 
-          {/* Post Creation Area - Visible only to Teachers */}
-          {currentUser.role === 'teacher' && (
+          {/* Assignment Info Card */}
+          {selectedPrimaryPost && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 border-b pb-3">
-                Write New Report
+                Current Assignment
               </h2>
-              <div className="flex flex-col gap-4">
-                <label htmlFor="report-text" className="sr-only">Report text</label>
-                <textarea
-                  id="report-text"
-                  className="w-full border border-gray-300 rounded-lg p-3 text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 resize-none bg-white"
-                  rows={5}
-                  placeholder="Type your weekly update here. What did you teach? What do you need help with?"
-                  value={newPostContent}
-                  onChange={(e) => setNewPostContent(e.target.value)}
-                  maxLength={500}
-                ></textarea>
-                <div className="flex justify-end">
-                  <span className={`text-xs ${newPostContent.length > 450 ? 'text-red-500' : 'text-gray-400'}`}>
-                    {newPostContent.length}/500 characters
-                  </span>
+              <div className="space-y-3">
+                <div>
+                  <p className="font-semibold text-gray-800">{selectedPrimaryPost.title}</p>
+                  <p className="text-sm text-gray-600 mt-1">{selectedPrimaryPost.description}</p>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar size={14} />
+                  <span>Due: {formatDate(selectedPrimaryPost.dueDate)}</span>
+                </div>
+                {mySubPost ? (
+                  <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle size={16} />
+                      <span className="font-medium">Report Submitted</span>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      Submitted on: {formatDateTime(mySubPost.submittedAt)}
+                    </p>
+                    {mySubPost.acknowledged && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ Acknowledged by Principal
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowSubmitForm(true)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex justify-center items-center gap-2"
+                  >
+                    <Send size={16} />
+                    Submit Report
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Submit Form */}
+          {showSubmitForm && selectedPrimaryPost && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider border-b pb-3">
+                  {isEditingReport ? 'Edit Your Report' : 'Submit Your Report'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowSubmitForm(false);
+                    setIsEditingReport(false);
+                    setReportContent('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={handleSubmitReport} className="space-y-4">
+                <div>
+                  <label htmlFor="report-text" className="sr-only">Report text</label>
+                  <textarea
+                    id="report-text"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 resize-none bg-white"
+                    rows={5}
+                    placeholder="Type your weekly update here. What did you teach? What do you need help with?"
+                    value={reportContent}
+                    onChange={(e) => setReportContent(e.target.value)}
+                    maxLength={500}
+                    required
+                  ></textarea>
+                  <div className="flex justify-end mt-1">
+                    <span className={`text-xs ${reportContent.length > 450 ? 'text-red-500' : 'text-gray-400'}`}>
+                      {reportContent.length}/500 characters
+                    </span>
+                  </div>
                 </div>
 
                 {/* Attached Files List */}
@@ -498,6 +446,7 @@ export default function WeeklyReportsPage() {
                           <span className="text-sm text-gray-700 truncate">{file.name}</span>
                         </div>
                         <button 
+                          type="button"
                           onClick={() => removeFile(index)}
                           className="text-red-500 hover:bg-red-50 p-1 rounded text-sm flex items-center gap-1 transition-colors"
                           aria-label={`Remove ${file.name}`}
@@ -519,6 +468,7 @@ export default function WeeklyReportsPage() {
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
                   />
                   <button 
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 text-sm"
                   >
@@ -527,218 +477,144 @@ export default function WeeklyReportsPage() {
                   </button>
 
                   <button 
-                    onClick={handlePostReport}
-                    disabled={(!newPostContent.trim() && attachedFiles.length === 0) || isSubmitting || isUploading || newPostContent.length > 500}
+                    type="submit"
+                    disabled={!reportContent.trim() || isSubmitting || isUploading || reportContent.length > 500}
                     className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex justify-center items-center gap-2 text-base shadow-sm mt-2"
                   >
                     {isSubmitting || isUploading ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        {isUploading ? 'Uploading...' : 'Submitting...'}
+                        {isUploading ? 'Uploading...' : isEditingReport ? 'Updating...' : 'Submitting...'}
                       </>
                     ) : (
                       <>
                         <Send size={18} />
-                        Send Weekly Report
+                        {isEditingReport ? 'Update Report' : 'Submit Weekly Report'}
                       </>
                     )}
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Principal Info Card - Visible only to Principals */}
-          {currentUser.role === 'principal' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 border-b pb-3">
-                Principal Actions
-              </h2>
-              <p className="text-sm text-gray-600 leading-relaxed bg-purple-50 p-3 rounded-lg border border-purple-100">
-                You can acknowledge reports by clicking the &quot;Mark as Read&quot; button on each report. Teachers will see when their reports have been acknowledged.
-              </p>
+              </form>
             </div>
           )}
         </div>
 
-        {/* Right Column: Reports Feed */}
+        {/* Right Column: Assignments & My Reports */}
         <div className="w-full lg:w-2/3">
-          <div className="flex items-center justify-between mb-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-800">All Submitted Reports</h2>
-            <span className="bg-gray-100 text-gray-600 text-sm font-medium px-3 py-1 rounded-md border border-gray-200">
-              Total Posts: {reports.length}
-            </span>
-          </div>
-
-          <div className="space-y-6">
-            {isReportsLoading ? (
-              <>
-                <ReportSkeleton />
-                <ReportSkeleton />
-                <ReportSkeleton />
-              </>
-            ) : reports.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-xl border border-gray-200 shadow-sm">
+          
+          {/* Active Assignments */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Active Assignments</h2>
+            {primaryPosts.length === 0 ? (
+              <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-gray-300" />
-                <h3 className="mt-4 text-sm font-medium text-gray-900">No reports yet</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {currentUser.role === 'teacher' 
-                    ? 'Be the first to submit a weekly report!' 
-                    : 'No reports have been submitted yet.'}
-                </p>
+                <p className="mt-2 text-sm text-gray-500">No active assignments at this time.</p>
               </div>
             ) : (
-              reports.map((report) => (
-                <div key={report.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  
-                  {/* Report Header */}
-                  <div className="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50">
-                    <div className="flex items-center space-x-3">
-                      <div className={`shrink-0 w-10 h-10 rounded-full overflow-hidden border ${report.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-green-100 border-green-200'}`}>
-                        {report.authorImageUrl ? (
-                          <img 
-                            src={report.authorImageUrl} 
-                            alt={report.authorName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className={`w-full h-full flex items-center justify-center ${report.authorRole === 'principal' ? 'text-purple-700' : 'text-green-700'}`}>
-                            <User size={20} />
-                          </div>
-                        )}
+              <div className="space-y-3">
+                {primaryPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    onClick={() => setSelectedPrimaryPost(post)}
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                      selectedPrimaryPost?.id === post.id
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800">{post.title}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{post.description}</p>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar size={14} />
+                            Due: {formatDate(post.dueDate)}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-base font-semibold text-gray-800">{report.authorName}</p>
-                        <p className="text-sm text-gray-500">{formatDate(report.createdAt)}</p>
-                      </div>
+                      <CheckCircle 
+                        size={20} 
+                        className={selectedPrimaryPost?.id === post.id ? 'text-green-600' : 'text-gray-400'}
+                      />
                     </div>
-                    {report.acknowledged && (
-                      <span className="flex items-center text-sm text-green-700 font-medium bg-green-50 border border-green-200 px-3 py-1.5 rounded-md">
-                        <CheckCircle size={16} className="mr-1.5" /> Read by Principal
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* My Submitted Report */}
+          {mySubPost && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FileText size={20} className="text-green-600" />
+                My Submitted Report
+              </h2>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-semibold text-gray-800">{mySubPost.teacherName}</p>
+                    <p className="text-xs text-gray-500">{formatDateTime(mySubPost.submittedAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {!mySubPost.acknowledged && (
+                      <div className="flex items-center gap-2 mr-2">
+                        <button
+                          onClick={() => {
+                            setReportContent(mySubPost.content);
+                            setIsEditingReport(true);
+                            setShowSubmitForm(true);
+                          }}
+                          className="text-green-600 hover:text-green-800 bg-white p-1.5 rounded border border-green-200"
+                          title="Edit Report"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={handleDeleteReport}
+                          className="text-red-600 hover:text-red-800 bg-white p-1.5 rounded border border-red-200"
+                          title="Delete Report"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
+                    {mySubPost.acknowledged ? (
+                      <span className="flex items-center text-xs text-green-700 bg-green-100 px-2 py-1 rounded">
+                        <CheckCircle size={12} className="mr-1" />
+                        Acknowledged by Principal
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-xs text-orange-700 bg-orange-100 px-2 py-1 rounded">
+                        <Clock size={12} className="mr-1" />
+                        Pending Review
                       </span>
                     )}
                   </div>
-
-                  {/* Report Content */}
-                  <div className="p-5 text-gray-800 bg-white">
-                    <p className="whitespace-pre-wrap leading-relaxed text-base">{report.text}</p>
-                    
-                    {/* Display Attachments in Feed */}
-                    {report.attachments && report.attachments.length > 0 && (
-                      <div className="mt-4 border-t border-gray-100 pt-4">
-                        <p className="font-medium text-gray-600 mb-2 text-sm">Attached Files:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {report.attachments.map((file, idx) => (
-                            <a 
-                              key={idx} 
-                              href={file.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-                            >
-                              <File size={16} className="text-blue-500" />
-                              <span className="text-sm font-medium">{file.name}</span>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Bar */}
-                  <div className="border-t border-gray-100 px-5 py-3 flex items-center space-x-4 bg-gray-50">
-                    {currentUser.role === 'principal' ? (
-                      <button 
-                        onClick={() => handleToggleAcknowledge(report.id, report.acknowledged)}
-                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-colors text-sm font-medium ${
-                          report.acknowledged 
-                            ? 'text-green-700 bg-green-100 hover:bg-green-200' 
-                            : 'text-gray-600 bg-white border border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        <CheckCircle size={18} />
-                        <span>{report.acknowledged ? 'You Read This' : 'Mark as Read'}</span>
-                      </button>
-                    ) : (
-                      <div className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-sm font-medium ${report.acknowledged ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
-                        <CheckCircle size={18} />
-                        <span>
-                          {report.acknowledged ? 'Read by Principal' : 'Waiting for Principal'}
-                        </span>
-                      </div>
-                    )}
-                    
-                    <button 
-                      onClick={() => toggleComments(report.id)}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 text-gray-600 hover:text-green-600 hover:bg-green-50 text-sm font-medium rounded-md transition-colors"
-                    >
-                      <MessageCircle size={18} />
-                      <span>{(comments[report.id] || []).length} Comments</span>
-                      {showComments[report.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-                  </div>
-
-                  {/* Comments Section - Collapsible with smooth transition */}
-                  <div 
-                    className={`border-t border-gray-100 bg-gray-50 overflow-hidden transition-all duration-300 ease-in-out ${showComments[report.id] ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
-                  >
-                    <div className="p-5">
-                      {(comments[report.id] || []).length > 0 && (
-                        <div className="space-y-4 mb-5">
-                          {(comments[report.id] || []).map((comment) => (
-                            <div key={comment.id} className="flex space-x-3">
-                              <div className={`mt-0.5 shrink-0 w-8 h-8 rounded-full overflow-hidden border ${comment.authorRole === 'principal' ? 'bg-purple-100 border-purple-200' : 'bg-white border-gray-200'}`}>
-                                {comment.authorImageUrl ? (
-                                  <img 
-                                    src={comment.authorImageUrl} 
-                                    alt={comment.authorName}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className={`w-full h-full flex items-center justify-center ${comment.authorRole === 'principal' ? 'text-purple-700' : 'text-gray-500'}`}>
-                                    <User size={14} />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="bg-white border border-gray-200 rounded-lg p-3 flex-1 shadow-sm">
-                                <p className="text-sm font-semibold text-gray-800">{comment.authorName}</p>
-                                <p className="text-sm text-gray-700 mt-1 leading-relaxed">{comment.text}</p>
-                                <p className="text-xs text-gray-400 mt-1">{formatDate(comment.createdAt)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Add Comment Input */}
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mt-2">
-                        <label htmlFor={`comment-${report.id}`} className="sr-only">Add comment</label>
-                        <input
-                          id={`comment-${report.id}`}
-                          type="text"
-                          placeholder="Type a comment here..."
-                          className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
-                          value={commentInputs[report.id] || ''}
-                          onChange={(e) => setCommentInputs({ ...commentInputs, [report.id]: e.target.value })}
-                          onKeyPress={(e) => e.key === 'Enter' && handlePostComment(report.id)}
-                        />
-                        <button 
-                          onClick={() => handlePostComment(report.id)}
-                          disabled={!commentInputs[report.id]?.trim()}
-                          className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 transition-colors font-medium text-sm flex justify-center items-center gap-2"
+                </div>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{mySubPost.content}</p>
+                {mySubPost.attachments && mySubPost.attachments.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs font-medium text-gray-600 mb-2">Attachments:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {mySubPost.attachments.map((file, idx) => (
+                        <a
+                          key={idx}
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
                         >
-                          <Send size={16} />
-                          Post
-                        </button>
-                      </div>
+                          {file.name}
+                        </a>
+                      ))}
                     </div>
                   </div>
-
-                </div>
-              ))
-            )}
-          </div>
-          
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </TeacherLayout>

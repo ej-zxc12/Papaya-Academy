@@ -214,6 +214,42 @@ export interface PrincipalComment {
   createdAt: string;
 }
 
+// Google Classroom-style hierarchical structure for weekly reports
+export interface WeeklyReportPrimaryPost {
+  id: string;
+  title: string;
+  description: string;
+  createdBy: string;
+  createdByName: string;
+  dueDate: string;
+  createdAt: string;
+  isActive: boolean;
+  schoolYear?: string;
+  attachments?: { name: string; url: string }[];
+}
+
+export interface WeeklyReportSubPost {
+  id: string;
+  primaryPostId: string;
+  teacherId: string;
+  teacherName: string;
+  content: string;
+  attachments: { name: string; url: string }[];
+  submittedAt: string;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+}
+
+export interface TeacherCompletionStatus {
+  teacherId: string;
+  teacherName: string;
+  teacherEmail?: string;
+  hasSubmitted: boolean;
+  submittedAt?: string;
+  subPostId?: string;
+}
+
 export interface MonthlyContribution {
   id: string;
   studentId: string;
@@ -243,6 +279,7 @@ export interface ContributionQuota {
   monthsPaid: string[];
   monthsUnpaid: string[];
   lastUpdated: string;
+  previousBalance?: number;
 }
 
 export interface ContributionSummary {
