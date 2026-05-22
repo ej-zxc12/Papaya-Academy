@@ -86,8 +86,17 @@ export async function GET(request: NextRequest) {
       .where('year', '==', year)
       .get();
 
+    // Fetch previous year's payments for rollover balance calculation
+    const previousYear = (parseInt(year) - 1).toString();
+    const previousYearPaymentsSnap = await db
+      .collection(PAYMENTS_COLLECTION)
+      .where('year', '==', previousYear)
+      .get();
+
     const paidByStudentId = new Map<string, number>();
     const monthsPaidByStudentId = new Map<string, Set<string>>();
+    const previousYearPaidByStudentId = new Map<string, number>();
+    
     for (const doc of paymentsSnap.docs) {
       const data = doc.data() as any;
       const sid = String(data.studentId ?? '');
@@ -102,6 +111,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Calculate previous year's payments for rollover
+    for (const doc of previousYearPaymentsSnap.docs) {
+      const data = doc.data() as any;
+      const sid = String(data.studentId ?? '');
+      if (!sid) continue;
+      const amt = Number(data.amount ?? 0);
+      previousYearPaidByStudentId.set(sid, (previousYearPaidByStudentId.get(sid) ?? 0) + amt);
+    }
+
     const allMonths = Array.from({ length: 12 }, (_, i) => {
       const monthNum = String(i + 1).padStart(2, '0');
       return `${year}-${monthNum}`;
@@ -112,19 +130,40 @@ export async function GET(request: NextRequest) {
       const studentName = String(s.name ?? '');
       const gradeLevelValue = String(s.gradeLevel ?? '');
       const totalPaid = Math.round((paidByStudentId.get(studentId) ?? 0) * 100) / 100;
-      let remainingBalance = Math.round((TARGET_AMOUNT_PER_STUDENT - totalPaid) * 100) / 100;
+      
+      // Calculate previous year's unpaid balance for rollover
+      const previousYearPaid = Math.round((previousYearPaidByStudentId.get(studentId) ?? 0) * 100) / 100;
+  const previousYearUnpaid = (previousYearPaid > 0) 
+  ? Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - previousYearPaid) * 100) / 100)
+  : 0;
+      
+      // Calculate how much of current year's payments went to current quota vs previous balance
+      // Payments first cover the current year's quota (2000 PHP), then the previous year's unpaid amount
+      const paymentsAppliedToCurrent = Math.min(TARGET_AMOUNT_PER_STUDENT, totalPaid);
+      const paymentsAppliedToPrevious = Math.max(0, totalPaid - paymentsAppliedToCurrent);
+      
+      // Remaining balance = (current year quota - payments applied to current) + (previous unpaid - payments applied to previous)
+      const remainingCurrentBalance = Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - paymentsAppliedToCurrent) * 100) / 100);
+      const remainingPreviousBalance = Math.max(0, Math.round((previousYearUnpaid - paymentsAppliedToPrevious) * 100) / 100);
+      let remainingBalance = remainingCurrentBalance + remainingPreviousBalance;
       
       // Fix precision issues (e.g., 0.01 remaining when it should be 0)
       if (remainingBalance > -0.1 && remainingBalance < 0.1) {
         remainingBalance = 0;
       }
       
+      // Payment status based on combined annual total (new quota + rollover)
       const paymentStatus: ContributionQuota['paymentStatus'] =
-        totalPaid >= (TARGET_AMOUNT_PER_STUDENT - 0.1)
+        remainingBalance === 0
           ? 'fully_paid'
           : totalPaid > 0
             ? 'partially_paid'
             : 'not_paid';
+
+      // Ensure remainingBalance is 0 when fully paid
+      if (paymentStatus === 'fully_paid') {
+        remainingBalance = 0;
+      }
 
       const monthsPaid = Array.from(monthsPaidByStudentId.get(studentId) ?? new Set<string>()).sort();
       const monthsUnpaid = allMonths.filter((m) => !monthsPaidByStudentId.get(studentId)?.has(m));
@@ -134,13 +173,14 @@ export async function GET(request: NextRequest) {
         studentName,
         gradeLevel: gradeLevelValue,
         monthlyAmount: TARGET_AMOUNT_PER_STUDENT,
-        yearlyQuota: TARGET_AMOUNT_PER_STUDENT,
+        yearlyQuota: TARGET_AMOUNT_PER_STUDENT + previousYearUnpaid,
         totalPaid,
         remainingBalance,
         paymentStatus,
         monthsPaid,
         monthsUnpaid,
         lastUpdated: new Date().toISOString(),
+        previousBalance: previousYearUnpaid,
       };
     });
 
