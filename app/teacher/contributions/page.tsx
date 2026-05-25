@@ -1718,7 +1718,10 @@ export default function ContributionManagement() {
 </td>
                           <td className="px-6 py-4">
                             <button
-                              onClick={() => handleToggleRollover(quota.studentId, quota.rolloverActive !== false)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleRollover(quota.studentId, quota.rolloverActive !== false);
+                              }}
                               className={`px-3 py-1 text-xs font-semibold rounded ${
                                 quota.rolloverActive !== false
                                   ? 'bg-green-100 text-green-800 hover:bg-green-200'
