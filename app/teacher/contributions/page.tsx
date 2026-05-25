@@ -1562,8 +1562,6 @@ export default function ContributionManagement() {
                   Student Contribution Status: {filteredQuotas.length}
                 </h3>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4" />
-                  <span>Last 30 days</span>
                 </div>
               </div>
             </div>
@@ -1699,8 +1697,6 @@ export default function ContributionManagement() {
                   Recent Payments: {filteredContributions.length}
                 </h3>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4" />
-                  <span>Last 30 days</span>
                 </div>
               </div>
             </div>

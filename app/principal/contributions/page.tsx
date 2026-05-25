@@ -1260,8 +1260,6 @@ export default function PrincipalContributionManagement() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Student Contribution Status: {filteredQuotas.length}</h3>
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4" />
-                  <span>Last 30 days</span>
                 </div>
               </div>
             </div>
