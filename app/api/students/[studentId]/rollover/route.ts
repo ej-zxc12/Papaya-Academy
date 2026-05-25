@@ -36,10 +36,11 @@ function getTeacherIdFromRequest(request: NextRequest) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { studentId: string } }
+  { params }: { params: Promise<{ studentId: string }> }
 ) {
   try {
-    console.log('[rollover] Starting rollover update for student:', params.studentId);
+    const { studentId } = await params;
+    console.log('[rollover] Starting rollover update for student:', studentId);
     
     const requestorId = getTeacherIdFromRequest(request);
     console.log('[rollover] Requestor ID:', requestorId);
@@ -52,7 +53,6 @@ export async function PATCH(
       );
     }
 
-    const { studentId } = params;
     const body = await request.json();
     const { activeAccount } = body;
 
