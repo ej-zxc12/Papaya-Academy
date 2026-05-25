@@ -1651,14 +1651,14 @@ export default function ContributionManagement() {
   ) : (
 <>
   <div className="text-sm font-medium text-gray-900 truncate">
-    {quota.remainingBalance === 0 ? 'No remaining balance' : `₱${quota.remainingBalance.toLocaleString()}`}
+    {(quota.remainingBalance ?? 0) === 0 ? 'No remaining balance' : `₱${(quota.remainingBalance ?? 0).toLocaleString()}`}
   </div>
-  {quota.remainingBalance > 0 && (
+  {(quota.remainingBalance ?? 0) > 0 && (
     <div className="text-xs text-orange-600 mt-1 truncate">Pending</div>
   )}
 </>
   )}
-{quota.previousBalance && quota.previousBalance > 0 && quota.totalPaid >= TARGET_AMOUNT_PER_STUDENT && quota.remainingBalance > 0 && (
+{quota.previousBalance && quota.previousBalance > 0 && quota.totalPaid >= TARGET_AMOUNT_PER_STUDENT && (quota.remainingBalance ?? 0) > 0 && (
    <div className="text-xs text-red-600 mt-1 truncate font-semibold">
      Previous Balance: ₱{quota.previousBalance.toLocaleString()}
    </div>
