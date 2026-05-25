@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
               student: {
                 id: student.id || studentId,
                 lrn: student.lrn || '',
-                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                name: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') ||
                       `Student ${studentId}`,
                 gradeLevel: student.currentGradeLevel || 'Unknown',
                 section: student.currentSection || 'Default'
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
               student: {
                 id: student.id || studentId,
                 lrn: student.lrn || '',
-                name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+                name: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') ||
                       `Student ${studentId}`,
                 gradeLevel: student.currentGradeLevel || 'Unknown',
                 section: student.currentSection || 'Default'
@@ -131,10 +131,15 @@ export async function GET(request: NextRequest) {
           student: {
             id: student.id || studentId,
             lrn: student.lrn || '',
-            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+            name: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') ||
                   `Student ${studentId}`,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            middleName: student.middleName,
             gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel || 'Unknown',
-            section: yearRecord.section || student.currentSection || 'Default'
+            section: yearRecord.section || student.currentSection || 'Default',
+            sex: student.sex,
+            birthdate: student.birthdate
           },
           sf10: sf10Record,
           view: 'single',
@@ -160,160 +165,78 @@ export async function GET(request: NextRequest) {
 
     const debugLogs: string[] = [];
 
-    // Get ALL subjects from the school (not filtered by teacherId - like report cards)
-    const subjectsQuery = query(collection(db, 'subjects'));
+    // Query ALL students directly to count SF10 records for the school year
+    const studentsSnapshot = await getDocs(collection(db, 'students'));
+    
+    debugLogs.push(`Found ${studentsSnapshot.docs.length} total students`);
 
-    const teacherSubjectsQuery = query(collection(db, 'teacherSubjects'));
+    const sf10Records: any[] = [];
 
-    const [subjectsSnapshot, teacherSubjectsSnapshot] = await Promise.all([
-      getDocs(subjectsQuery),
-      getDocs(teacherSubjectsQuery)
-    ]);
-    
-    const subjects = subjectsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      subjectId: doc.id,
-      ...doc.data()
-    }));
-    
-    const teacherSubjects = teacherSubjectsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    // Combine both collections and remove duplicates
-    const allTeacherSubjects = [...subjects, ...teacherSubjects];
-    const uniqueSubjects = Array.from(new Map(allTeacherSubjects.map(item => [
-      (item as any).subjectId || (item as any).id, 
-      item
-    ])).values());
-    
-    debugLogs.push(`Found ${uniqueSubjects.length} subjects (all school subjects)`);
-    
-    if (uniqueSubjects.length === 0) {
-      return NextResponse.json({
-        sf10Records: [],
-        totalRecords: 0,
-        schoolYear,
-        filters: { gradeLevel, section },
-        debug: {
-          source: 'grades',
-          logs: debugLogs
-        }
-      });
-    }
-
-    // OPTIMIZATION: Batch query ALL grades at once (not filtered by teacherId - like report cards)
-    const allGradesQuery = query(
-      collection(db, 'grades'),
-      where('schoolYear', '==', schoolYear)
-    );
-    
-    const allGradesSnapshot = await getDocs(allGradesQuery);
-    const allGrades: Array<{id: string; studentId: string; quarter: string; [key: string]: any}> = allGradesSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        studentId: data.studentId,
-        quarter: data.quarter,
-        ...data
-      };
-    });
-    
-    debugLogs.push(`Found ${allGrades.length} total grades`);
-    
-    // OPTIMIZATION: Batch fetch all students at once, then process grades
-    const uniqueStudentIdsSet = new Set(allGrades.map(g => g.studentId).filter(Boolean));
-    const uniqueStudentIds = Array.from(uniqueStudentIdsSet);
-    
-    // Batch fetch all student documents
-    const studentPromises = uniqueStudentIds.map(async (studentId) => {
-      const studentDoc = await getDoc(doc(db, 'students', studentId));
-      return { studentId, doc: studentDoc };
-    });
-    
-    const studentResults = await Promise.all(studentPromises);
-    const studentDocuments = new Map();
-    
-    studentResults.forEach(({ studentId, doc }) => {
-      if (doc.exists()) {
-        studentDocuments.set(studentId, doc.data() as StudentDocument);
-      }
-    });
-    
-    // Create a map of students with grades using batch-fetched data
-    const studentsWithGrades = new Map();
-    
-    // Group grades by student for efficient processing
-    const gradesByStudent = new Map<string, typeof allGrades>();
-    allGrades.forEach(grade => {
-      if (!grade.studentId) return;
-      if (!gradesByStudent.has(grade.studentId)) {
-        gradesByStudent.set(grade.studentId, []);
-      }
-      gradesByStudent.get(grade.studentId)!.push(grade);
-    });
-    
-    // Process each student with their grades
-    const studentEntries = Array.from(gradesByStudent.entries());
-    for (let i = 0; i < studentEntries.length; i++) {
-      const [studentId, studentGrades] = studentEntries[i];
-      const student = studentDocuments.get(studentId);
-      if (!student) continue;
+    // Process each student to check for SF10 records in the specified school year
+    for (const studentDoc of studentsSnapshot.docs) {
+      const student = studentDoc.data() as StudentDocument;
+      const studentId = studentDoc.id;
       
-      const yearRecord = student.academicRecords?.[schoolYear] || {};
-      const quarters = studentGrades.map((g: any) => g.quarter);
+      const yearRecord = student.academicRecords?.[schoolYear];
       
-      // Get student name - prioritize firstName/lastName, fall back to name field, then studentId
-      const studentName = (student.firstName || student.lastName) 
-        ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+      if (!yearRecord || !yearRecord.sf10) {
+        continue; // Skip if no SF10 record for this school year
+      }
+
+      // Get student name in correct format: "LASTNAME, FIRSTNAME MIDDLENAME"
+      const studentName = (student.lastName || student.firstName) 
+        ? `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ')
         : (student as any).name || `Student ${studentId}`;
       
-      studentsWithGrades.set(studentId, {
+      sf10Records.push({
         student: {
           id: studentId,
           lrn: student.lrn || '',
           name: studentName,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          middleName: student.middleName,
           gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel,
-          section: yearRecord.section || student.currentSection
+          section: yearRecord.section || student.currentSection,
+          sex: student.sex,
+          birthdate: student.birthdate
         },
-        sf10: yearRecord.sf10 || null,
+        sf10: yearRecord.sf10,
         completionStatus: {
-          firstGrading: quarters.some((q: string) => q === 'Q1' || q === '1'),
-          secondGrading: quarters.some((q: string) => q === 'Q2' || q === '2'),
-          thirdGrading: quarters.some((q: string) => q === 'Q3' || q === '3'),
-          fourthGrading: quarters.some((q: string) => q === 'Q4' || q === '4'),
-          overall: quarters.includes('Q1') && quarters.includes('Q2') && quarters.includes('Q3') && quarters.includes('Q4')
+          firstGrading: !!yearRecord.grades?.first,
+          secondGrading: !!yearRecord.grades?.second,
+          thirdGrading: !!yearRecord.grades?.third,
+          fourthGrading: !!yearRecord.grades?.fourth,
+          overall: !!yearRecord.grades?.first && !!yearRecord.grades?.second && !!yearRecord.grades?.third && !!yearRecord.grades?.fourth
         },
         hasGrades: true
       });
-      debugLogs.push(`Added student: ${student.firstName} ${student.lastName}`);
+      
+      debugLogs.push(`Found SF10 for student: ${studentName}`);
     }
-    
-    // Convert map to array and apply filters
-    let sf10Records = Array.from(studentsWithGrades.values());
     
     // Apply filters
+    let filteredRecords = sf10Records;
     if (gradeLevel) {
-      sf10Records = sf10Records.filter(r => r.student.gradeLevel === gradeLevel);
+      filteredRecords = filteredRecords.filter(r => r.student.gradeLevel === gradeLevel);
     }
     if (section) {
-      sf10Records = sf10Records.filter(r => r.student.section === section);
+      filteredRecords = filteredRecords.filter(r => r.student.section === section);
     }
     
-    debugLogs.push(`Final: ${sf10Records.length} students after filtering`);
+    debugLogs.push(`Final: ${filteredRecords.length} SF10 records after filtering`);
 
     // Sort by student name
-    sf10Records.sort((a, b) => a.student.name.localeCompare(b.student.name));
+    filteredRecords.sort((a, b) => a.student.name.localeCompare(b.student.name));
 
     return NextResponse.json({
-      sf10Records,
-      totalRecords: sf10Records.length,
+      sf10Records: filteredRecords,
+      totalRecords: filteredRecords.length,
       schoolYear,
       filters: { gradeLevel, section },
       debug: {
-        source: 'grades',
-        gradesChecked: allGrades.length,
+        source: 'students',
+        studentsChecked: studentsSnapshot.docs.length,
         logs: debugLogs
       }
     });

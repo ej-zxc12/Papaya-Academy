@@ -50,7 +50,7 @@ export class SF10NormalizedGenerator {
         id: `sf10-${studentId}-${schoolYear}`,
         studentId,
         lrn: student.lrn || '',
-        studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || `Student ${studentId}`,
+        studentName: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') || `Student ${studentId}`,
         schoolYear,
         gradeLevel: effectiveGradeLevel,
         section: effectiveSection,
@@ -181,7 +181,7 @@ export class SF10NormalizedGenerator {
         id: `sf10-${studentId}-cumulative`,
         studentId,
         lrn: student.lrn || '',
-        studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || `Student ${studentId}`,
+        studentName: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') || `Student ${studentId}`,
         schoolYear: combinedSchoolYear,
         gradeLevel: combinedGradeLevel,
         section: combinedSection,
@@ -368,7 +368,8 @@ export class SF10NormalizedGenerator {
           gradeLevel,
           section,
           subjects,
-          generalAverage
+          generalAverage,
+          adviserName: yearRecord?.sf10?.adviserName || 'Not Assigned'
         };
       });
       

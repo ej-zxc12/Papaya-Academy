@@ -21,6 +21,37 @@ function getTeacherSession(request: NextRequest) {
   return null;
 }
 
+// Helper function to format student name to correct format: "LASTNAME, FIRSTNAME MIDDLENAME"
+function formatStudentName(firstName?: string, lastName?: string, middleName?: string, existingName?: string): string {
+  // If we have firstName and lastName, format correctly
+  if (lastName || firstName) {
+    return `${lastName || ''}, ${firstName || ''} ${middleName || ''}`.trim().replace(/\s+/g, ' ');
+  }
+  
+  // If we have existing name, try to parse and reformat it
+  if (existingName) {
+    const trimmed = existingName.trim();
+    
+    // If already in correct format (contains comma), return as is
+    if (trimmed.includes(',')) {
+      return trimmed;
+    }
+    
+    // Try to parse "FIRSTNAME MIDDLENAME LASTNAME" format
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 2) {
+      const lastName = parts[parts.length - 1];
+      const firstName = parts[0];
+      const middleName = parts.slice(1, parts.length - 1).join(' ');
+      return `${lastName}, ${firstName} ${middleName}`.trim().replace(/\s+/g, ' ');
+    }
+    
+    return trimmed;
+  }
+  
+  return '';
+}
+
 // GET - Fetch report card grades for a student
 export async function GET(request: NextRequest) {
   try {
@@ -54,9 +85,14 @@ export async function GET(request: NextRequest) {
     const querySnapshot = await getDocs(q);
     const reportCards = querySnapshot.docs.map(doc => {
       const data = doc.data();
+      
+      // Format student name if we have firstName/lastName/middleName
+      const formattedName = formatStudentName(data.firstName, data.lastName, data.middleName, data.name);
+      
       return {
         id: doc.id,
         ...data,
+        name: formattedName,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : null,
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : null,
       };

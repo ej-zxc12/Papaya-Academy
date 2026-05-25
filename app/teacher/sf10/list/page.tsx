@@ -131,11 +131,17 @@ export default function SF10List() {
           });
         }
 
-        const schoolYears = Array.from(schoolYearsSet);
+        // Add current school year if not present (like dashboard)
+        const year = new Date().getFullYear().toString();
+        const currentSchoolYear = `${year}-${(parseInt(year) + 1).toString()}`;
+        schoolYearsSet.add(currentSchoolYear);
+
+        const schoolYears = Array.from(schoolYearsSet).sort().reverse(); // Sort most recent first
         setAvailableSchoolYears(schoolYears);
 
+        // Use current school year by default (2026-2027) to match dashboard
         if (schoolYears.length > 0 && !selectedSchoolYear) {
-          setSelectedSchoolYear(schoolYears[0]);
+          setSelectedSchoolYear(currentSchoolYear);
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -183,6 +189,13 @@ export default function SF10List() {
       console.log('SF10 API Response:', data);
       console.log('Total records:', data.totalRecords);
       console.log('SF10 Records:', data.sf10Records);
+      
+      // Log first student's sex and birthdate to check if updated
+      if (data.sf10Records && data.sf10Records.length > 0) {
+        const firstStudent = data.sf10Records[0].student;
+        console.log('First student sex:', firstStudent.sex);
+        console.log('First student birthdate:', firstStudent.birthdate);
+      }
       
       // DEBUG: Log debug info from API
       if (data.debug) {
@@ -457,6 +470,8 @@ export default function SF10List() {
         firstName,
         lastName,
         middleName,
+        sex: selectedSF10.student.sex,
+        birthdate: selectedSF10.student.birthdate,
         gradeLevel: selectedSF10.student.gradeLevel,
         section: selectedSF10.student.section,
         schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',
@@ -485,22 +500,33 @@ export default function SF10List() {
       const session = localStorage.getItem('teacherSession');
       const teacherId = session ? JSON.parse(session).teacher?.id || JSON.parse(session).teacher?.uid : null;
       
-      // Update student info
+      // Get the school year from the selected SF10
+      const schoolYear = selectedSF10.sf10?.schoolYear || '2024-2025';
+      
+      console.log('editableStudent before save:', editableStudent);
+      
+      // Update student info with adviser name in the correct nested path
+      const updatePayload = {
+        lrn: editableStudent.lrn,
+        name: `${editableStudent.firstName} ${editableStudent.middleName} ${editableStudent.lastName}`.trim(),
+        firstName: editableStudent.firstName,
+        lastName: editableStudent.lastName,
+        middleName: editableStudent.middleName,
+        sex: editableStudent.sex,
+        birthdate: editableStudent.birthdate,
+        gradeLevel: editableStudent.gradeLevel,
+        section: editableStudent.section,
+        [`academicRecords.${schoolYear}.sf10.adviserName`]: editableStudent.adviserName,
+      };
+      console.log('Updating student with payload:', updatePayload);
+      
       const studentResponse = await fetch(`/api/teacher/students/${selectedSF10.student.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${teacherId}`
         },
-        body: JSON.stringify({
-          lrn: editableStudent.lrn,
-          name: `${editableStudent.firstName} ${editableStudent.middleName} ${editableStudent.lastName}`.trim(),
-          firstName: editableStudent.firstName,
-          lastName: editableStudent.lastName,
-          middleName: editableStudent.middleName,
-          gradeLevel: editableStudent.gradeLevel,
-          section: editableStudent.section,
-        })
+        body: JSON.stringify(updatePayload)
       });
       
       if (!studentResponse.ok) {
@@ -509,7 +535,10 @@ export default function SF10List() {
         throw new Error(errorData.message || `Failed to update student info (${studentResponse.status})`);
       }
       
-      // Refresh the SF10 records
+      console.log('Student update successful');
+      
+      // Refresh the SF10 records - bypass cache to get fresh data
+      cache.clear(); // Clear cache to ensure fresh data
       await fetchSF10Records();
       
       // Exit edit mode
@@ -888,40 +917,16 @@ export default function SF10List() {
               ) : (
                 <SF10Form 
                   student={isEditMode && editableStudent ? editableStudent : selectedSF10?.student ? (() => {
-                    // Parse name in format: "LAST NAME, First Name Middle Name"
-                    const fullName = selectedSF10.student.name;
-                    let firstName = '', lastName = '', middleName = '';
-                    
-                    if (fullName.includes(',')) {
-                      // Format: "AGUSTIN, RIELYHANA ROSE B."
-                      const parts = fullName.split(',');
-                      lastName = parts[0].trim();
-                      const remaining = parts[1]?.trim() || '';
-                      const nameParts = remaining.split(' ').filter(Boolean);
-                      
-                      // Middle name is the last part if it ends with a dot (e.g., "B.")
-                      const lastPart = nameParts[nameParts.length - 1];
-                      if (lastPart && lastPart.endsWith('.')) {
-                        middleName = lastPart;
-                        firstName = nameParts.slice(0, -1).join(' ');
-                      } else {
-                        firstName = remaining;
-                      }
-                    } else {
-                      // Fallback: simple space-separated
-                      const parts = fullName.split(' ').filter(Boolean);
-                      firstName = parts[0] || '';
-                      lastName = parts[parts.length - 1] || '';
-                      middleName = parts.slice(1, -1).join(' ');
-                    }
-                    
+                    // Use the actual fields from the API response instead of parsing the name
                     return {
                       id: selectedSF10.student.id,
                       lrn: selectedSF10.student.lrn,
-                      name: fullName,
-                      firstName,
-                      lastName,
-                      middleName,
+                      name: selectedSF10.student.name,
+                      firstName: selectedSF10.student.firstName || '',
+                      lastName: selectedSF10.student.lastName || '',
+                      middleName: selectedSF10.student.middleName || '',
+                      sex: selectedSF10.student.sex,
+                      birthdate: selectedSF10.student.birthdate,
                       gradeLevel: selectedSF10.student.gradeLevel,
                       section: selectedSF10.student.section,
                       schoolYear: selectedSF10.sf10?.schoolYear || '2024-2025',

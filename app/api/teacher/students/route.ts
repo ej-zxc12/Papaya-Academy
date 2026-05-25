@@ -53,6 +53,37 @@ function getTeacherIdentifiers(request: NextRequest) {
   }
 }
 
+// Helper function to format student name to correct format: "LASTNAME, FIRSTNAME MIDDLENAME"
+function formatStudentName(firstName?: string, lastName?: string, middleName?: string, existingName?: string): string {
+  // If we have firstName and lastName, format correctly
+  if (lastName || firstName) {
+    return `${lastName || ''}, ${firstName || ''} ${middleName || ''}`.trim().replace(/\s+/g, ' ');
+  }
+  
+  // If we have existing name, try to parse and reformat it
+  if (existingName) {
+    const trimmed = existingName.trim();
+    
+    // If already in correct format (contains comma), return as is
+    if (trimmed.includes(',')) {
+      return trimmed;
+    }
+    
+    // Try to parse "FIRSTNAME MIDDLENAME LASTNAME" format
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 2) {
+      const lastName = parts[parts.length - 1];
+      const firstName = parts[0];
+      const middleName = parts.slice(1, parts.length - 1).join(' ');
+      return `${lastName}, ${firstName} ${middleName}`.trim().replace(/\s+/g, ' ');
+    }
+    
+    return trimmed;
+  }
+  
+  return '';
+}
+
 // Helper function to extract last name from full name
 // Handles format: "LAST NAME, FIRST NAME" or "FirstName LastName"
 function getLastName(fullName: string): string {
@@ -136,7 +167,10 @@ export async function GET(request: NextRequest) {
         
         const students = unique.map(({ id, data }) => ({
           id,
-          name: data?.name || '',
+          name: formatStudentName(data?.firstName, data?.lastName, data?.middleName, data?.name),
+          firstName: data?.firstName,
+          lastName: data?.lastName,
+          middleName: data?.middleName,
           lrn: data?.lrn || '',
           gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
           section: data?.currentSection || data?.section,
@@ -182,7 +216,10 @@ export async function GET(request: NextRequest) {
         const data = docSnap.data();
         const student = {
           id: docSnap.id,
-          name: data?.name || '',
+          name: formatStudentName(data?.firstName, data?.lastName, data?.middleName, data?.name),
+          firstName: data?.firstName,
+          lastName: data?.lastName,
+          middleName: data?.middleName,
           lrn: data?.lrn || '',
           gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
           section: data?.currentSection || data?.section || '',
@@ -290,7 +327,10 @@ export async function GET(request: NextRequest) {
     const students = Array.from(merged.entries()).map(([id, data]) => {
       return {
         id,
-        name: data?.name || '',
+        name: formatStudentName(data?.firstName, data?.lastName, data?.middleName, data?.name),
+        firstName: data?.firstName,
+        lastName: data?.lastName,
+        middleName: data?.middleName,
         lrn: data?.lrn || '',
         gradeLevel: data?.currentGradeLevel || data?.gradeLevel,
         section: data?.currentSection || data?.section || '',
