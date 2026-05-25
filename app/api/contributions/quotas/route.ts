@@ -133,12 +133,16 @@ export async function GET(request: NextRequest) {
       // Calculate ALL years' total payments for continuous rollover
       const allYearsTotalPaid = Math.round((allYearsPaidByStudentId.get(studentId) ?? 0) * 100) / 100;
       
-      // Calculate expected total based on student's enrollment years
-      // For simplicity, we'll estimate based on grade level (approx 6 years from Pre-School to Grade 6)
-      // In a real implementation, you'd track the student's actual enrollment years
-      const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
-      const currentGradeIndex = gradeLevels.indexOf(gradeLevelValue);
-      const yearsEnrolled = currentGradeIndex >= 0 ? currentGradeIndex + 1 : 1; // Default to 1 if grade not found
+      // Calculate expected total based on student's actual enrollment date (createdAt)
+      // This ensures transfer students are only charged for years they were actually enrolled
+      const createdAt = s.createdAt ? new Date(s.createdAt) : new Date(); // Default to now if no createdAt
+      const currentYear = parseInt(year);
+      const enrollmentYear = createdAt.getFullYear();
+      
+      // Calculate years enrolled (from enrollment year to current year, inclusive)
+      let yearsEnrolled = currentYear - enrollmentYear + 1;
+      if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
+      
       const totalExpected = yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
       
       // Current year remaining = 2000 - current year payments

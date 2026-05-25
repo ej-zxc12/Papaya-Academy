@@ -111,12 +111,15 @@ export async function GET(request: NextRequest) {
       allYearsPaidByStudentId.set(sid, (allYearsPaidByStudentId.get(sid) ?? 0) + amt);
     }
 
-    // Calculate total expected based on students' enrollment years (continuous rollover)
+    // Calculate total expected based on students' actual enrollment dates (continuous rollover)
     let totalExpected = 0;
+    const currentYear = parseInt(year);
     for (const student of students as any[]) {
-      const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
-      const currentGradeIndex = gradeLevels.indexOf(String(student.gradeLevel ?? ''));
-      const yearsEnrolled = currentGradeIndex >= 0 ? currentGradeIndex + 1 : 1;
+      // Calculate years enrolled based on createdAt timestamp
+      const createdAt = student.createdAt ? new Date(student.createdAt) : new Date();
+      const enrollmentYear = createdAt.getFullYear();
+      let yearsEnrolled = currentYear - enrollmentYear + 1;
+      if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
       totalExpected += yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
     }
 
@@ -160,17 +163,19 @@ export async function GET(request: NextRequest) {
       gradeBreakdown: Array.from(gradeStudents.entries())
         .filter(([g]) => Boolean(g))
         .map(([g, count]) => {
-          // Calculate expected based on grade level (continuous rollover)
-          const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
-          const gradeIndex = gradeLevels.indexOf(g);
-          const yearsEnrolled = gradeIndex >= 0 ? gradeIndex + 1 : 1;
-          const expected = count * yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
-          
-          // Calculate total collected for this grade across all years
-          let gradeAllYearsCollected = 0;
+          // Calculate expected based on actual enrollment dates (continuous rollover)
           const gradeStudentsList = students.filter((s: any) => String(s.gradeLevel) === g);
+          let expected = 0;
+          let gradeAllYearsCollected = 0;
+          
           for (const student of gradeStudentsList) {
             const sid = String(student.id);
+            // Calculate years enrolled based on createdAt timestamp
+            const createdAt = student.createdAt ? new Date(student.createdAt) : new Date();
+            const enrollmentYear = createdAt.getFullYear();
+            let yearsEnrolled = currentYear - enrollmentYear + 1;
+            if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
+            expected += yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
             gradeAllYearsCollected += allYearsPaidByStudentId.get(sid) ?? 0;
           }
           
