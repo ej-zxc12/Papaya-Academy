@@ -328,19 +328,34 @@ export default function ContributionManagement() {
     
     // Find the student's remaining balance
     const quota = quotas.find(q => q.studentId === studentId);
-    const remainingBalance = quota?.remainingBalance || 0;
+    const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+    const totalRemaining = quota?.remainingBalance ?? 0;
     
-    // Validate: amount cannot exceed remaining balance
-    if (numAmount > remainingBalance) {
+    // Use current year remaining for validation (payments first go to current year)
+    if (numAmount > currentYearRemaining && currentYearRemaining > 0) {
       setMessage({ 
         type: 'error', 
-        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+        text: `Payment amount cannot exceed current year's remaining balance of ₱${currentYearRemaining.toLocaleString()}` 
       });
       
-      // Still set it but cap it at remaining balance for better UX
+      // Still set it but cap it at current year remaining for better UX
       setUnsavedPayments(prev => ({
         ...prev,
-        [studentId]: remainingBalance
+        [studentId]: currentYearRemaining
+      }));
+      return;
+    }
+
+    // If current year is fully paid, allow payments up to total remaining
+    if (currentYearRemaining === 0 && numAmount > totalRemaining) {
+      setMessage({ 
+        type: 'error', 
+        text: `Payment amount cannot exceed total remaining balance of ₱${totalRemaining.toLocaleString()}` 
+      });
+      
+      setUnsavedPayments(prev => ({
+        ...prev,
+        [studentId]: totalRemaining
       }));
       return;
     }

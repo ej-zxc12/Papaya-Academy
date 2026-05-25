@@ -86,16 +86,15 @@ export async function GET(request: NextRequest) {
       .where('year', '==', year)
       .get();
 
-    // Fetch previous year's payments for rollover balance calculation
-    const previousYear = (parseInt(year) - 1).toString();
-    const previousYearPaymentsSnap = await db
+    // Fetch ALL previous years' payments for continuous rollover balance calculation
+    const allPaymentsSnap = await db
       .collection(PAYMENTS_COLLECTION)
-      .where('year', '==', previousYear)
+      .where('year', '<=', year)
       .get();
 
     const paidByStudentId = new Map<string, number>();
     const monthsPaidByStudentId = new Map<string, Set<string>>();
-    const previousYearPaidByStudentId = new Map<string, number>();
+    const allYearsPaidByStudentId = new Map<string, number>();
     
     for (const doc of paymentsSnap.docs) {
       const data = doc.data() as any;
@@ -111,13 +110,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calculate previous year's payments for rollover
-    for (const doc of previousYearPaymentsSnap.docs) {
+    // Calculate ALL years' payments for continuous rollover
+    for (const doc of allPaymentsSnap.docs) {
       const data = doc.data() as any;
       const sid = String(data.studentId ?? '');
       if (!sid) continue;
       const amt = Number(data.amount ?? 0);
-      previousYearPaidByStudentId.set(sid, (previousYearPaidByStudentId.get(sid) ?? 0) + amt);
+      allYearsPaidByStudentId.set(sid, (allYearsPaidByStudentId.get(sid) ?? 0) + amt);
     }
 
     const allMonths = Array.from({ length: 12 }, (_, i) => {
@@ -131,38 +130,42 @@ export async function GET(request: NextRequest) {
       const gradeLevelValue = String(s.gradeLevel ?? '');
       const totalPaid = Math.round((paidByStudentId.get(studentId) ?? 0) * 100) / 100;
       
-      // Calculate previous year's unpaid balance for rollover
-      const previousYearPaid = Math.round((previousYearPaidByStudentId.get(studentId) ?? 0) * 100) / 100;
-  const previousYearUnpaid = (previousYearPaid > 0) 
-  ? Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - previousYearPaid) * 100) / 100)
-  : 0;
+      // Calculate ALL years' total payments for continuous rollover
+      const allYearsTotalPaid = Math.round((allYearsPaidByStudentId.get(studentId) ?? 0) * 100) / 100;
       
-      // Calculate how much of current year's payments went to current quota vs previous balance
-      // Payments first cover the current year's quota (2000 PHP), then the previous year's unpaid amount
-      const paymentsAppliedToCurrent = Math.min(TARGET_AMOUNT_PER_STUDENT, totalPaid);
-      const paymentsAppliedToPrevious = Math.max(0, totalPaid - paymentsAppliedToCurrent);
+      // Calculate expected total based on student's enrollment years
+      // For simplicity, we'll estimate based on grade level (approx 6 years from Pre-School to Grade 6)
+      // In a real implementation, you'd track the student's actual enrollment years
+      const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+      const currentGradeIndex = gradeLevels.indexOf(gradeLevelValue);
+      const yearsEnrolled = currentGradeIndex >= 0 ? currentGradeIndex + 1 : 1; // Default to 1 if grade not found
+      const totalExpected = yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
       
-      // Remaining balance = (current year quota - payments applied to current) + (previous unpaid - payments applied to previous)
-      const remainingCurrentBalance = Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - paymentsAppliedToCurrent) * 100) / 100);
-      const remainingPreviousBalance = Math.max(0, Math.round((previousYearUnpaid - paymentsAppliedToPrevious) * 100) / 100);
-      let remainingBalance = remainingCurrentBalance + remainingPreviousBalance;
+      // Current year remaining = 2000 - current year payments
+      let currentYearRemaining = Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - totalPaid) * 100) / 100);
+      
+      // Total remaining balance = total expected across all years - total paid across all years
+      let totalRemaining = Math.max(0, Math.round((totalExpected - allYearsTotalPaid) * 100) / 100);
       
       // Fix precision issues (e.g., 0.01 remaining when it should be 0)
-      if (remainingBalance > -0.1 && remainingBalance < 0.1) {
-        remainingBalance = 0;
+      if (totalRemaining > -0.1 && totalRemaining < 0.1) {
+        totalRemaining = 0;
+      }
+      if (currentYearRemaining > -0.1 && currentYearRemaining < 0.1) {
+        currentYearRemaining = 0;
       }
       
-      // Payment status based on combined annual total (new quota + rollover)
+      // Payment status based on total remaining balance
       const paymentStatus: ContributionQuota['paymentStatus'] =
-        remainingBalance === 0
+        totalRemaining === 0
           ? 'fully_paid'
-          : totalPaid > 0
+          : allYearsTotalPaid > 0
             ? 'partially_paid'
             : 'not_paid';
 
-      // Ensure remainingBalance is 0 when fully paid
+      // Ensure totalRemaining is 0 when fully paid
       if (paymentStatus === 'fully_paid') {
-        remainingBalance = 0;
+        totalRemaining = 0;
       }
 
       const monthsPaid = Array.from(monthsPaidByStudentId.get(studentId) ?? new Set<string>()).sort();
@@ -173,14 +176,15 @@ export async function GET(request: NextRequest) {
         studentName,
         gradeLevel: gradeLevelValue,
         monthlyAmount: TARGET_AMOUNT_PER_STUDENT,
-        yearlyQuota: TARGET_AMOUNT_PER_STUDENT + previousYearUnpaid,
-        totalPaid,
-        remainingBalance,
+        yearlyQuota: totalExpected, // Total expected across all enrollment years
+        totalPaid: allYearsTotalPaid, // Total paid across all years
+        remainingBalance: totalRemaining, // Total remaining across all years
         paymentStatus,
         monthsPaid,
         monthsUnpaid,
         lastUpdated: new Date().toISOString(),
-        previousBalance: previousYearUnpaid,
+        previousBalance: Math.max(0, totalExpected - allYearsTotalPaid - TARGET_AMOUNT_PER_STUDENT),
+        currentYearRemaining, // Current year's remaining (2000 - current year payments)
       };
     });
 

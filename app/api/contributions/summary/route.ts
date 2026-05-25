@@ -69,11 +69,10 @@ export async function GET(request: NextRequest) {
       .where('year', '==', year)
       .get();
 
-    // Fetch previous year's payments for rollover balance calculation
-    const previousYear = (parseInt(year) - 1).toString();
-    const previousYearPaymentsSnap = await db
+    // Fetch ALL previous years' payments for continuous rollover balance calculation
+    const allPaymentsSnap = await db
       .collection(PAYMENTS_COLLECTION)
-      .where('year', '==', previousYear)
+      .where('year', '<=', year)
       .get();
 
     let totalCollected = 0;
@@ -81,7 +80,7 @@ export async function GET(request: NextRequest) {
     const gradeCollected = new Map<string, number>();
     const gradeStudents = new Map<string, number>();
     const paidByStudentId = new Map<string, number>();
-    const previousYearPaidByStudentId = new Map<string, number>();
+    const allYearsPaidByStudentId = new Map<string, number>();
 
     for (const s of students as any[]) {
       const g = String(s.gradeLevel ?? '');
@@ -103,28 +102,34 @@ export async function GET(request: NextRequest) {
       if (g) gradeCollected.set(g, (gradeCollected.get(g) ?? 0) + amt);
     }
 
-    // Calculate previous year's payments for rollover
-    for (const doc of previousYearPaymentsSnap.docs) {
+    // Calculate ALL years' payments for continuous rollover
+    for (const doc of allPaymentsSnap.docs) {
       const data = doc.data() as any;
       const sid = String(data.studentId ?? '');
       if (!studentIds.has(sid)) continue;
       const amt = Number(data.amount ?? 0);
-      previousYearPaidByStudentId.set(sid, (previousYearPaidByStudentId.get(sid) ?? 0) + amt);
+      allYearsPaidByStudentId.set(sid, (allYearsPaidByStudentId.get(sid) ?? 0) + amt);
     }
 
-    // Calculate total rollover balance from previous year
-    let totalRolloverBalance = 0;
+    // Calculate total expected based on students' enrollment years (continuous rollover)
+    let totalExpected = 0;
+    for (const student of students as any[]) {
+      const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+      const currentGradeIndex = gradeLevels.indexOf(String(student.gradeLevel ?? ''));
+      const yearsEnrolled = currentGradeIndex >= 0 ? currentGradeIndex + 1 : 1;
+      totalExpected += yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
+    }
+
+    // Calculate total collected across all years
+    let totalAllYearsCollected = 0;
     for (const student of students as any[]) {
       const sid = String(student.id);
-      const previousYearPaid = Math.round((previousYearPaidByStudentId.get(sid) ?? 0) * 100) / 100;
-      const previousYearUnpaid = Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - previousYearPaid) * 100) / 100);
-      totalRolloverBalance += previousYearUnpaid;
+      totalAllYearsCollected += allYearsPaidByStudentId.get(sid) ?? 0;
     }
 
     const totalStudents = students.length;
-    const totalExpected = (totalStudents * TARGET_AMOUNT_PER_STUDENT) + totalRolloverBalance;
-    const totalRemaining = Math.max(0, totalExpected - totalCollected);
-    const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+    const totalRemaining = Math.max(0, totalExpected - totalAllYearsCollected);
+    const collectionRate = totalExpected > 0 ? (totalAllYearsCollected / totalExpected) * 100 : 0;
 
     // Monthly breakdown
     const monthlyBreakdown = Array.from({ length: 12 }, (_, i) => {
@@ -148,31 +153,34 @@ export async function GET(request: NextRequest) {
       year,
       totalStudents,
       totalExpected,
-      totalCollected,
+      totalCollected: totalAllYearsCollected,
       totalRemaining,
       collectionRate,
       monthlyBreakdown,
       gradeBreakdown: Array.from(gradeStudents.entries())
         .filter(([g]) => Boolean(g))
         .map(([g, count]) => {
-          // Calculate rollover balance for this grade level
-          let gradeRolloverBalance = 0;
+          // Calculate expected based on grade level (continuous rollover)
+          const gradeLevels = ['Pre-School', 'Kinder', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
+          const gradeIndex = gradeLevels.indexOf(g);
+          const yearsEnrolled = gradeIndex >= 0 ? gradeIndex + 1 : 1;
+          const expected = count * yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
+          
+          // Calculate total collected for this grade across all years
+          let gradeAllYearsCollected = 0;
           const gradeStudentsList = students.filter((s: any) => String(s.gradeLevel) === g);
           for (const student of gradeStudentsList) {
             const sid = String(student.id);
-            const previousYearPaid = Math.round((previousYearPaidByStudentId.get(sid) ?? 0) * 100) / 100;
-            const previousYearUnpaid = Math.max(0, Math.round((TARGET_AMOUNT_PER_STUDENT - previousYearPaid) * 100) / 100);
-            gradeRolloverBalance += previousYearUnpaid;
+            gradeAllYearsCollected += allYearsPaidByStudentId.get(sid) ?? 0;
           }
           
-          const expected = (count * TARGET_AMOUNT_PER_STUDENT) + gradeRolloverBalance;
           const collected = gradeCollected.get(g) ?? 0;
-          const rate = expected > 0 ? (collected / expected) * 100 : 0;
+          const rate = expected > 0 ? (gradeAllYearsCollected / expected) * 100 : 0;
           return {
             gradeLevel: g,
             totalStudents: count,
             totalExpected: expected,
-            totalCollected: collected,
+            totalCollected: gradeAllYearsCollected,
             collectionRate: rate,
           };
         })

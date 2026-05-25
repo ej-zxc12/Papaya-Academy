@@ -280,6 +280,7 @@ export interface ContributionQuota {
   monthsUnpaid: string[];
   lastUpdated: string;
   previousBalance?: number;
+  currentYearRemaining?: number; // Current year's remaining balance (2000 - current year payments)
 }
 
 export interface ContributionSummary {

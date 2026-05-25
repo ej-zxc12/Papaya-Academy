@@ -299,12 +299,23 @@ export default function PrincipalContributionManagement() {
     const numAmount = parseFloat(amount) || 0;
 
     const quota = quotas.find((q) => q.studentId === studentId);
-    const remainingBalance = quota?.remainingBalance || 0;
+    const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+    const totalRemaining = quota?.remainingBalance ?? 0;
 
-    if (numAmount > remainingBalance) {
+    // Use current year remaining for validation (payments first go to current year)
+    if (numAmount > currentYearRemaining && currentYearRemaining > 0) {
       setMessage({
         type: 'error',
-        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}`
+        text: `Payment amount cannot exceed current year's remaining balance of ₱${currentYearRemaining.toLocaleString()}`
+      });
+      return;
+    }
+
+    // If current year is fully paid, allow payments up to total remaining
+    if (currentYearRemaining === 0 && numAmount > totalRemaining) {
+      setMessage({
+        type: 'error',
+        text: `Payment amount cannot exceed total remaining balance of ₱${totalRemaining.toLocaleString()}`
       });
       return;
     }
@@ -1294,8 +1305,13 @@ export default function PrincipalContributionManagement() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-semibold text-orange-600">
-                          {quota.remainingBalance === 0 ? 'No remaining balance' : `₱${quota.remainingBalance.toLocaleString()}`}
+                          ₱{quota.currentYearRemaining?.toLocaleString() ?? 0}
                         </div>
+                        {quota.remainingBalance !== quota.currentYearRemaining && quota.remainingBalance > 0 && (
+                          <div className="text-xs text-red-600 mt-1 font-semibold">
+                            Total: ₱{quota.remainingBalance.toLocaleString()}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(quota.paymentStatus)}`}>
