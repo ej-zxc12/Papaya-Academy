@@ -325,19 +325,19 @@ export default function ContributionManagement() {
   // Handle payment input changes with validation
   const handlePaymentInputChange = (studentId: string, amount: string) => {
     const numAmount = parseFloat(amount) || 0;
-    
+
     // Find the student's remaining balance
     const quota = quotas.find(q => q.studentId === studentId);
     const currentYearRemaining = quota?.currentYearRemaining ?? 0;
     const totalRemaining = quota?.remainingBalance ?? 0;
-    
+
     // Use current year remaining for validation (payments first go to current year)
     if (numAmount > currentYearRemaining && currentYearRemaining > 0) {
-      setMessage({ 
-        type: 'error', 
-        text: `Payment amount cannot exceed current year's remaining balance of ₱${currentYearRemaining.toLocaleString()}` 
+      setMessage({
+        type: 'error',
+        text: `Payment amount cannot exceed current year's remaining balance of ₱${currentYearRemaining.toLocaleString()}`
       });
-      
+
       // Still set it but cap it at current year remaining for better UX
       setUnsavedPayments(prev => ({
         ...prev,
@@ -348,22 +348,63 @@ export default function ContributionManagement() {
 
     // If current year is fully paid, allow payments up to total remaining
     if (currentYearRemaining === 0 && numAmount > totalRemaining) {
-      setMessage({ 
-        type: 'error', 
-        text: `Payment amount cannot exceed total remaining balance of ₱${totalRemaining.toLocaleString()}` 
+      setMessage({
+        type: 'error',
+        text: `Payment amount cannot exceed total remaining balance of ₱${totalRemaining.toLocaleString()}`
       });
-      
+
       setUnsavedPayments(prev => ({
         ...prev,
         [studentId]: totalRemaining
       }));
       return;
     }
-    
+
     setUnsavedPayments(prev => ({
       ...prev,
       [studentId]: numAmount
     }));
+  };
+
+  const handleToggleRollover = async (studentId: string, currentStatus: boolean) => {
+    try {
+      const session = localStorage.getItem('teacherSession');
+      const teacherData = session ? JSON.parse(session) : null;
+      const t = teacherData?.teacher ?? teacherData;
+      const teacherId = t?.uid || t?.id;
+
+      if (!teacherId) {
+        setMessage({ type: 'error', text: 'Missing teacher session. Please login again.' });
+        return;
+      }
+
+      const response = await fetch(`/api/students/${studentId}/rollover`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${teacherId}`,
+        },
+        body: JSON.stringify({ rolloverActive: !currentStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update rollover status');
+      }
+
+      setMessage({
+        type: 'success',
+        text: `Rollover ${!currentStatus ? 'activated' : 'stopped'} successfully`
+      });
+
+      // Reload page to refresh data
+      window.location.reload();
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text: error.message || 'Failed to update rollover status'
+      });
+    }
   };
 
   // Save all payments (new and updated)
@@ -1595,22 +1636,25 @@ export default function ContributionManagement() {
                 <thead className="bg-[#f0f7f3]">
                   <tr>
                     {/* Explicit widths totaling 100% */}
-                    <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Grade
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Total Paid
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Remaining
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Rollover
+                    </th>
+                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Add Payment
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Status
                     </th>
                   </tr>
@@ -1672,6 +1716,18 @@ export default function ContributionManagement() {
 </>
   )}
 </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => handleToggleRollover(quota.studentId, quota.rolloverActive !== false)}
+                              className={`px-3 py-1 text-xs font-semibold rounded ${
+                                quota.rolloverActive !== false
+                                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                  : 'bg-red-100 text-red-800 hover:bg-red-200'
+                              }`}
+                            >
+                              {quota.rolloverActive !== false ? 'Active' : 'Stopped'}
+                            </button>
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-2">
                               <input

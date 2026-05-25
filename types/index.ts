@@ -39,6 +39,7 @@ export interface Student {
   sex?: 'M' | 'F';
   createdAt?: string;
   updatedAt?: string;
+  rolloverActive?: boolean; // If false, rollover stops for this student (e.g., moved away)
 }
 
 export interface AttendanceRecord {
@@ -281,6 +282,7 @@ export interface ContributionQuota {
   lastUpdated: string;
   previousBalance?: number;
   currentYearRemaining?: number; // Current year's remaining balance (2000 - current year payments)
+  rolloverActive?: boolean; // If false, rollover stops for this student
 }
 
 export interface ContributionSummary {

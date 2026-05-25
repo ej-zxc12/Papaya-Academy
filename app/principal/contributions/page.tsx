@@ -326,6 +326,47 @@ export default function PrincipalContributionManagement() {
     }));
   };
 
+  const handleToggleRollover = async (studentId: string, currentStatus: boolean) => {
+    try {
+      const session = localStorage.getItem('principalSession');
+      const principalData = session ? JSON.parse(session) : null;
+      const p = principalData?.principal ?? principalData;
+      const principalId = p?.uid || p?.id;
+
+      if (!principalId) {
+        setMessage({ type: 'error', text: 'Missing principal session. Please login again.' });
+        return;
+      }
+
+      const response = await fetch(`/api/students/${studentId}/rollover`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${principalId}`,
+        },
+        body: JSON.stringify({ rolloverActive: !currentStatus }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update rollover status');
+      }
+
+      setMessage({
+        type: 'success',
+        text: `Rollover ${!currentStatus ? 'activated' : 'stopped'} successfully`
+      });
+
+      // Reload page to refresh data
+      window.location.reload();
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text: error.message || 'Failed to update rollover status'
+      });
+    }
+  };
+
   const handleSaveAllPayments = async () => {
     const paymentsToSave = Object.entries(unsavedPayments).filter(([_, amount]) => amount > 0);
 
@@ -1284,12 +1325,13 @@ export default function PrincipalContributionManagement() {
               <table className="min-w-full divide-y divide-gray-200 table-fixed">
                 <thead className="bg-[#f0f7f3]">
                   <tr>
-                    <th className="w-[25%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Student</th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Grade</th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Total Paid</th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Remaining</th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Status</th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Payment</th>
+                    <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Student</th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Grade</th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Total Paid</th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Remaining</th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Status</th>
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Rollover</th>
+                    <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">Payment</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -1322,6 +1364,18 @@ export default function PrincipalContributionManagement() {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(quota.paymentStatus)}`}>
                           {quota.paymentStatus.replace('_', ' ')}
                         </span>
+                      </td>
+                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleToggleRollover(quota.studentId, quota.rolloverActive !== false)}
+                          className={`px-3 py-1 text-xs font-semibold rounded ${
+                            quota.rolloverActive !== false
+                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                              : 'bg-red-100 text-red-800 hover:bg-red-200'
+                          }`}
+                        >
+                          {quota.rolloverActive !== false ? 'Active' : 'Stopped'}
+                        </button>
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <input

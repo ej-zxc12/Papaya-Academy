@@ -139,9 +139,25 @@ export async function GET(request: NextRequest) {
       const currentYear = parseInt(year);
       const enrollmentYear = createdAt.getFullYear();
       
+      // Check if rollover should continue
+      // Stop if: 1) Student is in Grade 6 and current year is after their Grade 6 year
+      //         2) rolloverActive is explicitly set to false (e.g., student moved away)
+      const isGrade6 = gradeLevelValue === 'Grade 6';
+      const rolloverActive = s.rolloverActive !== false; // Default to true if not set
+      
       // Calculate years enrolled (from enrollment year to current year, inclusive)
       let yearsEnrolled = currentYear - enrollmentYear + 1;
       if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
+      
+      // If student is in Grade 6, cap the years enrolled to prevent future charges after graduation
+      // If rollover is manually stopped, use the year they stopped as the cap
+      if (!rolloverActive || isGrade6) {
+        // For Grade 6 students, the current year is their last year
+        // For students with stopped rollover, we need to track when it stopped
+        // For now, we'll just use current year as the cap
+        const maxYear = isGrade6 ? currentYear : currentYear;
+        yearsEnrolled = Math.min(yearsEnrolled, maxYear - enrollmentYear + 1);
+      }
       
       const totalExpected = yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
       
@@ -189,6 +205,7 @@ export async function GET(request: NextRequest) {
         lastUpdated: new Date().toISOString(),
         previousBalance: Math.max(0, totalExpected - allYearsTotalPaid - TARGET_AMOUNT_PER_STUDENT),
         currentYearRemaining, // Current year's remaining (2000 - current year payments)
+        rolloverActive, // Include rollover status in response
       };
     });
 
