@@ -931,14 +931,19 @@ export default function PrincipalContributionManagement() {
                 step="0.01"
                 required
               />
-              {formData.studentId && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Remaining Balance: {(() => {
-  const balance = quotas.find((q) => q.studentId === formData.studentId)?.remainingBalance || 0;
-  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
-})()}
-                </p>
-              )}
+              {formData.studentId && (() => {
+                const quota = quotas.find((q) => q.studentId === formData.studentId);
+                const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+                const totalRemaining = quota?.remainingBalance ?? 0;
+                return (
+                  <div className="text-xs text-gray-500 mt-1">
+                    <div>Current Year: ₱{currentYearRemaining.toLocaleString()}</div>
+                    {totalRemaining !== currentYearRemaining && totalRemaining > 0 && (
+                      <div className="text-red-600 font-semibold">Total: ₱{totalRemaining.toLocaleString()}</div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
@@ -1467,10 +1472,24 @@ export default function PrincipalContributionManagement() {
                           <p className="text-sm text-gray-600 mb-1">Pending Amount</p>
                           <p className="text-2xl font-bold text-orange-600">
                           {(() => {
-  const balance = quotas.find((q) => q.studentId === selectedStudentForDetails.id)?.remainingBalance || 0;
-  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
+  const quota = quotas.find((q) => q.studentId === selectedStudentForDetails.id);
+  const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+  return `₱${currentYearRemaining.toLocaleString()}`;
 })()}
                           </p>
+                          {(() => {
+                            const quota = quotas.find((q) => q.studentId === selectedStudentForDetails.id);
+                            const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+                            const totalRemaining = quota?.remainingBalance ?? 0;
+                            if (totalRemaining !== currentYearRemaining && totalRemaining > 0) {
+                              return (
+                                <p className="text-sm text-red-600 font-semibold mt-1">
+                                  Total: ₱{totalRemaining.toLocaleString()}
+                                </p>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
 
@@ -1515,11 +1534,21 @@ export default function PrincipalContributionManagement() {
                               step="0.01"
                               placeholder="0"
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                              Remaining Balance: {(() => {
-  const balance = quotas.find((q) => q.studentId === selectedStudentForDetails?.id)?.remainingBalance || 0;
-  return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
-})()}                            </p>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {(() => {
+                                const quota = quotas.find((q) => q.studentId === selectedStudentForDetails?.id);
+                                const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+                                const totalRemaining = quota?.remainingBalance ?? 0;
+                                return (
+                                  <>
+                                    <div>Current Year: ₱{currentYearRemaining.toLocaleString()}</div>
+                                    {totalRemaining !== currentYearRemaining && totalRemaining > 0 && (
+                                      <div className="text-red-600 font-semibold">Total: ₱{totalRemaining.toLocaleString()}</div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
                           </div>
 
                           <div>
