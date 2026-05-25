@@ -496,6 +496,7 @@ export async function POST(request: NextRequest) {
       schoolYear,
       gender,
       status: 'enrolled',
+      activeAccount: true,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
     };
