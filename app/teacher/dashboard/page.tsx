@@ -108,18 +108,17 @@ export default function TeacherDashboard() {
           return;
         }
 
-        // Real-time: ALL students in the school (not filtered by teacher - like report cards)
-        const studentsQ = query(collection(db, 'students'));
-        const unsubStudents = onSnapshot(
-          studentsQ,
-          (snap) => {
-            const next = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-            setStudents(Array.isArray(next) ? next : []);
-          },
-          () => {
-            setLoadError('Some dashboard data could not be loaded.');
-          }
-        );
+        // Fetch students filtered by teacherId to show only this teacher's students
+        const studentsRes = await fetch('/api/teacher/students?scope=teacher', {
+          headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+        });
+        
+        if (studentsRes.ok) {
+          const studentsData = await studentsRes.json();
+          setStudents(Array.isArray(studentsData) ? studentsData : []);
+        } else {
+          setStudents([]);
+        }
 
         // Fetch available school years first (like SF10 list page)
         const gradesRes = await fetch('/api/teacher/grades/student?studentId=all', {
@@ -140,8 +139,8 @@ export default function TeacherDashboard() {
         const schoolYears = Array.from(schoolYearsSet).sort().reverse(); // Most recent first
         setAvailableSchoolYears(schoolYears);
         
-        // Use the most recent school year for dashboard
-        const dashboardSchoolYear = schoolYears[0] || currentSchoolYear;
+        // Use the current school year for dashboard (2026-2027)
+        const dashboardSchoolYear = currentSchoolYear;
         setSelectedSchoolYear(dashboardSchoolYear);
 
         // Fetch SF10 records from API with the correct school year and contributions summary
@@ -181,10 +180,6 @@ export default function TeacherDashboard() {
 
         // Stop blocking UI: layout renders immediately; data streams in.
         setIsLoading(false);
-
-        return () => {
-          unsubStudents();
-        };
       } catch {
         setLoadError('Some dashboard data could not be loaded.');
       } finally {
@@ -192,13 +187,7 @@ export default function TeacherDashboard() {
       }
     };
 
-    const cleanupPromise = run();
-    return () => {
-      // If run() returned a cleanup function (after teacherId resolved), call it.
-      if (typeof (cleanupPromise as any) === 'function') {
-        (cleanupPromise as any)();
-      }
-    };
+    run();
   }, [router]);
 
   const metrics = useMemo(() => {

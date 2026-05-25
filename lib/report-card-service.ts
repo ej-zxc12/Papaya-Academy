@@ -59,7 +59,7 @@ export class ReportCardService {
       const reportCard: ReportCard = {
         student: {
           id: studentId,
-          name: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+          name: student.name || `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' '),
           gradeLevel: student.gradeLevel || student.currentGradeLevel || 'Unknown',
           section: student.section || student.currentSection || 'Default'
         },

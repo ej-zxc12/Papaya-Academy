@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     const sf10Record: any = {
       studentId,
       lrn: student.lrn || '',
-      studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.name || `Student ${studentId}`,
+      studentName: `${student.lastName || ''}, ${student.firstName || ''} ${student.middleName || ''}`.trim().replace(/\s+/g, ' ') || student.name || `Student ${studentId}`,
       schoolYear,
       gradeLevel: yearRecord.gradeLevel || student.currentGradeLevel || 'Unknown',
       section: yearRecord.section || student.currentSection || 'Default',

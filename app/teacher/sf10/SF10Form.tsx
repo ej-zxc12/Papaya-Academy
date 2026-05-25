@@ -32,6 +32,7 @@ interface YearData {
   section: string;
   subjects: SF10SubjectData[];
   generalAverage: number;
+  adviserName?: string;
 }
 
 interface SF10FormProps {
@@ -324,6 +325,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
                       onStudentFieldChange={onStudentFieldChange}
+                      adviserName={grade1Data.adviserName}
                     />
                   ) : (
                     <GradeBlock 
@@ -351,6 +353,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
                       onStudentFieldChange={onStudentFieldChange}
+                      adviserName={grade2Data.adviserName}
                     />
                   ) : (
                     <GradeBlock 
@@ -382,6 +385,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
                       onStudentFieldChange={onStudentFieldChange}
+                      adviserName={grade3Data.adviserName}
                     />
                   ) : (
                     <GradeBlock 
@@ -409,6 +413,7 @@ const SF10Form: React.FC<SF10FormProps> = ({
                       isEditMode={isEditMode}
                       onSubjectGradeChange={onSubjectGradeChange}
                       onStudentFieldChange={onStudentFieldChange}
+                      adviserName={grade4Data.adviserName}
                     />
                   ) : (
                     <GradeBlock 
@@ -532,6 +537,7 @@ interface GradeBlockProps {
   schoolYear?: string;
   section?: string;
   forceActive?: boolean; // When true, always show data regardless of grade match
+  adviserName?: string; // Specific adviser name for this school year
 }
 
 // Helper to normalize grade level for comparison
@@ -558,7 +564,8 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
   onStudentFieldChange,
   schoolYear,
   section,
-  forceActive = false
+  forceActive = false,
+  adviserName
 }) => {
   // Define correct subject order for each grade level
   const getSubjectOrder = (gradeLevel: string): string[] => {
@@ -733,13 +740,13 @@ const GradeBlock: React.FC<GradeBlockProps> = ({
         {isEditMode && isBlockActive ? (
           <input
             type="text"
-            value={studentData?.adviserName || ''}
+            value={adviserName || studentData?.adviserName || ''}
             onChange={(e) => onStudentFieldChange?.('adviserName', e.target.value)}
             style={{ fontSize: '7pt', flex: 1, height: '18px', padding: '0 4px', border: '1px solid #000', borderBottom: '2px solid #2563EB' }}
           />
         ) : (
           <span style={{ borderBottom: '1px solid #000', display: 'inline-block', flex: 1, height: '11px', padding: '0 2px' }}>
-            {isBlockActive ? studentData?.adviserName : ''}
+            {isBlockActive ? (adviserName || studentData?.adviserName) : ''}
           </span>
         )}
         <span>Signature:</span>
@@ -1120,6 +1127,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
                   onStudentFieldChange={onStudentFieldChange}
+                  adviserName={grade5Data.adviserName}
                 />
               ) : (
                 <GradeBlock 
@@ -1149,6 +1157,7 @@ const Page2: React.FC<Page2Props> = ({ student, subjects = [], isEditMode = fals
                   isEditMode={isEditMode}
                   onSubjectGradeChange={onSubjectGradeChange}
                   onStudentFieldChange={onStudentFieldChange}
+                  adviserName={grade6Data.adviserName}
                 />
               ) : (
                 <GradeBlock 
