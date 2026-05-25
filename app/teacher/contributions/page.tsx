@@ -384,17 +384,17 @@ export default function ContributionManagement() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${teacherId}`,
         },
-        body: JSON.stringify({ rolloverActive: !currentStatus }),
+        body: JSON.stringify({ activeAccount: !currentStatus }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update rollover status');
+        throw new Error(errorData.message || 'Failed to update account status');
       }
 
       setMessage({
         type: 'success',
-        text: `Rollover ${!currentStatus ? 'activated' : 'stopped'} successfully`
+        text: `Account ${!currentStatus ? 'activated' : 'deactivated'} successfully`
       });
 
       // Reload page to refresh data
@@ -402,7 +402,7 @@ export default function ContributionManagement() {
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.message || 'Failed to update rollover status'
+        text: error.message || 'Failed to update account status'
       });
     }
   };
@@ -1636,26 +1636,29 @@ export default function ContributionManagement() {
                 <thead className="bg-[#f0f7f3]">
                   <tr>
                     {/* Explicit widths totaling 100% */}
-                    <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[18%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Grade
                     </th>
-                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Total Paid
                     </th>
                     <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Remaining
                     </th>
-                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
-                      Rollover
+                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Status
                     </th>
-                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Account
+                    </th>
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Add Payment
                     </th>
-                    <th className="w-[16%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
-                      Status
+                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -1696,12 +1699,6 @@ export default function ContributionManagement() {
                             </div>
                           </td>
                         <td className="px-6 py-4">
-  {quota.paymentStatus === 'fully_paid' ? (
-    <div className="text-sm font-medium text-green-600 truncate">
-      Fully Paid
-    </div>
-  ) : (
-<>
   <div className="text-sm font-medium text-gray-900 truncate">
     ₱{quota.currentYearRemaining?.toLocaleString() ?? 0}
   </div>
@@ -1710,25 +1707,30 @@ export default function ContributionManagement() {
       Total: ₱{(quota.remainingBalance ?? 0).toLocaleString()}
     </div>
   )}
-  {(quota.remainingBalance ?? 0) > 0 && (
-    <div className="text-xs text-orange-600 mt-1 truncate">Pending</div>
-  )}
-</>
-  )}
+</td>
+                        <td className="px-6 py-4">
+  {(() => {
+    const status = quota.currentYearPaymentStatus ?? quota.paymentStatus;
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(status)}`}>
+        {status.replace('_', ' ')}
+      </span>
+    );
+  })()}
 </td>
                           <td className="px-6 py-4">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleToggleRollover(quota.studentId, quota.rolloverActive !== false);
+                                handleToggleRollover(quota.studentId, quota.activeAccount !== false);
                               }}
                               className={`px-3 py-1 text-xs font-semibold rounded ${
-                                quota.rolloverActive !== false
+                                quota.activeAccount !== false
                                   ? 'bg-green-100 text-green-800 hover:bg-green-200'
                                   : 'bg-red-100 text-red-800 hover:bg-red-200'
                               }`}
                             >
-                              {quota.rolloverActive !== false ? 'Active' : 'Stopped'}
+                              {quota.activeAccount !== false ? 'Active' : 'Inactive'}
                             </button>
                           </td>
                           <td className="px-6 py-4">
@@ -1758,7 +1760,7 @@ export default function ContributionManagement() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center">
                           <Search className="w-12 h-12 text-gray-300 mb-2" />
                           <p>No students found matching your search.</p>
@@ -1962,15 +1964,16 @@ export default function ContributionManagement() {
 
                       {/* Add Payment Form - Only show if student has remaining balance */}
                       {(() => {
-                        const remainingBalance = quotas.find(q => q.studentId === selectedStudentForDetails?.id)?.remainingBalance || 0;
-                        if (remainingBalance === 0) {
+                        const quota = quotas.find(q => q.studentId === selectedStudentForDetails?.id);
+                        const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+                        if (currentYearRemaining === 0) {
                           return (
                             <div className="bg-green-50 rounded-lg p-6 mb-6 border-2 border-green-200">
                               <div className="flex items-center justify-center gap-3">
                                 <CheckCircle className="w-8 h-8 text-green-600" />
                                 <div>
                                   <h3 className="text-lg font-semibold text-green-800">Fully Paid</h3>
-                                  <p className="text-sm text-green-600">This student has completed all payments for the year.</p>
+                                  <p className="text-sm text-green-600">This student has completed all payments for the current year.</p>
                                 </div>
                               </div>
                             </div>
@@ -2003,13 +2006,23 @@ export default function ContributionManagement() {
                                     
                                     // Get remaining balance for selected student
                                     const quota = quotas.find(q => q.studentId === selectedStudentForDetails?.id);
-                                    const remainingBalance = quota?.remainingBalance || 0;
+                                    const currentYearRemaining = quota?.currentYearRemaining ?? 0;
+                                    const totalRemaining = quota?.remainingBalance ?? 0;
                                     
-                                    // Validate: amount cannot exceed remaining balance
-                                    if (amount > remainingBalance && remainingBalance > 0) {
+                                    // Validate: amount cannot exceed current year remaining first
+                                    if (amount > currentYearRemaining && currentYearRemaining > 0) {
                                       setMessage({ 
                                         type: 'error', 
-                                        text: `Payment amount cannot exceed remaining balance of ₱${remainingBalance.toLocaleString()}` 
+                                        text: `Payment amount cannot exceed current year's remaining balance of ₱${currentYearRemaining.toLocaleString()}` 
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // If current year is fully paid, allow payments up to total remaining
+                                    if (currentYearRemaining === 0 && amount > totalRemaining) {
+                                      setMessage({ 
+                                        type: 'error', 
+                                        text: `Payment amount cannot exceed total remaining balance of ₱${totalRemaining.toLocaleString()}` 
                                       });
                                       return;
                                     }
