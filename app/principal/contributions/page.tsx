@@ -1505,8 +1505,7 @@ export default function PrincipalContributionManagement() {
                               Remaining Balance: {(() => {
   const balance = quotas.find((q) => q.studentId === selectedStudentForDetails?.id)?.remainingBalance || 0;
   return balance === 0 ? 'No remaining balance' : `₱${balance.toLocaleString()}`;
-})()}
-                            </p>
+})()}                            </p>
                           </div>
 
                           <div>
