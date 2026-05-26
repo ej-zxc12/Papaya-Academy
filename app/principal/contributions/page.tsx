@@ -295,6 +295,10 @@ export default function PrincipalContributionManagement() {
   const [isModalAnimating, setIsModalAnimating] = useState(false);
   const [modalAnimationClass, setModalAnimationClass] = useState<'enter' | 'exit' | ''>('');
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+
   const handlePaymentInputChange = (studentId: string, amount: string) => {
     const numAmount = parseFloat(amount) || 0;
 
@@ -338,31 +342,54 @@ export default function PrincipalContributionManagement() {
         return;
       }
 
+      // Optimistic update
+      const newStatus = !currentStatus;
+      setQuotas(prev => prev.map(q => 
+        q.studentId === studentId 
+          ? { ...q, activeAccount: newStatus }
+          : q
+      ));
+
       const response = await fetch(`/api/students/${studentId}/rollover`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${principalId}`,
         },
-        body: JSON.stringify({ rolloverActive: !currentStatus }),
+        body: JSON.stringify({ activeAccount: newStatus }),
       });
 
       if (!response.ok) {
+        // Revert optimistic update on error
+        setQuotas(prev => prev.map(q => 
+          q.studentId === studentId 
+            ? { ...q, activeAccount: currentStatus }
+            : q
+        ));
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update rollover status');
+        throw new Error(errorData.message || 'Failed to update account status');
       }
 
       setMessage({
         type: 'success',
-        text: `Rollover ${!currentStatus ? 'activated' : 'stopped'} successfully`
+        text: `Account ${newStatus ? 'activated' : 'deactivated'} successfully`
       });
 
-      // Reload page to refresh data
-      window.location.reload();
+      // Refresh quotas data to get updated calculations
+      const year = selectedYear;
+      const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+      const scopeParam = '&scope=school';
+      const quotasRes = await fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+        headers: { Authorization: `Bearer ${encodeURIComponent(principalId)}` },
+      });
+      if (quotasRes.ok) {
+        const quotasJson = await quotasRes.json();
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+      }
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.message || 'Failed to update rollover status'
+        text: error.message || 'Failed to update account status'
       });
     }
   };
@@ -814,6 +841,18 @@ export default function PrincipalContributionManagement() {
     .filter((quota) => quota.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || quota.studentId.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter((quota) => !selectedGrade || quota.gradeLevel === selectedGrade)
     .sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredQuotas.length / itemsPerPage);
+  const paginatedQuotas = filteredQuotas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGrade]);
 
   const totalCollected = derivedTotals.collected;
   const totalExpected = derivedTotals.expected;
@@ -1335,7 +1374,7 @@ export default function PrincipalContributionManagement() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredQuotas.map((quota) => (
+                  {paginatedQuotas.map((quota) => (
                     <tr key={quota.studentId} className="hover:bg-gray-50 cursor-pointer" onClick={() => {
                       const s = students.find(st => st.id === quota.studentId);
                       if (s) handleStudentRowClick(s);
@@ -1361,23 +1400,23 @@ export default function PrincipalContributionManagement() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(quota.paymentStatus)}`}>
-                          {quota.paymentStatus.replace('_', ' ')}
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(quota.currentYearPaymentStatus ?? quota.paymentStatus)}`}>
+                          {(quota.currentYearPaymentStatus ?? quota.paymentStatus).replace('_', ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleToggleRollover(quota.studentId, quota.rolloverActive !== false);
+                            handleToggleRollover(quota.studentId, quota.activeAccount !== false);
                           }}
                           className={`px-3 py-1 text-xs font-semibold rounded ${
-                            quota.rolloverActive !== false
+                            quota.activeAccount !== false
                               ? 'bg-green-100 text-green-800 hover:bg-green-200'
                               : 'bg-red-100 text-red-800 hover:bg-red-200'
                           }`}
                         >
-                          {quota.rolloverActive !== false ? 'Active' : 'Stopped'}
+                          {quota.activeAccount !== false ? 'Active' : 'Inactive'}
                         </button>
                       </td>
                       <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
@@ -1394,6 +1433,56 @@ export default function PrincipalContributionManagement() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <div className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredQuotas.length)} of {filteredQuotas.length} students
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1 text-sm border rounded ${
+                          currentPage === pageNum
+                            ? 'bg-[#1B3E2A] text-white border-[#1B3E2A]'
+                            : 'border-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">

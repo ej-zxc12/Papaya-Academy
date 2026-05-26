@@ -322,6 +322,10 @@ export default function ContributionManagement() {
   const [isModalAnimating, setIsModalAnimating] = useState(false);
   const [modalAnimationClass, setModalAnimationClass] = useState<'enter' | 'exit' | ''>('');
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
+
   // Handle payment input changes with validation
   const handlePaymentInputChange = (studentId: string, amount: string) => {
     const numAmount = parseFloat(amount) || 0;
@@ -378,27 +382,50 @@ export default function ContributionManagement() {
         return;
       }
 
+      // Optimistic update
+      const newStatus = !currentStatus;
+      setQuotas(prev => prev.map(q => 
+        q.studentId === studentId 
+          ? { ...q, activeAccount: newStatus }
+          : q
+      ));
+
       const response = await fetch(`/api/students/${studentId}/rollover`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${teacherId}`,
         },
-        body: JSON.stringify({ activeAccount: !currentStatus }),
+        body: JSON.stringify({ activeAccount: newStatus }),
       });
 
       if (!response.ok) {
+        // Revert optimistic update on error
+        setQuotas(prev => prev.map(q => 
+          q.studentId === studentId 
+            ? { ...q, activeAccount: currentStatus }
+            : q
+        ));
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update account status');
       }
 
       setMessage({
         type: 'success',
-        text: `Account ${!currentStatus ? 'activated' : 'deactivated'} successfully`
+        text: `Account ${newStatus ? 'activated' : 'deactivated'} successfully`
       });
 
-      // Reload page to refresh data
-      window.location.reload();
+      // Refresh quotas data to get updated calculations
+      const year = selectedYear;
+      const gradeParam = selectedGrade ? `&gradeLevel=${encodeURIComponent(selectedGrade)}` : '';
+      const scopeParam = '&scope=teacher';
+      const quotasRes = await fetch(`/api/contributions/quotas?year=${encodeURIComponent(year)}${gradeParam}${scopeParam}`, {
+        headers: { Authorization: `Bearer ${encodeURIComponent(teacherId)}` },
+      });
+      if (quotasRes.ok) {
+        const quotasJson = await quotasRes.json();
+        setQuotas(Array.isArray(quotasJson) ? quotasJson : []);
+      }
     } catch (error: any) {
       setMessage({
         type: 'error',
@@ -1106,6 +1133,18 @@ export default function ContributionManagement() {
     !selectedGrade || quota.gradeLevel === selectedGrade
   ).sort((a, b) => a.studentName.localeCompare(b.studentName));
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredQuotas.length / itemsPerPage);
+  const paginatedQuotas = filteredQuotas.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedGrade]);
+
   const totalCollected = derivedTotals.collected;
   const totalExpected = derivedTotals.expected;
   const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
@@ -1663,8 +1702,8 @@ export default function ContributionManagement() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {filteredQuotas.length > 0 ? (
-                    filteredQuotas.map((quota, index) => {
+                  {paginatedQuotas.length > 0 ? (
+                    paginatedQuotas.map((quota, index) => {
                       const student = students.find(s => s.id === quota.studentId);
                       return (
                         <tr 
@@ -1771,6 +1810,56 @@ export default function ContributionManagement() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <div className="text-sm text-gray-700">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredQuotas.length)} of {filteredQuotas.length} students
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1 text-sm border rounded ${
+                          currentPage === pageNum
+                            ? 'bg-[#1B3E2A] text-white border-[#1B3E2A]'
+                            : 'border-gray-300 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Recent Payments Table: FIXED LAYOUT */}
