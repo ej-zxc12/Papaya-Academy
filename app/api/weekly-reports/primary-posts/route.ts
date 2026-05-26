@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, dueDate, createdBy, createdByName, schoolYear } = body;
+    const { title, description, dueDate, createdBy, createdByName, schoolYear, attachments } = body;
 
-    console.log('Creating primary post with data:', { title, description, dueDate, createdBy, createdByName, schoolYear });
+    console.log('Creating primary post with data:', { title, description, dueDate, createdBy, createdByName, schoolYear, attachments });
 
     // Validate required fields
     if (!title || !description || !dueDate || !createdBy || !createdByName) {
@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       createdBy,
       createdByName,
       schoolYear,
+      attachments: attachments || [],
       isActive: true,
       createdAt: FieldValue.serverTimestamp()
     });
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, isActive, title, description, dueDate } = body;
+    const { id, isActive, title, description, dueDate, attachments } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -120,6 +121,7 @@ export async function PATCH(request: NextRequest) {
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (dueDate !== undefined) updateData.dueDate = dueDate;
+    if (attachments !== undefined) updateData.attachments = attachments;
 
     await db.collection('weekly_report_primary_posts').doc(id).update(updateData);
 

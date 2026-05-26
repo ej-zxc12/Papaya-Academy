@@ -116,6 +116,7 @@ export default function TeacherWeeklyReportsPage() {
           setPrimaryPosts(data);
           if (data.length > 0) {
             setSelectedPrimaryPost(data[0]);
+          console.log('Selected primary post attachments:', data[0].attachments);
           } else {
             setIsDataReady(true);
           }
@@ -369,6 +370,25 @@ export default function TeacherWeeklyReportsPage() {
                   <Calendar size={14} />
                   <span>Due: {formatDate(selectedPrimaryPost.dueDate)}</span>
                 </div>
+                {selectedPrimaryPost.attachments && selectedPrimaryPost.attachments.length > 0 && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Attachments:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPrimaryPost.attachments.map((file, idx) => (
+                      <a
+                        key={idx}
+                        href={typeof file === 'string' ? file : file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-md text-xs hover:bg-blue-100 transition-colors"
+                      >
+                        <Paperclip size={12} />
+                        <span className="truncate max-w-[150px]">{typeof file === 'string' ? file.split('/').pop() : file.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
                 {mySubPost ? (
                   <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
                     <div className="flex items-center gap-2 text-green-700">

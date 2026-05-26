@@ -39,7 +39,7 @@ export interface Student {
   sex?: 'M' | 'F';
   createdAt?: string;
   updatedAt?: string;
-  rolloverActive?: boolean; // If false, rollover stops for this student (e.g., moved away)
+  activeAccount?: boolean; // If false, contribution accumulation stops for this student (e.g., moved away)
 }
 
 export interface AttendanceRecord {
@@ -226,7 +226,7 @@ export interface WeeklyReportPrimaryPost {
   createdAt: string;
   isActive: boolean;
   schoolYear?: string;
-  attachments?: { name: string; url: string }[];
+  attachments?: ({ name: string; url: string } | string)[];
 }
 
 export interface WeeklyReportSubPost {
@@ -282,7 +282,8 @@ export interface ContributionQuota {
   lastUpdated: string;
   previousBalance?: number;
   currentYearRemaining?: number; // Current year's remaining balance (2000 - current year payments)
-  rolloverActive?: boolean; // If false, rollover stops for this student
+  activeAccount?: boolean; // If false, contribution accumulation stops for this student
+  currentYearPaymentStatus?: 'fully_paid' | 'partially_paid' | 'not_paid'; // Current year's payment status for modal display
 }
 
 export interface ContributionSummary {
