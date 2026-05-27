@@ -723,14 +723,14 @@ export default function PrincipalWeeklyReportsPage() {
                           {post.attachments.map((file, idx) => (
                             <a
                               key={idx}
-                              href={typeof file === " string\ ? file : file.url}
+                             href={typeof file === "string" ? file : file.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
                               className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded flex items-center gap-1 hover:bg-gray-50 transition-colors"
                             >
                               <Paperclip size={12} />
-                              {file.name}
+                             {typeof file === "string" ? "Attachment" : file.name}
                             </a>
                           ))}
                         </div>
