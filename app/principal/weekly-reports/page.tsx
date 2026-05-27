@@ -914,7 +914,7 @@ export default function PrincipalWeeklyReportsPage() {
                             {subPost.attachments.map((file, idx) => (
                               <a
                                 key={idx}
-                                href={typeof file === " string\ ? file : file.url}
+                                href={file.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition-colors"
