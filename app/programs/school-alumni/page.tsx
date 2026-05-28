@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Montserrat } from 'next/font/google';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GraduationCap, Search, Users, School, BookOpen, User, ChevronDown, Award, Calendar } from 'lucide-react';
@@ -63,6 +64,30 @@ export default function SchoolAlumniPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [alumni, setAlumni] = useState<Alumni[]>([]);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  // Check if user is teacher or principal
+  useEffect(() => {
+    const checkAuth = () => {
+      const teacherSession = localStorage.getItem('teacherSession');
+      const principalSession = localStorage.getItem('principalSession');
+      setIsAuthorized(!!(teacherSession || principalSession));
+    };
+
+    checkAuth();
+
+    // Listen for localStorage changes
+    const handleStorageChange = () => checkAuth();
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for localStorage changes
+    const interval = setInterval(checkAuth, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
@@ -142,18 +167,32 @@ export default function SchoolAlumniPage() {
       <main className="flex-grow">
         <section className="py-12 md:py-16">
           <div className="container mx-auto px-4">
-            <ScrollReveal animation="fade-down" className="relative z-50">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-green-700 font-semibold text-sm mb-2 tracking-wider">
-                    <GraduationCap size={18} />
-                    ALUMNI NETWORK
-                  </div>
-                  <h1 className="text-4xl md:text-5xl font-light text-gray-900 tracking-tight">Our Graduates</h1>
-                  <p className="text-gray-600 mt-2 max-w-2xl">
-                    Connect with former students and see their academic progress.
-                  </p>
-                </div>
+            {!isAuthorized ? (
+              <div className="text-center py-20">
+                <GraduationCap size={64} className="mx-auto text-gray-300 mb-4" />
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Access Restricted</h1>
+                <p className="text-gray-600 mb-6">This page is only accessible to teachers and principal.</p>
+                <Link
+                  href="/portal/login"
+                  className="inline-block bg-papaya-green text-white px-6 py-3 rounded-md font-semibold hover:bg-opacity-90 transition-all duration-200"
+                >
+                  Login to Portal
+                </Link>
+              </div>
+            ) : (
+              <>
+                <ScrollReveal animation="fade-down" className="relative z-50">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 text-green-700 font-semibold text-sm mb-2 tracking-wider">
+                        <GraduationCap size={18} />
+                        ALUMNI NETWORK
+                      </div>
+                      <h1 className="text-4xl md:text-5xl font-light text-gray-900 tracking-tight">Our Graduates</h1>
+                      <p className="text-gray-600 mt-2 max-w-2xl">
+                        Connect with former students and see their academic progress.
+                      </p>
+                    </div>
 
                 <div className="w-full lg:w-auto flex flex-col sm:flex-row gap-4 relative z-50">
                   <div className="relative">
@@ -368,6 +407,8 @@ export default function SchoolAlumniPage() {
                 </motion.div>
               </AnimatePresence>
             </div>
+              </>
+            )}
           </div>
         </section>
       </main>

@@ -6,6 +6,37 @@ import { db } from '@/lib/firebase-admin';
 
 const COLLECTION = 'contributions_payments';
 
+// Helper function to format student name to correct format: "LASTNAME, FIRSTNAME MIDDLENAME"
+function formatStudentName(firstName?: string, lastName?: string, middleName?: string, existingName?: string): string {
+  // If we have firstName and lastName, format correctly
+  if (lastName || firstName) {
+    return `${lastName || ''}, ${firstName || ''} ${middleName || ''}`.trim().replace(/\s+/g, ' ');
+  }
+  
+  // If we have existing name, try to parse and reformat it
+  if (existingName) {
+    const trimmed = existingName.trim();
+    
+    // If already in correct format (contains comma), return as is
+    if (trimmed.includes(',')) {
+      return trimmed;
+    }
+    
+    // Try to parse "FIRSTNAME MIDDLENAME LASTNAME" format
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 2) {
+      const lastName = parts[parts.length - 1];
+      const firstName = parts[0];
+      const middleName = parts.slice(1, parts.length - 1).join(' ');
+      return `${lastName}, ${firstName} ${middleName}`.trim().replace(/\s+/g, ' ');
+    }
+    
+    return trimmed;
+  }
+  
+  return '';
+}
+
  function getTeacherIdFromRequest(request: NextRequest) {
    const authHeader = request.headers.get('authorization');
    if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -59,9 +90,17 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
 
+    // Format student name to correct format
+    const formattedStudentName = formatStudentName(
+      contributionData.firstName,
+      contributionData.lastName,
+      contributionData.middleName,
+      contributionData.studentName
+    );
+
     const payload = {
       studentId: String(contributionData.studentId),
-      studentName: String(contributionData.studentName ?? ''),
+      studentName: formattedStudentName,
       gradeLevel: String(contributionData.gradeLevel ?? ''),
       amount: Number(contributionData.amount),
       month: String(contributionData.month),
@@ -137,10 +176,18 @@ export async function GET(request: NextRequest) {
             ? data.paymentDate
             : '';
 
+        // Format student name to correct format
+        const formattedStudentName = formatStudentName(
+          data.firstName,
+          data.lastName,
+          data.middleName,
+          data.studentName
+        );
+
         return {
           id: d.id,
           studentId: String(data.studentId ?? ''),
-          studentName: String(data.studentName ?? ''),
+          studentName: formattedStudentName,
           gradeLevel: String(data.gradeLevel ?? ''),
           amount: Number(data.amount ?? 0),
           month: String(data.month ?? ''),

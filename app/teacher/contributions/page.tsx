@@ -1724,7 +1724,7 @@ export default function ContributionManagement() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-2 py-4">
                             <div className="text-sm font-medium text-gray-900 bg-[#fef9e7] px-3 py-1 rounded-full text-center inline-block truncate max-w-full">
                               {quota.gradeLevel}
                             </div>
@@ -1747,7 +1747,7 @@ export default function ContributionManagement() {
     </div>
   )}
 </td>
-                        <td className="px-6 py-4">
+                        <td className="px-2 py-4">
   {(() => {
     const status = quota.currentYearPaymentStatus ?? quota.paymentStatus;
     return (
@@ -1790,8 +1790,8 @@ export default function ContributionManagement() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.paymentStatus)}`}>
-                              {quota.paymentStatus.replace('_', ' ').toUpperCase()}
+                            <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.currentYearPaymentStatus ?? quota.paymentStatus)}`}>
+                              {(quota.currentYearPaymentStatus ?? quota.paymentStatus).replace('_', ' ').toUpperCase()}
                             </span>
                           </td>
                         </tr>

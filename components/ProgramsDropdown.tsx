@@ -18,6 +18,41 @@ const ProgramsDropdown = () => {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [isTeacherOrPrincipal, setIsTeacherOrPrincipal] = useState(false);
+
+
+
+  // Check if user is teacher or principal
+  useEffect(() => {
+    const checkUserRole = () => {
+      const teacherSession = localStorage.getItem('teacherSession');
+      const principalSession = localStorage.getItem('principalSession');
+      const isAuth = !!(teacherSession || principalSession);
+      console.log('ProgramsDropdown - Checking auth:', { teacherSession: !!teacherSession, principalSession: !!principalSession, isAuth });
+      setIsTeacherOrPrincipal(isAuth);
+    };
+
+    checkUserRole();
+
+    // Listen for localStorage changes
+    const handleStorageChange = () => {
+      console.log('ProgramsDropdown - Storage changed');
+      checkUserRole();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for localStorage changes
+    const interval = setInterval(() => {
+      console.log('ProgramsDropdown - Periodic check');
+      checkUserRole();
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
 
 
   // Close dropdown when clicking outside
@@ -136,19 +171,21 @@ const ProgramsDropdown = () => {
 
         </Link>
 
-        <Link 
+        {isTeacherOrPrincipal && (
+          <Link 
 
-          href="/programs/school-alumni" 
+            href="/programs/school-alumni" 
 
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#1B3E2A]"
 
-          onClick={handleLinkClick}
+            onClick={handleLinkClick}
 
-        >
+          >
 
-          School Alumni
+            School Alumni
 
-        </Link>
+          </Link>
+        )}
 
       </div>
 

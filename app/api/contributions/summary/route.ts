@@ -116,8 +116,20 @@ export async function GET(request: NextRequest) {
     const currentYear = parseInt(year);
     for (const student of students as any[]) {
       // Calculate years enrolled based on createdAt timestamp
-      const createdAt = student.createdAt ? new Date(student.createdAt) : new Date();
-      const enrollmentYear = createdAt.getFullYear();
+      // If createdAt is missing or invalid, assume current year enrollment
+      let enrollmentYear = currentYear;
+      if (student.createdAt) {
+        try {
+          const createdAt = new Date(student.createdAt);
+          const yearFromCreatedAt = createdAt.getFullYear();
+          if (yearFromCreatedAt > 2000 && yearFromCreatedAt <= currentYear) {
+            enrollmentYear = yearFromCreatedAt;
+          }
+        } catch (e) {
+          // Invalid date format, use current year
+          enrollmentYear = currentYear;
+        }
+      }
       let yearsEnrolled = currentYear - enrollmentYear + 1;
       if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
       totalExpected += yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
@@ -171,8 +183,20 @@ export async function GET(request: NextRequest) {
           for (const student of gradeStudentsList) {
             const sid = String(student.id);
             // Calculate years enrolled based on createdAt timestamp
-            const createdAt = student.createdAt ? new Date(student.createdAt) : new Date();
-            const enrollmentYear = createdAt.getFullYear();
+            // If createdAt is missing or invalid, assume current year enrollment
+            let enrollmentYear = currentYear;
+            if (student.createdAt) {
+              try {
+                const createdAt = new Date(student.createdAt);
+                const yearFromCreatedAt = createdAt.getFullYear();
+                if (yearFromCreatedAt > 2000 && yearFromCreatedAt <= currentYear) {
+                  enrollmentYear = yearFromCreatedAt;
+                }
+              } catch (e) {
+                // Invalid date format, use current year
+                enrollmentYear = currentYear;
+              }
+            }
             let yearsEnrolled = currentYear - enrollmentYear + 1;
             if (yearsEnrolled < 1) yearsEnrolled = 1; // At least 1 year
             expected += yearsEnrolled * TARGET_AMOUNT_PER_STUDENT;
