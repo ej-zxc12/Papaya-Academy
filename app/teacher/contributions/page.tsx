@@ -1675,29 +1675,26 @@ export default function ContributionManagement() {
                 <thead className="bg-[#f0f7f3]">
                   <tr>
                     {/* Explicit widths totaling 100% */}
-                    <th className="w-[18%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[20%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Grade
                     </th>
-                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Total Paid
                     </th>
-                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[14%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Remaining
                     </th>
-                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="w-[10%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[12%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Account
                     </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
+                    <th className="w-[18%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
                       Add Payment
-                    </th>
-                    <th className="w-[15%] px-6 py-4 text-left text-xs font-semibold text-[#1B3E2A] uppercase tracking-wider">
-                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -1789,17 +1786,12 @@ export default function ContributionManagement() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${getPaymentStatusColor(quota.currentYearPaymentStatus ?? quota.paymentStatus)}`}>
-                              {(quota.currentYearPaymentStatus ?? quota.paymentStatus).replace('_', ' ').toUpperCase()}
-                            </span>
-                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center">
                           <Search className="w-12 h-12 text-gray-300 mb-2" />
                           <p>No students found matching your search.</p>

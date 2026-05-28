@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 
+// Force dynamic rendering since this route uses request headers
+export const dynamic = 'force-dynamic'
+
 // Batch delete availability configuration
 // Available annually from May 29 to June 30
 const BATCH_DELETE_START_MONTH = 4; // May (0-indexed)

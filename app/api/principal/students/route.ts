@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Student } from '@/types';
 import { db } from '@/lib/firebase-admin';
 
+// Force dynamic rendering since this route uses request headers
+export const dynamic = 'force-dynamic'
+
 // Cache for 2 minutes (120 seconds) - student data changes moderately frequently
 export const revalidate = 120
 

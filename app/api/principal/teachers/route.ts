@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 
+// Force dynamic rendering since this route uses request headers
+export const dynamic = 'force-dynamic'
+
 function getPrincipalIdFromRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
