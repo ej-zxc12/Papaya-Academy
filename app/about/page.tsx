@@ -6,6 +6,8 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import ScrollReveal from '@/components/ui/ScrollReveal';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 
 interface MissionVisionData {
   id: string;
@@ -37,6 +39,8 @@ interface OrgChartMember {
   category: 'principal' | 'gradeAdviser' | 'academicTeacher' | 'nonAcademicStaff' | 'boardOfTrustees';
   boardName?: string;
   order?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface OrgChartData {
@@ -68,66 +72,157 @@ function AboutPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Fetch mission and vision data
-  useEffect(() => {
-    const fetchMissionVisionData = async () => {
-      try {
-        const response = await fetch('/api/mission-vision');
-        if (!response.ok) {
-          throw new Error('Failed to fetch mission and vision data');
-        }
-        const result = await response.json();
-        setMissionVisionData(result);
-      } catch (err) {
-        setMissionVisionError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setMissionVisionLoading(false);
-      }
-    };
+  // Helper function to derive category from member data
+  const deriveCategory = (memberData: any): OrgChartMember['category'] => {
+    if (memberData?.category) return memberData.category;
 
-    fetchMissionVisionData();
+    const department = String(memberData?.department || '').toLowerCase();
+    const position = String(memberData?.position || '').toLowerCase();
+
+    if (department === 'school organization' && position === 'principal') return 'principal';
+    if (department === 'non-academic staff') return 'nonAcademicStaff';
+    if (department.includes('board')) return 'boardOfTrustees';
+
+    // Default anything else under academic staff bucket
+    if (department.includes('academic') || department.includes('grade') || department.includes('adviser')) {
+      // If the role/position indicates adviser, keep as gradeAdviser; otherwise academicTeacher
+      if (position.includes('adviser')) return 'gradeAdviser';
+      return 'academicTeacher';
+    }
+
+    // Fallback
+    return 'gradeAdviser';
+  };
+
+  // Fetch mission and vision data with real-time listener
+  useEffect(() => {
+    setMissionVisionLoading(true);
+    
+    const missionVisionQuery = query(
+      collection(db, 'missionVision'),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(missionVisionQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+        setMissionVisionData({
+          id: doc.id,
+          ...data
+        } as MissionVisionData);
+        setMissionVisionError(null);
+      } else {
+        setMissionVisionError('Mission and vision data not found');
+      }
+      setMissionVisionLoading(false);
+    }, (err) => {
+      console.error('Error fetching mission and vision:', err);
+      setMissionVisionError(err instanceof Error ? err.message : 'An error occurred');
+      setMissionVisionLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Fetch organizational chart data
+  // Fetch organizational chart data with real-time listener
   useEffect(() => {
-    const fetchOrgChartData = async () => {
-      try {
-        const cacheKey = 'orgChartDataCache:v2';
-        const cacheTtlMs = 5 * 60 * 1000;
+    setOrgChartLoading(true);
+    
+    const orgChartQuery = query(collection(db, 'orgChartMembers'));
 
-        if (typeof window !== 'undefined') {
-          const cachedRaw = window.sessionStorage.getItem(cacheKey);
-          if (cachedRaw) {
-            const cached = JSON.parse(cachedRaw) as { ts: number; data: OrgChartData };
-            if (cached?.ts && cached?.data && Date.now() - cached.ts < cacheTtlMs) {
-              setOrgChartData(cached.data);
-              setOrgChartLoading(false);
-              return;
+    const unsubscribe = onSnapshot(orgChartQuery, (snapshot) => {
+      const data: OrgChartData = {
+        principal: null,
+        academicStaff: [],
+        gradeAdvisers: [],
+        nonAcademicStaff: [],
+        boardOfTrustees: {}
+      };
+
+      snapshot.docs.forEach((doc) => {
+        const memberData = doc.data();
+        
+        // Resolve image URL (handles both storage paths and full URLs)
+        const rawImage = (memberData.imageUrl || memberData.image || memberData.imagePath || '') as string;
+        let imageUrl = rawImage;
+        
+        if (rawImage && !rawImage.startsWith('/') && !rawImage.startsWith('http')) {
+          const STORAGE_BUCKET = 'papayaacademy-system.firebasestorage.app';
+          const encodedPath = encodeURIComponent(rawImage);
+          imageUrl = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodedPath}?alt=media`;
+        }
+
+        const memberOrder = ((): number => {
+          const orderVal = memberData.order;
+          if (typeof orderVal === 'number' && Number.isFinite(orderVal)) return orderVal;
+          const positionOrderVal = memberData.positionOrder;
+          if (typeof positionOrderVal === 'number' && Number.isFinite(positionOrderVal)) return positionOrderVal;
+          return 0;
+        })();
+
+        const memberCategory = deriveCategory(memberData);
+        const memberRole = (memberData.role || memberData.position || '') as string;
+        
+        const member: OrgChartMember = {
+          id: doc.id,
+          name: memberData.name || '',
+          role: memberRole,
+          image: imageUrl,
+          category: memberCategory,
+          boardName: memberData.boardName || '',
+          order: memberOrder,
+          createdAt: memberData.createdAt?.toDate?.() ? memberData.createdAt.toDate().toISOString() : memberData.createdAt,
+          updatedAt: memberData.updatedAt?.toDate?.() ? memberData.updatedAt.toDate().toISOString() : memberData.updatedAt,
+        };
+
+        // Categorize members
+        switch (member.category) {
+          case 'principal':
+            if (!data.principal || (member.order ?? 0) < (data.principal.order ?? 0)) {
+              data.principal = member;
             }
-          }
+            break;
+          case 'gradeAdviser':
+            data.academicStaff.push(member);
+            data.gradeAdvisers.push(member);
+            break;
+          case 'academicTeacher':
+            data.academicStaff.push(member);
+            break;
+          case 'nonAcademicStaff':
+            data.nonAcademicStaff.push(member);
+            break;
+          case 'boardOfTrustees':
+            if (member.boardName) {
+              if (!data.boardOfTrustees[member.boardName]) {
+                data.boardOfTrustees[member.boardName] = [];
+              }
+              data.boardOfTrustees[member.boardName].push(member);
+            }
+            break;
         }
+      });
 
-        const response = await fetch('/api/org-chart');
-        if (!response.ok) {
-          throw new Error('Failed to fetch organizational chart data');
-        }
-        const result = await response.json();
-        setOrgChartData(result);
+      // Sort members by order
+      data.academicStaff.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      data.gradeAdvisers.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      data.nonAcademicStaff.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      Object.keys(data.boardOfTrustees).forEach((board) => {
+        data.boardOfTrustees[board].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      });
 
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(
-            cacheKey,
-            JSON.stringify({ ts: Date.now(), data: result })
-          );
-        }
-      } catch (err) {
-        setOrgChartError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setOrgChartLoading(false);
-      }
-    };
+      setOrgChartData(data);
+      setOrgChartError(null);
+      setOrgChartLoading(false);
+    }, (err) => {
+      console.error('Error fetching org chart:', err);
+      setOrgChartError(err instanceof Error ? err.message : 'An error occurred');
+      setOrgChartLoading(false);
+    });
 
-    fetchOrgChartData();
+    return () => unsubscribe();
   }, []);
 
   // Handle smooth scrolling when the page loads with a hash

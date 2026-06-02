@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, storage } from '../../../lib/firebase-admin'
 
-// Cache for 5 minutes (300 seconds) - public content that changes infrequently
-export const revalidate = 300
+// Cache for 30 seconds - reduced since client now uses real-time listeners
+export const revalidate = 30
 
 export interface OrgChartMember {
   id: string;
@@ -191,23 +191,23 @@ export async function GET(request: NextRequest) {
         order: 1
       },
       academicStaff: [
-        { id: 'ga-1', name: 'Geenie G. Ramos', role: 'Grade 6 Adviser', image: '/images/geen.jpg', category: 'gradeAdviser', order: 1 },
-        { id: 'ga-2', name: 'Daina Marie R. Lumbao', role: 'Grade 5 Adviser', image: '/images/dina.jpg', category: 'gradeAdviser', order: 2 },
-        { id: 'ga-3', name: 'Erwin Q. Molabola', role: 'Grade 4 Adviser', image: '/images/erwin.jpg', category: 'gradeAdviser', order: 3 },
+        { id: 'ga-7', name: 'Katrina A. Ocampo', role: 'Kinder Adviser', image: '/images/kat.jpg', category: 'gradeAdviser', order: 1 },
+        { id: 'ga-6', name: 'Jeanebi C. Borres', role: 'Grade 1 Adviser', image: '/images/jeanebi.jpg', category: 'gradeAdviser', order: 2 },
+        { id: 'ga-5', name: 'Leizl R. Mercado', role: 'Grade 2 Adviser', image: '/images/liezl.jpg', category: 'gradeAdviser', order: 3 },
         { id: 'ga-4', name: 'Marvin Christopher Agabin', role: 'Grade 3 Adviser', image: '/images/marvin.jpg', category: 'gradeAdviser', order: 4 },
-        { id: 'ga-5', name: 'Leizl R. Mercado', role: 'Grade 2 Adviser', image: '/images/liezl.jpg', category: 'gradeAdviser', order: 5 },
-        { id: 'ga-6', name: 'Jeanebi C. Borres', role: 'Grade 1 Adviser', image: '/images/jeanebi.jpg', category: 'gradeAdviser', order: 6 },
-        { id: 'ga-7', name: 'Katrina A. Ocampo', role: 'Kinder Adviser', image: '/images/kat.jpg', category: 'gradeAdviser', order: 7 },
+        { id: 'ga-3', name: 'Erwin Q. Molabola', role: 'Grade 4 Adviser', image: '/images/erwin.jpg', category: 'gradeAdviser', order: 5 },
+        { id: 'ga-2', name: 'Daina Marie R. Lumbao', role: 'Grade 5 Adviser', image: '/images/dina.jpg', category: 'gradeAdviser', order: 6 },
+        { id: 'ga-1', name: 'Geenie G. Ramos', role: 'Grade 6 Adviser', image: '/images/geen.jpg', category: 'gradeAdviser', order: 7 },
         { id: 'ga-8', name: 'Marie Sean B. Lira', role: 'Science / Registrar', image: '/images/sean.jpg', category: 'gradeAdviser', order: 8 },
       ],
       gradeAdvisers: [
-        { id: 'ga-1', name: 'Geenie G. Ramos', role: 'Grade 6 Adviser', image: '/images/geen.jpg', category: 'gradeAdviser', order: 1 },
-        { id: 'ga-2', name: 'Daina Marie R. Lumbao', role: 'Grade 5 Adviser', image: '/images/dina.jpg', category: 'gradeAdviser', order: 2 },
-        { id: 'ga-3', name: 'Erwin Q. Molabola', role: 'Grade 4 Adviser', image: '/images/erwin.jpg', category: 'gradeAdviser', order: 3 },
+        { id: 'ga-7', name: 'Katrina A. Ocampo', role: 'Kinder Adviser', image: '/images/kat.jpg', category: 'gradeAdviser', order: 1 },
+        { id: 'ga-6', name: 'Jeanebi C. Borres', role: 'Grade 1 Adviser', image: '/images/jeanebi.jpg', category: 'gradeAdviser', order: 2 },
+        { id: 'ga-5', name: 'Leizl R. Mercado', role: 'Grade 2 Adviser', image: '/images/liezl.jpg', category: 'gradeAdviser', order: 3 },
         { id: 'ga-4', name: 'Marvin Christopher Agabin', role: 'Grade 3 Adviser', image: '/images/marvin.jpg', category: 'gradeAdviser', order: 4 },
-        { id: 'ga-5', name: 'Leizl R. Mercado', role: 'Grade 2 Adviser', image: '/images/liezl.jpg', category: 'gradeAdviser', order: 5 },
-        { id: 'ga-6', name: 'Jeanebi C. Borres', role: 'Grade 1 Adviser', image: '/images/jeanebi.jpg', category: 'gradeAdviser', order: 6 },
-        { id: 'ga-7', name: 'Katrina A. Ocampo', role: 'Kinder Adviser', image: '/images/kat.jpg', category: 'gradeAdviser', order: 7 },
+        { id: 'ga-3', name: 'Erwin Q. Molabola', role: 'Grade 4 Adviser', image: '/images/erwin.jpg', category: 'gradeAdviser', order: 5 },
+        { id: 'ga-2', name: 'Daina Marie R. Lumbao', role: 'Grade 5 Adviser', image: '/images/dina.jpg', category: 'gradeAdviser', order: 6 },
+        { id: 'ga-1', name: 'Geenie G. Ramos', role: 'Grade 6 Adviser', image: '/images/geen.jpg', category: 'gradeAdviser', order: 7 },
         { id: 'ga-8', name: 'Marie Sean B. Lira', role: 'Science / Registrar', image: '/images/sean.jpg', category: 'gradeAdviser', order: 8 },
       ],
       nonAcademicStaff: [
