@@ -10,6 +10,8 @@ import { BookOpen, Users, Target, Award, ArrowRight, Check } from 'lucide-react'
 import Header from '../../../components/layout/Header';
 import ScrollReveal from '../../../components/ui/ScrollReveal';
 import Footer from '../../../components/layout/Footer';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 
 // --- INTERFACES ---
 interface AppleScholarshipData {
@@ -68,24 +70,36 @@ export default function AppleScholarshipsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch Apple Scholarships data
+  // Fetch Apple Scholarships data with real-time listener
   useEffect(() => {
-    const fetchScholarshipData = async () => {
-      try {
-        const response = await fetch('/api/apple-scholarships');
-        if (!response.ok) {
-          throw new Error('Failed to fetch Apple Scholarships data');
-        }
-        const result = await response.json();
-        setScholarshipData(result);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    
+    const appleScholarshipsQuery = query(
+      collection(db, 'appleScholarship'),
+      orderBy('updatedAt', 'desc'),
+      limit(1)
+    );
 
-    fetchScholarshipData();
+    const unsubscribe = onSnapshot(appleScholarshipsQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+        setScholarshipData({
+          id: doc.id,
+          ...data
+        } as AppleScholarshipData);
+        setError(null);
+      } else {
+        setScholarshipData(null);
+      }
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching Apple Scholarships:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (

@@ -526,8 +526,34 @@ function AboutPageContent() {
                     </h3>
                   </ScrollReveal>
 
+                  {/* First row: Kinder, Grade 1, Grade 2, Grade 3 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+                    {orgChartData.academicStaff.slice(0, 4).map((person, index) => (
+                      <ScrollReveal key={person.id} animation="fade-up" delay={100 + index * 50}>
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">
+                            <img
+                              src={person.image || `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`}
+                              alt={person.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const t = e.target as HTMLImageElement;
+                                t.src = `https://ui-avatars.com/api/?name=${person.name.replace(/\s+/g, '+')}&background=1A5F3F&color=fff&size=256`;
+                              }}
+                            />
+                          </div>
+                          <div className="bg-white p-3 rounded-lg shadow-sm text-center w-full border-t-4 border-papaya-green hover:shadow-md transition-shadow duration-300">
+                            <p className="font-semibold text-papaya-green">{person.name}</p>
+                            <p className="text-sm text-gray-600">{person.role}</p>
+                          </div>
+                        </div>
+                      </ScrollReveal>
+                    ))}
+                  </div>
+
+                  {/* Second row: Grade 4, Grade 5, Grade 6, Registrar */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-                    {orgChartData.academicStaff.map((person, index) => (
+                    {orgChartData.academicStaff.slice(4).map((person, index) => (
                       <ScrollReveal key={person.id} animation="fade-up" delay={100 + index * 50}>
                         <div className="flex flex-col items-center">
                           <div className="w-24 h-24 rounded-full overflow-hidden border-3 border-papaya-green mb-4 shadow-md bg-gray-100">

@@ -10,6 +10,8 @@ import { GraduationCap, Search, Users, School, BookOpen, User, ChevronDown, Awar
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
 import ScrollReveal from '../../../components/ui/ScrollReveal';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -105,33 +107,39 @@ export default function SchoolAlumniPage() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    setLoading(true);
+    setError(null);
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+    // Real-time listener for alumni
+    const alumniQuery = query(
+      collection(db, 'alumni'),
+      orderBy('batchYear', 'desc')
+    );
 
-        // Use cached API endpoint instead of direct Firestore
-        const res = await fetch('/api/alumni');
-        if (!res.ok) throw new Error('Failed to fetch alumni');
-        const rows: Alumni[] = await res.json();
+    const unsubscribe = onSnapshot(alumniQuery, (snapshot) => {
+      const alumniData: Alumni[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name?.trim() || 'Unnamed Alumni',
+          age: typeof data.age === 'number' ? data.age : undefined,
+          batchYear: typeof data.batchYear === 'number' ? data.batchYear : undefined,
+          educationalStatus: data.educationalStatus?.trim() || undefined,
+          imageUrl: data.imageUrl?.trim() || undefined,
+          nameOfSchool: data.nameOfSchool?.trim() || undefined,
+          programOrGrade: data.programOrGrade?.trim() || undefined,
+        };
+      });
 
-        if (!mounted) return;
-        setAlumni(rows);
-      } catch (e: any) {
-        if (!mounted) return;
-        setError(e?.message ?? 'Failed to load alumni.');
-      } finally {
-        if (!mounted) return;
-        setLoading(false);
-      }
-    }
+      setAlumni(alumniData);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching alumni:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load alumni.');
+      setLoading(false);
+    });
 
-    load();
-    return () => {
-      mounted = false;
-    };
+    return () => unsubscribe();
   }, []);
 
   const batches = useMemo(() => {

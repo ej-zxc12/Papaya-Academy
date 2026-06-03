@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 
+// Cache for 30 seconds - reduced since client now uses real-time listeners
+export const revalidate = 30;
+
 export async function GET() {
   try {
     console.log('Fetching Apple Scholarships data from Firebase...');

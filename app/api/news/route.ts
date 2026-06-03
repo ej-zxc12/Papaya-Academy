@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, storage } from '../../../lib/firebase-admin'
 import { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 
-// Cache for 5 minutes (300 seconds) - public content that changes infrequently
-export const revalidate = 300
+// Cache for 30 seconds - reduced since client now uses real-time listeners
+export const revalidate = 30
 
 export async function GET() {
   try {

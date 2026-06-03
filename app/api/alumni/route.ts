@@ -12,8 +12,8 @@ export interface Alumni {
   programOrGrade?: string;
 }
 
-// Cache for 5 minutes (300 seconds) - public content that changes infrequently
-export const revalidate = 300;
+// Cache for 30 seconds - reduced since client now uses real-time listeners
+export const revalidate = 30;
 
 export async function GET() {
   try {

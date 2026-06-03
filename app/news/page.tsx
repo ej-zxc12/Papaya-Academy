@@ -25,6 +25,8 @@ import Footer from '../../components/layout/Footer';
 import AboutDropdown from '../../components/AboutDropdown';
 import NewsArticleCard from '../../components/NewsArticleCard';
 import { NewsArticle, formatNewsDate, UpcomingEvent } from '@/lib/news';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 
 const montserrat = Montserrat({ 
   subsets: ['latin'],
@@ -45,37 +47,59 @@ export default function NewsPage() {
   const activeCategoryKey = activeCategory.trim().toLowerCase();
 
   useEffect(() => {
-    const fetchArticles = async () => {
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        console.log('Starting to fetch articles...');
-        
-        // Use cached API endpoints instead of direct Firestore
-        const [newsRes, eventsRes] = await Promise.all([
-          fetch('/api/news'),
-          fetch('/api/events?limit=3')
-        ]);
-        
-        if (!newsRes.ok) throw new Error('Failed to fetch news');
-        if (!eventsRes.ok) throw new Error('Failed to fetch events');
-        
-        const newsData = await newsRes.json();
-        const eventsData = await eventsRes.json();
-        
-        console.log('Articles fetched successfully:', newsData);
-        setArticles(newsData);
-        setUpcomingEvents(eventsData);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-        console.error('Error fetching articles:', err);
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
+    // Real-time listener for news
+    const newsQuery = query(
+      collection(db, 'news'),
+      orderBy('date', 'desc')
+    );
+
+    const newsUnsubscribe = onSnapshot(newsQuery, (snapshot) => {
+      const newsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      } as NewsArticle));
+      setArticles(newsData);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching news:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch news');
+      setLoading(false);
+    });
+
+    // Real-time listener for events
+    const eventsQuery = query(
+      collection(db, 'events'),
+      orderBy('createdAt', 'desc'),
+      limit(3)
+    );
+
+    const eventsUnsubscribe = onSnapshot(eventsQuery, (snapshot) => {
+      const eventsData = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          startAt: data.startAt,
+          endAt: data.endAt,
+          status: data.status,
+          timezone: data.timezone,
+          createdAt: data.createdAt?.toDate?.() 
+            ? data.createdAt.toDate().toISOString() 
+            : data.createdAt,
+        };
+      });
+      setUpcomingEvents(eventsData);
+    }, (err) => {
+      console.error('Error fetching events:', err);
+    });
+
+    return () => {
+      newsUnsubscribe();
+      eventsUnsubscribe();
     };
-
-    fetchArticles();
   }, []);
 
   const filteredArticles = (() => {
